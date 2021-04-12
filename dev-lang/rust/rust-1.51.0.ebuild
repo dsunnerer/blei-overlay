@@ -328,6 +328,7 @@ src_configure() {
         fi
     fi
 
+
 	cat <<- _EOF_ > "${S}"/config.toml
 		[llvm]
 		download-ci-llvm = false
@@ -399,6 +400,10 @@ src_configure() {
 		[dist]
 		src-tarball = false
 	_EOF_
+
+	if ! use system-llvm; then
+		sed -i 's/use-linker = "lld"//g' "${S}"/config.toml
+	fi
 
 	for v in $(multilib_get_enabled_abi_pairs); do
 		rust_target=$(rust_abi $(get_abi_CHOST ${v##*.}))
