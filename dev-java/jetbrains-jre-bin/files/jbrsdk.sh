@@ -7,3 +7,4 @@ export DATAGRIP_JDK=${IDEA_JDK=/usr/lib/jvm/jetbrains-jre-bin}
 export GOLAND_JDK=${IDEA_JDK=/usr/lib/jvm/jetbrains-jre-bin}
 export PHPSTORM_JDK=${IDEA_JDK=/usr/lib/jvm/jetbrains-jre-bin}
 export RUBYMINE_JDK=${IDEA_JDK=/usr/lib/jvm/jetbrains-jre-bin}
+export WEBIDE_JDK=${WEBIDE_JDK=/usr/lib/jvm/jetbrains-jre-bin}
