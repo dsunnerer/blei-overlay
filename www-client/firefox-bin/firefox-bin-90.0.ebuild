@@ -21,7 +21,7 @@ SRC_URI="amd64? ( http://192.168.1.100:8080/firefox/${MOZ_PN}-${MOZ_PV}${MOZ_PV_
 DESCRIPTION="Firefox Web Browser - Private bin build based on pg_overlay + firefox-bin"
 HOMEPAGE="https://www.mozilla.com/firefox"
 
-KEYWORDS="-* amd64 x86"
+KEYWORDS="-*"
 SLOT="0/$(ver_cut 1)"
 LICENSE="MPL-2.0 GPL-2 LGPL-2.1"
 IUSE="alsa +ffmpeg +gmp-autoupdate hwaccel +pulseaudio selinux wayland"
