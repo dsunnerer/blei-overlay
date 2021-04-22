@@ -12,15 +12,25 @@ cmdname=$(basename "$0")
 ##
 ## Variables
 ##
-MOZ_LIB_DIR="/opt"
-SECONDARY_LIB_DIR="@PREFIX@/bin"
+MOZ_ARCH=$(uname -m)
+case ${MOZ_ARCH} in
+	x86_64|s390x|sparc64)
+		MOZ_LIB_DIR="@PREFIX@/lib64"
+		SECONDARY_LIB_DIR="@PREFIX@/lib"
+		;;
+	*)
+		MOZ_LIB_DIR="@PREFIX@/lib"
+		SECONDARY_LIB_DIR="@PREFIX@/lib64"
+		;;
+esac
+
 MOZ_FIREFOX_FILE="firefox"
 
 if [[ ! -r ${MOZ_LIB_DIR}/firefox/${MOZ_FIREFOX_FILE} ]]; then
-	if [[ ! -r ${SECONDARY_LIB_DIR}/${MOZ_FIREFOX_FILE} ]]; then
-		echo "Error: ${MOZ_LIB_DIR}/${MOZ_FIREFOX_FILE} not found" >&2
+	if [[ ! -r ${SECONDARY_LIB_DIR}/firefox/${MOZ_FIREFOX_FILE} ]]; then
+		echo "Error: ${MOZ_LIB_DIR}/firefox/${MOZ_FIREFOX_FILE} not found" >&2
 		if [[ -d $SECONDARY_LIB_DIR ]]; then
-			echo "       ${SECONDARY_LIB_DIR}/${MOZ_FIREFOX_FILE} not found" >&2
+			echo "       ${SECONDARY_LIB_DIR}/firefox/${MOZ_FIREFOX_FILE} not found" >&2
 		fi
 		exit 1
 	fi
