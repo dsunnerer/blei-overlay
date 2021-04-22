@@ -589,6 +589,22 @@ src_prepare() {
 			einfo -------------------------
 		fi
 	done
+
+	### Blei patches
+	einfo "Applying Blei's patches"
+	for p in $(cat "${FILESDIR}/blei-patches-$(ver_cut 1)"/series);do
+		patch --dry-run --silent -p1 -i "${FILESDIR}/blei-patches-$(ver_cut 1)"/$p 2>/dev/null
+		if [ $? -eq 0 ]; then
+			eapply "${FILESDIR}/blei-patches-$(ver_cut 1)"/$p;
+			einfo +++++++++++++++++++++++++;
+			einfo Patch $p is APPLIED;
+			einfo +++++++++++++++++++++++++
+		else
+			einfo -------------------------;
+			einfo Patch $p is NOT applied and IGNORED;
+			einfo -------------------------
+		fi
+	done
 	#######
 
 	xdg_src_prepare
@@ -1022,9 +1038,9 @@ src_configure() {
 	mozconfig_add_options_ac '' --enable-webrtc
 
 	### And a few more good options
-	ac_add_options '' --enable-replace-malloc
-	ac_add_options '' --enable-jemalloc
-	ac_add_options '' --enable-wasm-simd
+	mozconfig_add_options_ac '' --enable-replace-malloc
+	mozconfig_add_options_ac '' --enable-jemalloc
+	mozconfig_add_options_ac '' --enable-wasm-simd
 
 
 	echo "export MOZ_DATA_REPORTING=" >> "${S}"/.mozconfig
@@ -1048,18 +1064,6 @@ src_configure() {
 	echo
 
 	./mach configure || die
-
-	# native cpu architecture for LTO
-	sed -i '276s/x86-64/native/' "${S}"/build/moz.configure/lto-pgo.configure || die
-	sed -i '572s/x86-64/native/' "${S}"/third_party/libwebrtc/webrtc/build/config/compiler/BUILD.gn || die
-	sed -i 's/x86-64/native/g' "${S}"/dom/media/webrtc/third_party_build/gn-configs/x64_True_x64_linux.json || die
-	sed -i 's/-O0/-O3/g' "${S}"/dom/media/webrtc/third_party_build/gn-configs/x64_True_x64_linux.json || die
-	sed -i 's/x86-64/native/g' "${S}"/dom/media/webrtc/third_party_build/gn-configs/x64_False_x64_linux.json || die
-	sed -i 's/-O0/-O3/g' "${S}"/dom/media/webrtc/third_party_build/gn-configs/x64_True_x64_linux.json || die
-
-	# disable LTO inline limit and multiplier
-	sed -i '301s/-Wl,-plugin-opt=-import-instr-limit=10//' "${S}"/build/moz.configure/lto-pgo.configure || die
-	sed -i '315s/-Wl,-plugin-opt=-import-hot-multiplier=30//' "${S}"/build/moz.configure/lto-pgo.configure || die
 }
 
 src_compile() {
