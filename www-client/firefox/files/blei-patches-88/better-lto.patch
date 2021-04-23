@@ -5,7 +5,7 @@
              # https://github.com/llvm/llvm-project/blob/e7694f34ab6a12b8bb480cbfcb396d0a64fe965f/llvm/lib/Target/X86/X86.td#L1165-L1187
              if target.cpu == "x86_64":
 -                ldflags.append("-mllvm:-mcpu=x86-64")
-+                ldflags.append("-mllvm:-mcpu=native")
++                ldflags.append("-mllvm:-mcpu=_NATIVE_ARCH_")
              # We do not need special flags for arm64.  Hooray for fixed-length
              # instruction sets.
          else:

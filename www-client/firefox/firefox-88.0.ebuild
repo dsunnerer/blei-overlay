@@ -590,8 +590,19 @@ src_prepare() {
 		fi
 	done
 
-	### Blei patches
+  ### Blei patches
+  einfo "Preparing better-lto.patch"
+  _arch="$(gcc -march=native -E -v - </dev/null 2>&1 | \
+    grep cc1 | \
+    sed -E 's/.*(-march=[a-z]{1,}[0-9]*).*/\1/' | \
+    cut -d '=' -f2
+  )"
+  sed -e "s/_NATIVE_ARCH_/${_arch}/" \
+    "${FILESDIR}/blei-patches-$(ver_cut 1)"/better-lto.patch > \
+    "${WORKDIR}"/better-lto.patch
+
 	einfo "Applying Blei's patches"
+	eapply "${WORKDIR}"/better-lto.patch
 	for p in $(cat "${FILESDIR}/blei-patches-$(ver_cut 1)"/series);do
 		patch --dry-run --silent -p1 -i "${FILESDIR}/blei-patches-$(ver_cut 1)"/$p 2>/dev/null
 		if [ $? -eq 0 ]; then
