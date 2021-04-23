@@ -603,19 +603,19 @@ src_prepare() {
 
 	einfo "Applying Blei's patches"
 	eapply "${WORKDIR}"/better-lto.patch
-	for p in $(cat "${FILESDIR}/blei-patches-$(ver_cut 1)"/series);do
-		patch --dry-run --silent -p1 -i "${FILESDIR}/blei-patches-$(ver_cut 1)"/$p 2>/dev/null
-		if [ $? -eq 0 ]; then
-			eapply "${FILESDIR}/blei-patches-$(ver_cut 1)"/$p;
-			einfo +++++++++++++++++++++++++;
-			einfo Patch $p is APPLIED;
-			einfo +++++++++++++++++++++++++
-		else
-			einfo -------------------------;
-			einfo Patch $p is NOT applied and IGNORED;
-			einfo -------------------------
-		fi
-	done
+#	for p in $(cat "${FILESDIR}/blei-patches-$(ver_cut 1)"/series);do
+#		patch --dry-run --silent -p1 -i "${FILESDIR}/blei-patches-$(ver_cut 1)"/$p 2>/dev/null
+#		if [ $? -eq 0 ]; then
+#			eapply "${FILESDIR}/blei-patches-$(ver_cut 1)"/$p;
+#			einfo +++++++++++++++++++++++++;
+#			einfo Patch $p is APPLIED;
+#			einfo +++++++++++++++++++++++++
+#		else
+#			einfo -------------------------;
+#			einfo Patch $p is NOT applied and IGNORED;
+#			einfo -------------------------
+#		fi
+#	done
 	#######
 
 	xdg_src_prepare
