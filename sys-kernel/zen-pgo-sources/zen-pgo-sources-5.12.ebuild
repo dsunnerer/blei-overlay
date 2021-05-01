@@ -30,6 +30,7 @@ ${HOMEPAGE}, also go to #zen-sources on freenode"
 src_prepare() {
 	default
 	eapply "${FILESDIR}/kernelpgo.patch"
+	eapply "${FILESDIR}/extraversion.patch"
 }
 
 pkg_postrm() {

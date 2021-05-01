@@ -1,0 +1,11 @@
+--- linux-5.12-zen/Makefile	2021-05-01 16:19:05.695378260 +0200
++++ linux-5.12-zen/Makefile-mod	2021-05-01 16:21:13.460958707 +0200
+@@ -2,7 +2,7 @@
+ VERSION = 5
+ PATCHLEVEL = 12
+ SUBLEVEL = 0
+-EXTRAVERSION = -zen1
++EXTRAVERSION = -zen1-pgo
+ NAME = Crossing the Sliðr
+ 
+ # *DOCUMENTATION*
