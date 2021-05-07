@@ -135,11 +135,6 @@ QA_SONAME="
 # causes double bootstrap
 RESTRICT="test"
 
-PATCHES=(
-	"${FILESDIR}"/1.47.0-ignore-broken-and-non-applicable-tests.patch
-	"${FILESDIR}"/0001-Change-LLVM-targets.patch
-	"${FILESDIR}"/1.51.0-bootstrap-panic.patch
-)
 
 S="${WORKDIR}/${MY_P}-src"
 
@@ -219,11 +214,6 @@ pkg_setup() {
 }
 
 src_prepare() {
-	eapply "${FILESDIR}/0004-55f345f32505c2095966a5dc46c4ae3290dbf7a1.patch"
-	eapply "${FILESDIR}/0005-9a8acea78355b604dbeb29bc38bd4dbf7bfce95f.patch"
-	eapply "${FILESDIR}/0006-65ed23c2827a5771718fe72762bca345dde6ec79.patch"
-	eapply "${FILESDIR}/0007-8357e573466d583991edd28e52433417b49dc4ae.patch"
-
 	if ! use system-bootstrap; then
 		local rust_stage0_root="${WORKDIR}"/rust-stage0
 		local rust_stage0="rust-${RUST_STAGE0_VERSION}-$(rust_abi)"
@@ -272,8 +262,6 @@ src_prepare() {
 	# LLVM LibUwind hack
 	sed -i /std=c99/d library/unwind/build.rs
 	sed -i /std=c++11/d library/unwind/build.rs
-
-	use libressl && eapply ${FILESDIR}/${P}-1.47.0-libressl.patch
 
 	default
 }
