@@ -135,14 +135,15 @@ QA_SONAME="
 # causes double bootstrap
 RESTRICT="test"
 
+PATCHES=(
+	"${FILESDIR}"/1.47.0-ignore-broken-and-non-applicable-tests.patch
+	"${FILESDIR}"/1.52-0001-Change-LLVM-targets.patch
+)
 
 S="${WORKDIR}/${MY_P}-src"
 
 toml_usex() {
 	usex "${1}" true false
-}
-libcxx_usex() {
-    usex "${1}" true false
 }
 
 boostrap_rust_version_check() {
@@ -263,6 +264,8 @@ src_prepare() {
 	sed -i /std=c99/d library/unwind/build.rs
 	sed -i /std=c++11/d library/unwind/build.rs
 
+	use libressl && eapply ${FILESDIR}/${P}-1.47.0-libressl.patch
+
 	default
 }
 
@@ -332,7 +335,7 @@ src_configure() {
 		experimental-targets = ""
 		link-jobs = $(makeopts_jobs)
 		link-shared = true
-		use-libcxx = $(libcxx_usex libcxx)
+		use-libcxx = $(usex libcxx true false)
 
 		[build]
 		build = "${rust_target}"
