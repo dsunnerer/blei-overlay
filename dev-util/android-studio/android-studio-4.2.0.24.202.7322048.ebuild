@@ -105,3 +105,8 @@ src_install() {
 	mkdir -p "${D}/etc/sysctl.d/" || die
 	echo "fs.inotify.max_user_watches = 524288" > "${D}/etc/sysctl.d/30-idea-inotify-watches.conf" || die
 }
+
+pkg_postinst() {
+  [ "$(use system-sdk-update-manager)" ] && \
+  ewarn "Add your development user to the grou 'android' if you want to manage the toolchain with both SDK updaters."
+}
