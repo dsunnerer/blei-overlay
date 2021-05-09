@@ -34,17 +34,19 @@ SRC_URI="https://dl.google.com/dl/android/studio/ide-zips/${STUDIO_V}/${PN}-ide-
 LICENSE="Apache-2.0"
 SLOT="0"
 KEYWORDS="~amd64"
-IUSE="selinux"
+IUSE="jetbrains-jre selinux"
 
 DEPEND="" #dev-java/commons-logging:0
 	# dev-java/log4j:0"
 
 RDEPEND="${DEPEND}
-	dev-java/jetbrains-jre-bin
 	dev-java/jansi-native
 	dev-libs/libdbusmenu
-	selinux? ( sec-policy/selinux-android )"
-BDEPEND="dev-util/patchelf"
+	dev-util/android-sdk-update-manager
+	selinux? ( sec-policy/selinux-android )
+	jetbrains-jre? ( dev-java/jetbrains-jre-bin )
+	|| ( >=virtual/jdk-1.7 )"
+BDEPEND="" # dev-util/patchelf"
 
 RESTRICT="strip splitdebug mirror"
 
@@ -60,9 +62,13 @@ src_prepare() {
 	rm -vrf "${S}"/lib/pty4j-native/linux/ppc64le
 	rm -vf "${S}"/bin/libdbm64*
 
-	rm -vrf "${S}"/jre
-
-	#patchelf --replace-needed liblldb.so liblldb.so.9 "${S}"/plugins/Kotlin/bin/linux/LLDBFrontend || die "Unable to patch LLDBFrontend for lldb"
+	# This is really a bundled jdk not a jre
+	# If jetbrains-jre is not set bundled jre is replaced with system vm/jdk
+	if use jetbrains-jre; then
+		mv -f "${S}/jre" "${S}/custom-jdk" || die "Could not move bundled jdk"
+	else
+		rm -rf "${S}/jre" || die "Could not remove bundled jdk"
+	fi
 
 	sed -i \
 		-e "\$a\\\\" \
@@ -84,7 +90,20 @@ src_install() {
 
 	insinto "${dir}"
 	doins -r *
+
+	# This is really a bundled jdk not a jre
+	# If jetbrains-jre is not set bundled jre is replaced with system vm/jdk
+	if use jetbrains-jre; then
+		dosym "../../usr/lib/jvm/jetbrains-jre-bin" "${dir}/jre"
+	else
+		dosym "../../etc/java-config-2/current-system-vm" "${dir}/jre"
+	fi
+
 	fperms 755 "${dir}"/bin/{format.sh,studio.sh,inspect.sh,printenv.py,restart.py,fsnotifier{,64}}
+#	if use jetbrains-jre; then
+#		fperms -R 755 "${dir}"/jre/{bin,jre/bin}
+#		fperms 755 ${dir}/jre/jre/lib/jexec
+#	fi
 
 	dosym "${dir}/bin/studio.sh" "/usr/bin/${PN}"
 	dosym "${dir}/bin/studio.png" "/usr/share/pixmaps/${PN}.png"
