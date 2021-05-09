@@ -81,10 +81,6 @@ src_prepare() {
 	eapply_user
 }
 
-#src_compile() {
-#  patchelf --set-rpath '$ORIGIN' bin/lldb/lib/readline.so || die "Failed to fix insecure RPATH"
-#}
-
 src_install() {
 	local dir="/opt/${PN}-${STUDIO_V}"
 
@@ -100,10 +96,6 @@ src_install() {
 	fi
 
 	fperms 755 "${dir}"/bin/{format.sh,studio.sh,inspect.sh,printenv.py,restart.py,fsnotifier{,64}}
-#	if use jetbrains-jre; then
-#		fperms -R 755 "${dir}"/jre/{bin,jre/bin}
-#		fperms 755 ${dir}/jre/jre/lib/jexec
-#	fi
 
 	dosym "${dir}/bin/studio.sh" "/usr/bin/${PN}"
 	dosym "${dir}/bin/studio.png" "/usr/share/pixmaps/${PN}.png"
