@@ -34,7 +34,7 @@ SRC_URI="https://dl.google.com/dl/android/studio/ide-zips/${STUDIO_V}/${PN}-ide-
 LICENSE="Apache-2.0"
 SLOT="0"
 KEYWORDS="~amd64"
-IUSE="jetbrains-jre selinux"
+IUSE="jetbrains-jre selinux system-sdk-update-manager"
 
 DEPEND="" #dev-java/commons-logging:0
 	# dev-java/log4j:0"
@@ -42,7 +42,7 @@ DEPEND="" #dev-java/commons-logging:0
 RDEPEND="${DEPEND}
 	dev-java/jansi-native
 	dev-libs/libdbusmenu
-	dev-util/android-sdk-update-manager
+	system-sdk-update-manager? ( dev-util/android-sdk-update-manager )
 	selinux? ( sec-policy/selinux-android )
 	jetbrains-jre? ( dev-java/jetbrains-jre-bin )
 	|| ( >=virtual/jdk-1.7 )"
