@@ -3,7 +3,7 @@
 
 EAPI="7"
 
-FIREFOX_PATCHSET="firefox-88-patches-01.tar.xz"
+FIREFOX_PATCHSET="firefox-89-patches-01.tar.xz"
 
 LLVM_MAX_SLOT=12
 
@@ -555,9 +555,10 @@ src_prepare() {
 			einfo -------------------------
 		fi
 	done
+
 	### FreeBSD patches
-	einfo "Applying FreeBSD's patches"
-	for i in $(cat "${FILESDIR}/freebsd-patchset-$(ver_cut 1)/series"); do eapply "${FILESDIR}/freebsd-patchset-$(ver_cut 1)/$i";	done
+	#einfo "Applying FreeBSD's patches"
+	#for i in $(cat "${FILESDIR}/freebsd-patchset-$(ver_cut 1)/series"); do eapply "${FILESDIR}/freebsd-patchset-$(ver_cut 1)/$i";	done
 
 	### Fedora patches
 	einfo "Applying Fedora's patches"
