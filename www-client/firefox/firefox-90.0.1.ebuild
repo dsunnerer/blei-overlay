@@ -3,11 +3,11 @@
 
 EAPI="7"
 
-FIREFOX_PATCHSET="firefox-$(ver_cut 1)-patches-01.tar.xz"
+FIREFOX_PATCHSET="firefox-90-patches-01.tar.xz"
 
 LLVM_MAX_SLOT=12
 
-PYTHON_COMPAT=( python3_{7..9} )
+PYTHON_COMPAT=( python3_{9,10} )
 PYTHON_REQ_USE="ncurses,sqlite,ssl"
 
 WANT_AUTOCONF="2.1"
@@ -37,8 +37,8 @@ MOZ_P="${MOZ_PN}-${MOZ_PV}"
 MOZ_PV_DISTFILES="${MOZ_PV}${MOZ_PV_SUFFIX}"
 MOZ_P_DISTFILES="${MOZ_PN}-${MOZ_PV_DISTFILES}"
 
-inherit autotools check-reqs desktop flag-o-matic gnome2-utils llvm \
-	multiprocessing pax-utils python-any-r1 toolchain-funcs \
+inherit autotools check-reqs desktop flag-o-matic gnome2-utils linux-info \
+	llvm multiprocessing pax-utils python-any-r1 toolchain-funcs \
 	virtualx xdg
 
 MOZ_SRC_BASE_URI="https://archive.mozilla.org/pub/${MOZ_PN}/releases/${MOZ_PV}"
@@ -62,7 +62,7 @@ KEYWORDS="~amd64 ~arm64 ~ppc64 ~x86"
 SLOT="0/$(ver_cut 1)"
 LICENSE="MPL-2.0 GPL-2 LGPL-2.1"
 IUSE="+clang cpu_flags_arm_neon dbus debug eme-free geckodriver +gmp-autoupdate
-	hardened hwaccel jack lto +openh264 pgo pulseaudio screencast selinux
+	hardened hwaccel jack lto +openh264 pgo pulseaudio screencast sndio selinux
 	+system-av1 +system-harfbuzz +system-icu +system-jpeg +system-libevent
 	+system-libvpx +system-webp wayland wifi
 	+jit +kde +privacy"
@@ -73,7 +73,7 @@ REQUIRED_USE="debug? ( !system-av1 )
 BDEPEND="${PYTHON_DEPS}
 	app-arch/unzip
 	app-arch/zip
-	>=dev-util/cbindgen-0.16.0
+	>=dev-util/cbindgen-0.19.0
 	>=net-libs/nodejs-10.23.1
 	virtual/pkgconfig
 	>=virtual/rust-1.47.0
@@ -95,15 +95,11 @@ BDEPEND="${PYTHON_DEPS}
 			)
 		)
 	)
-	amd64? ( >=dev-lang/yasm-1.1 )
-	x86? ( >=dev-lang/yasm-1.1 )
-	!system-av1? (
-		amd64? ( >=dev-lang/nasm-2.13 )
-		x86? ( >=dev-lang/nasm-2.13 )
-	)"
+	amd64? ( >=dev-lang/nasm-2.13 )
+	x86? ( >=dev-lang/nasm-2.13 )"
 
 CDEPEND="
-	>=dev-libs/nss-3.63
+	>=dev-libs/nss-3.66
 	>=dev-libs/nspr-4.29
 	dev-libs/atk
 	dev-libs/expat
@@ -155,7 +151,8 @@ CDEPEND="
 		)
 	)
 	jack? ( virtual/jack )
-	selinux? ( sec-policy/selinux-mozilla )"
+	selinux? ( sec-policy/selinux-mozilla )
+	sndio? ( media-sound/sndio )"
 
 RDEPEND="${CDEPEND}
 	jack? ( virtual/jack )
@@ -167,8 +164,10 @@ RDEPEND="${CDEPEND}
 		)
 	)
 	selinux? ( sec-policy/selinux-mozilla )
-	kde? ( kde-apps/kdialog
-		kde-misc/kmozillahelper )"
+	kde? (
+		kde-apps/kdialog
+		kde-misc/kmozillahelper
+	)"
 
 DEPEND="${CDEPEND}
 	pulseaudio? (
@@ -191,19 +190,19 @@ fi
 
 llvm_check_deps() {
 	if ! has_version -b "sys-devel/clang:${LLVM_SLOT}" ; then
-		ewarn "sys-devel/clang:${LLVM_SLOT} is missing! Cannot use LLVM slot ${LLVM_SLOT} ..." >&2
+		einfo "sys-devel/clang:${LLVM_SLOT} is missing! Cannot use LLVM slot ${LLVM_SLOT} ..." >&2
 		return 1
 	fi
 
 	if use clang ; then
 		if ! has_version -b "=sys-devel/lld-${LLVM_SLOT}*" ; then
-			ewarn "=sys-devel/lld-${LLVM_SLOT}* is missing! Cannot use LLVM slot ${LLVM_SLOT} ..." >&2
+			einfo "=sys-devel/lld-${LLVM_SLOT}* is missing! Cannot use LLVM slot ${LLVM_SLOT} ..." >&2
 			return 1
 		fi
 
 		if use pgo ; then
 			if ! has_version -b "=sys-libs/compiler-rt-sanitizers-${LLVM_SLOT}*" ; then
-				ewarn "=sys-libs/compiler-rt-sanitizers-${LLVM_SLOT}* is missing! Cannot use LLVM slot ${LLVM_SLOT} ..." >&2
+				einfo "=sys-libs/compiler-rt-sanitizers-${LLVM_SLOT}* is missing! Cannot use LLVM slot ${LLVM_SLOT} ..." >&2
 				return 1
 			fi
 		fi
@@ -416,6 +415,13 @@ pkg_setup() {
 			fi
 		fi
 
+		if ! use clang && [[ $(gcc-major-version) -eq 11 ]] \
+			&& ! has_version -b ">sys-devel/gcc-11.1.0:11" ; then
+			# bug 792705
+			eerror "Using GCC 11 to compile firefox is currently known to be broken (see bug #792705)."
+			die "Set USE=clang or select <gcc-11 to build ${CATEGORY}/${P}."
+		fi
+
 		python-any-r1_pkg_setup
 
 		# Avoid PGO profiling problems due to enviroment leakage
@@ -442,23 +448,27 @@ pkg_setup() {
 		# Note: These are for Gentoo Linux use ONLY. For your own distribution, please
 		# get your own set of keys.
 		if [[ -z "${MOZ_API_KEY_GOOGLE+set}" ]] ; then
-			MOZ_API_KEY_GOOGLE="AIzaSyDEAOvatFogGaPi0eTgsV_ZlEzx0ObmepsMzfAc"
+			MOZ_API_KEY_GOOGLE=""
 		fi
 
 		if [[ -z "${MOZ_API_KEY_LOCATION+set}" ]] ; then
-			MOZ_API_KEY_LOCATION="AIzaSyB2h2OuRgGaPicUgy5N-5hsZqiPW6sH3n_rptiQ"
+			MOZ_API_KEY_LOCATION=""
 		fi
 
 		# Mozilla API keys (see https://location.services.mozilla.com/api)
 		# Note: These are for Gentoo Linux use ONLY. For your own distribution, please
 		# get your own set of keys.
 		if [[ -z "${MOZ_API_KEY_MOZILLA+set}" ]] ; then
-			MOZ_API_KEY_MOZILLA="edb3d487-3a84-46m0ap1e3-9dfd-92b5efaaa005"
+			MOZ_API_KEY_MOZILLA=""
 		fi
 
 		# Ensure we use C locale when building, bug #746215
 		export LC_ALL=C
 	fi
+
+	CONFIG_CHECK="~SECCOMP"
+	WARNING_SECCOMP="CONFIG_SECCOMP not set! This system will be unable to play DRM-protected content."
+	linux-info_pkg_setup
 }
 
 src_unpack() {
@@ -555,10 +565,9 @@ src_prepare() {
 			einfo -------------------------
 		fi
 	done
-
 	### FreeBSD patches
-	#einfo "Applying FreeBSD's patches"
-	#for i in $(cat "${FILESDIR}/freebsd-patchset-$(ver_cut 1)/series"); do eapply "${FILESDIR}/freebsd-patchset-$(ver_cut 1)/$i";	done
+	einfo "Applying FreeBSD's patches"
+	for i in $(cat "${FILESDIR}/freebsd-patchset-$(ver_cut 1)/series"); do eapply "${FILESDIR}/freebsd-patchset-$(ver_cut 1)/$i";	done
 
 	### Fedora patches
 	einfo "Applying Fedora's patches"
@@ -590,7 +599,8 @@ src_prepare() {
 			einfo -------------------------
 		fi
 	done
-
+	#######
+	
   ### Blei patches
   einfo "Preparing better-lto.patch"
   _arch="$(gcc -march=native -E -v - </dev/null 2>&1 | \
@@ -617,7 +627,6 @@ src_prepare() {
 #			einfo -------------------------
 #		fi
 #	done
-	#######
 
 	xdg_src_prepare
 }
@@ -781,6 +790,8 @@ src_configure() {
 	if use kernel_linux && ! use pulseaudio ; then
 		mozconfig_add_options_ac '-pulseaudio' --enable-alsa
 	fi
+
+	mozconfig_use_enable sndio
 
 	mozconfig_use_enable wifi necko-wifi
 
@@ -998,7 +1009,7 @@ src_configure() {
 
 	mozconfig_add_options_ac '' --disable-memory-sanitizer
 	mozconfig_add_options_ac '' --disable-mobile-optimize
-
+	
 	mozconfig_add_options_ac '' --disable-necko-wifi
 
 	mozconfig_add_options_ac '' --disable-parental-controls
@@ -1053,7 +1064,6 @@ src_configure() {
 	mozconfig_add_options_ac '' --enable-replace-malloc
 	mozconfig_add_options_ac '' --enable-jemalloc
 	mozconfig_add_options_ac '' --enable-wasm-simd
-
 
 	echo "export MOZ_DATA_REPORTING=" >> "${S}"/.mozconfig
 	echo "export MOZ_DEVICES=" >> "${S}"/.mozconfig
@@ -1118,7 +1128,7 @@ src_install() {
 	insinto "${MOZILLA_FIVE_HOME}/distribution"
 	newins "${FILESDIR}"/distribution.ini distribution.ini
 	#######
-	if use privacy; then
+	if use privacy; then 
 		newins "${FILESDIR}"/enable-privacy.policy.json policies.json
 	else
 		newins "${FILESDIR}"/disable-auto-update.policy.json policies.json
