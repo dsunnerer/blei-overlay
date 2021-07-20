@@ -3,7 +3,7 @@
 
 EAPI=7
 
-_jdk_build="1428.2"
+_jdk_build="1504.12"
 MY_PV="${PV//\./_}"
 
 DESCRIPTION="JetBrains JDK"
@@ -12,15 +12,15 @@ HOMEPAGE="https://github.com/JetBrains/JetBrainsRuntime"
 LICENSE="GPL-2"
 SLOT="0"
 KEYWORDS="~amd64"
-IUSE="dcevm fd +jcef jfx nomod vanilla"
+IUSE="dcevm fd +jcef nomod"
 REQUIRED_USE="amd64 ( ^^ ( dcevm fd jcef nomod ) )"
 
 SRC_URI="
   amd64? (
-      dcevm? ( https://dl.bintray.com/jetbrains/intellij-jbr/jbr_dcevm-${MY_PV}-linux-x64-b${_jdk_build}.tar.gz )
-      fd? ( https://dl.bintray.com/jetbrains/intellij-jbr/jbr_fd-${MY_PV}-linux-x64-b${_jdk_build}.tar.gz )
-      jcef? ( https://dl.bintray.com/jetbrains/intellij-jbr/jbr_jcef-${MY_PV}-linux-x64-b${_jdk_build}.tar.gz )
-      nomod? ( https://dl.bintray.com/jetbrains/intellij-jbr/jbr_nomod-${MY_PV}-linux-x64-b${_jdk_build}.tar.gz )
+      dcevm? ( https://cache-redirector.jetbrains.com/intellij-jbr/jbr_dcevm-${MY_PV}-linux-x64-b${_jdk_build}.tar.gz )
+      fd? ( https://cache-redirector.jetbrains.com/intellij-jbr/jbr_fd-${MY_PV}-linux-x64-b${_jdk_build}.tar.gz )
+      jcef? ( https://cache-redirector.jetbrains.com/intellij-jbr/jbr_jcef-${MY_PV}-linux-x64-b${_jdk_build}.tar.gz )
+      nomod? ( https://cache-redirector.jetbrains.com/intellij-jbr/jbr_nomod-${MY_PV}-linux-x64-b${_jdk_build}.tar.gz )
   )
 "
 
