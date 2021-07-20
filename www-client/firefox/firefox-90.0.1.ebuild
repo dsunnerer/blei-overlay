@@ -7,7 +7,7 @@ FIREFOX_PATCHSET="firefox-90-patches-01.tar.xz"
 
 LLVM_MAX_SLOT=12
 
-PYTHON_COMPAT=( python3_{9,10} )
+PYTHON_COMPAT=( python3_9 )
 PYTHON_REQ_USE="ncurses,sqlite,ssl"
 
 WANT_AUTOCONF="2.1"
