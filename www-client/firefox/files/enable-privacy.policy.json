@@ -12,11 +12,17 @@
 		"DisableSetDesktopBackground": true,
 		"DisableSystemAddonUpdate": true,
 		"DontCheckDefaultBrowser": true,
+		"HardwareAcceleration": true,
 		"NetworkPrediction": false,
 		"OverridePostUpdatePage": "",
 		"SearchSuggestEnabled": false,
-		"SearchEngines": {
-			"PreventInstalls": true
+		"Extensions": {
+			"Uninstall": [
+				"amazondotcom@search.mozilla.org",
+				"bing@search.mozilla.org",
+				"ebay@search.mozilla.org",
+				"twitter@search.mozilla.org"
+			]
 		}
 	}
 }
