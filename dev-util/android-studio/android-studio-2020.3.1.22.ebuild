@@ -48,7 +48,7 @@ RESTRICT="strip splitdebug mirror"
 src_unpack() {
 	default_src_unpack
 
-  P="${PN}-${STUDIO_V}.${BUILD_V}"
+  P="${PN}-${STUDIO_V}"
 	mv android-studio "${P}"
 }
 
