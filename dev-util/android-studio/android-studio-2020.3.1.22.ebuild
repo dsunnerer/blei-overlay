@@ -17,18 +17,13 @@ QA_PREBUILT="
 	opt/${PN}-${STUDIO_V}/plugins/android/resources/transport/*
 "
 
-VER_CMP=( $(ver_rs 1- ' ') )
-if [[ ${#VER_CMP[@]} -eq 6 ]]; then
-	STUDIO_V=$(ver_cut 1-4)
-	BUILD_V=$(ver_cut 5-6)
-else
-	STUDIO_V=$(ver_cut 1-3)
-	BUILD_V=$(ver_cut 4-5)
-fi
+STUDIO_V=$(ver_cut 1-4)
+BUILD_V=$(ver_cut 1-4)
+
 
 DESCRIPTION="Dedicated Android IDE"
 HOMEPAGE="https://developer.android.com/sdk/installing/studio.html"
-SRC_URI="https://dl.google.com/dl/android/studio/ide-zips/${STUDIO_V}/${PN}-ide-${BUILD_V}-linux.tar.gz"
+SRC_URI="https://dl.google.com/dl/android/studio/ide-zips/${STUDIO_V}/${PN}-${BUILD_V}-linux.tar.gz"
 
 
 LICENSE="Apache-2.0"
