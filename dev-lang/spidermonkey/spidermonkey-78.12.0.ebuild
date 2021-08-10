@@ -7,7 +7,7 @@ EAPI="7"
 FIREFOX_PATCHSET="firefox-78esr-patches-12.tar.xz"
 SPIDERMONKEY_PATCHSET="spidermonkey-78-patches-03.tar.xz"
 
-LLVM_MAX_SLOT=12
+LLVM_MAX_SLOT=13
 
 PYTHON_COMPAT=( python3_{7..9} )
 
