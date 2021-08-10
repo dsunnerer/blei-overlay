@@ -73,10 +73,10 @@ BDEPEND="${PYTHON_DEPS}
 	virtual/pkgconfig
 	|| (
 		(
-			sys-devel/llvm:12
+			sys-devel/llvm:13
 			clang? (
-				sys-devel/clang:12
-				lto? ( =sys-devel/lld-12* )
+				sys-devel/clang:13
+				lto? ( =sys-devel/lld-13* )
 			)
 		)
 	)
