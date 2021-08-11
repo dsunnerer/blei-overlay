@@ -6,15 +6,15 @@ inherit desktop
 
 RESTRICT="strip"
 QA_PREBUILT="
-	opt/${PN}-${STUDIO_V}/bin/fsnotifier*
-	opt/${PN}-${STUDIO_V}/bin/libdbm64.so
-	opt/${PN}-${STUDIO_V}/bin/lldb/*
-	opt/${PN}-${STUDIO_V}/lib/pty4j-native/linux/*/libpty.so
-	opt/${PN}-${STUDIO_V}/plugins/android/lib/libwebp_jni*.so
-	opt/${PN}-${STUDIO_V}/plugins/android/resources/installer/*
-	opt/${PN}-${STUDIO_V}/plugins/android/resources/perfetto/*
-	opt/${PN}-${STUDIO_V}/plugins/android/resources/simpleperf/*
-	opt/${PN}-${STUDIO_V}/plugins/android/resources/transport/*
+	opt/${PN}/bin/fsnotifier*
+	opt/${PN}/bin/libdbm64.so
+	opt/${PN}/bin/lldb/*
+	opt/${PN}/lib/pty4j-native/linux/*/libpty.so
+	opt/${PN}/plugins/android/lib/libwebp_jni*.so
+	opt/${PN}/plugins/android/resources/installer/*
+	opt/${PN}/plugins/android/resources/perfetto/*
+	opt/${PN}/plugins/android/resources/simpleperf/*
+	opt/${PN}/plugins/android/resources/transport/*
 "
 
 STUDIO_V=$(ver_cut 1-5)
@@ -47,9 +47,7 @@ RESTRICT="strip splitdebug mirror"
 
 src_unpack() {
 	default_src_unpack
-
-  P="${PN}-${STUDIO_V}"
-	mv android-studio "${P}"
+	mv "${WORKDIR}/${PN}" "${S}"
 }
 
 src_prepare() {
@@ -77,7 +75,7 @@ src_prepare() {
 }
 
 src_install() {
-	local dir="/opt/${PN}-${STUDIO_V}"
+	local dir="/opt/${PN}"
 
 	insinto "${dir}"
 	doins -r *
@@ -90,7 +88,7 @@ src_install() {
 		dosym "../../etc/java-config-2/current-system-vm" "${dir}/jre"
 	fi
 
-	fperms 755 "${dir}"/bin/{format.sh,studio.sh,inspect.sh,printenv.py,restart.py,fsnotifier{,64}}
+	fperms 755 "${dir}"/bin/{format.sh,studio.sh,inspect.sh,printenv.py,restart.py,fsnotifier{,64},game-tools.sh,ltedit.sh,profiler.sh}
 
 	dosym "${dir}/bin/studio.sh" "/usr/bin/${PN}"
 	dosym "${dir}/bin/studio.png" "/usr/share/pixmaps/${PN}.png"
@@ -103,5 +101,5 @@ src_install() {
 
 pkg_postinst() {
   [ "$(use system-sdk-update-manager)" ] && \
-  ewarn "Add your development user to the grou 'android' if you want to manage the toolchain with both SDK updaters."
+  ewarn "Add your development user to the group 'android' if you want to manage the toolchain with both SDK updaters."
 }
