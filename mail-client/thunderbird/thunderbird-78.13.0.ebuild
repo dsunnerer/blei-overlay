@@ -3,7 +3,7 @@
 
 EAPI="7"
 
-FIREFOX_PATCHSET="firefox-78esr-patches-15.tar.xz"
+FIREFOX_PATCHSET="firefox-78esr-patches-16.tar.xz"
 
 LLVM_MAX_SLOT=12
 MOZCONFIG_OPTIONAL_JIT=1
@@ -1099,10 +1099,7 @@ src_install() {
 	cat "${FILESDIR}"/privacy-patchset-$(ver_cut 1)/privacy.js >> \
 	"${GENTOO_PREFS}" \
 	|| die
-	rm -rv "${BUILD_DIR}"/comm/mail/components/cloudfile/wetransfer/* || die
 	rm -rv "${BUILD_DIR}"/comm/mail/extensions/ || die
-	rm -rv "${BUILD_DIR}"/dist/bin/features/ || die
-	rm -rv "${BUILD_DIR}"/dist/thunderbird/features/ || die
 	#######
 
 	# Install language packs
