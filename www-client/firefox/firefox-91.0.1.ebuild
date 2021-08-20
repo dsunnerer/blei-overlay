@@ -76,7 +76,7 @@ BDEPEND="${PYTHON_DEPS}
 	>=dev-util/cbindgen-0.19.0
 	>=net-libs/nodejs-10.23.1
 	virtual/pkgconfig
-	>=virtual/rust-1.47.0
+	>=virtual/rust-1.51.0
 	|| (
 		(
 			sys-devel/clang:12
@@ -99,8 +99,8 @@ BDEPEND="${PYTHON_DEPS}
 	x86? ( >=dev-lang/nasm-2.13 )"
 
 CDEPEND="
-	>=dev-libs/nss-3.66
-	>=dev-libs/nspr-4.29
+	>=dev-libs/nss-3.68
+	>=dev-libs/nspr-4.32
 	dev-libs/atk
 	dev-libs/expat
 	>=x11-libs/cairo-1.10[X]
@@ -1180,10 +1180,7 @@ src_install() {
 	"${GENTOO_PREFS}" \
 	|| die
 
-	rm -rv "${BUILD_DIR}"/browser/extensions/* || die
 	rm -rv "${BUILD_DIR}"/dist/bin/browser/features/* || die
-	rm -rv "${BUILD_DIR}"/instrumented/browser/extensions/* || die
-	rm -rv "${BUILD_DIR}"/instrumented/dist/bin/browser/features/* || die
 	#######
 
 	# Install language packs
@@ -1339,23 +1336,20 @@ pkg_postinst() {
 		elog
 	fi
 
-	local show_doh_information show_normandy_information
+	local show_doh_information show_normandy_information show_shortcut_information
 
 	if [[ -z "${REPLACING_VERSIONS}" ]] ; then
 		# New install; Tell user that DoH is disabled by default
 		show_doh_information=yes
 		show_normandy_information=yes
+		show_shortcut_information=no
 	else
 		local replacing_version
 		for replacing_version in ${REPLACING_VERSIONS} ; do
-			if ver_test "${replacing_version}" -lt 70 ; then
-				# Tell user only once about our DoH default
-				show_doh_information=yes
-			fi
-
-			if ver_test "${replacing_version}" -lt 74.0-r2 ; then
-				# Tell user only once about our Normandy default
-				show_normandy_information=yes
+			if ver_test "${replacing_version}" -lt 91.0 ; then
+				# Tell user that we no longer install a shortcut
+				# per supported display protocol
+				show_shortcut_information=yes
 			fi
 		done
 	fi
@@ -1385,5 +1379,14 @@ pkg_postinst() {
 		elog "    app.normandy.enabled=true"
 		elog
 		elog "in about:config."
+	fi
+
+	if [[ -n "${show_shortcut_information}" ]] ; then
+		elog
+		elog "Since firefox-91.0 we no longer install multiple shortcuts for"
+		elog "each supported display protocol.  Instead we will only install"
+		elog "one generic Mozilla Firefox shortcut."
+		elog "If you still want to be able to select between running Mozilla Firefox"
+		elog "on X11 or Wayland, you have to re-create these shortcuts on your own."
 	fi
 }
