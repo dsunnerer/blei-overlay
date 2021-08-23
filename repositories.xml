@@ -3,12 +3,12 @@
   <repo quality="experimental" status="unofficial">
     <name>blei</name>
       <description lang="en">A few tools</description>
-        <homepage>https://gitlab.com/dsunnerer/blei-overlay</homepage>
+        <homepage>https://github.com/dsunnerer/blei-overlay/</homepage>
         <owner type="person">
             <name>Daniel Sunnerer</name>
             <email>d.sunnerer@vfemail.net</email>
         </owner>
-        <source type="git">https://gitlab.com/dsunnerer/blei-overlay.git</source>
-        <feed>https://gitlab.com/dsunnerer/blei-overlay/commits/master.atom</feed>
+        <source type="git">https://github.com/dsunnerer/blei-overlay.git</source>
+        <feed>https://github.com/dsunnerer/blei-overlay/commits/master.atom</feed>
   </repo>
 </repositories>
