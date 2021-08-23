@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "http://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>me@dblsaiko.net</email>
+		<name>Marco Rebhan</name>
+	</maintainer>
+	<use>
+		<flag name="system-libs">Use system libraries instead of bundled ones</flag>
+	</use>
+</pkgmetadata>
