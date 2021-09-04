@@ -20,7 +20,7 @@ dev-libs/libappindicator
 gnome-base/gconf
 x11-libs/libnotify
 dev-libs/libindicator
-x11-base/xorg-x11
+x11-libs/libXScrnSaver
 x11-libs/libXtst
 "
 
