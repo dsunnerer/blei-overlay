@@ -28,8 +28,12 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/maple-tree-v2.patch"
 
 	kernel-2-src-prepare-overlay_src_unpack
+
+	## UKSM patch
 	cd "${S}"
-	patch -n -p1 -i "${FILESDIR}/uksm.patch"
+	patch -n -p1 -i "${FILESDIR}/uksm.patch" || die "UKSM patch failed to apply ..."
+	# dirty fix
+	sed -i 's/radix-tree.o/radix-tree.o sradix-tree.o/g' "${S}/lib/Makefile"
 }
 
 src_prepare() {
