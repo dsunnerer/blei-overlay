@@ -28,6 +28,8 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/maple-tree-v2.patch"
 
 	kernel-2-src-prepare-overlay_src_unpack
+	cd "${S}"
+	patch -n -p1 -i "${FILESDIR}/uksm.patch"
 }
 
 src_prepare() {
