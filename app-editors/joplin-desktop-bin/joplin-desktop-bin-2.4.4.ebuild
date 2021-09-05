@@ -42,6 +42,12 @@ src_install() {
 	fperms 755 /opt/Joplin
 	fperms 4755 /opt/Joplin/chrome-sandbox
 
+	fperms 755 /opt/Joplin/@joplinapp-desktop
+	dosym /opt/Joplin/@joplinapp-desktop /usr/bin/joplinapp-desktop
+
+	insinto /usr/share/applications
+	doins /opt/Joplin/@joplinapp-desktop.desktop
+
 	insinto /usr/share/icons
 	doins -r usr/share/icons/hicolor
 }
