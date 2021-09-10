@@ -33,7 +33,7 @@ UNIPATCH_LIST_DEFAULT=""
 	cd "${S}"
 	patch -n -p1 -i "${FILESDIR}/uksm.patch" || die "UKSM patch failed to apply ..."
 	# dirty fix
-	sed -i 's/radix-tree.o/radix-tree.o sradix-tree.o/g' "${S}/lib/Makefile"
+	sed -i 's/radix-tree\.o/radix-tree\.o sradix-tree.o/' "${S}/lib/Makefile"
 }
 
 src_prepare() {
