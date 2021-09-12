@@ -18,13 +18,13 @@ XANMOD_VERSION="1"
 XANMOD_URI="https://github.com/xanmod/linux/releases/download/"
 SRC_URI="
 	${KERNEL_BASE_URI}/linux-${KV_MAJOR}.${KV_MINOR}.tar.xz
-	${XANMOD_URI}/${OKV}-xanmod${XANMOD_VERSION}-cacule/patch-5.14.2-xanmod${XANMOD_VERSION}-cacule.xz
+	${XANMOD_URI}/${OKV}-xanmod${XANMOD_VERSION}-cacule/patch-${OKV}-xanmod${XANMOD_VERSION}-cacule.xz
 	${GENPATCHES_URI}
 "
 
 src_unpack() {
 UNIPATCH_LIST_DEFAULT=""
-		UNIPATCH_LIST="${DISTDIR}/patch-5.14.2-xanmod${XANMOD_VERSION}-cacule.xz
+		UNIPATCH_LIST="${DISTDIR}/patch-${OKV}-xanmod${XANMOD_VERSION}-cacule.xz
 						${FILESDIR}/maple-tree-v2.patch"
 
 	kernel-2-src-prepare-overlay_src_unpack
