@@ -22,9 +22,7 @@ RDEPEND="
 DEPEND="${RDEPEND}"
 BDEPEND="test? ( dev-util/dejagnu )"
 
-PATCHES=(
-	"${FILESDIR}/${PN}-2.34-slibtool.patch"
-)
+PATCHES=()
 
 pkg_setup() {
 	PDSH_MODULE_LIST="${PDSH_MODULE_LIST:-netgroup}"
