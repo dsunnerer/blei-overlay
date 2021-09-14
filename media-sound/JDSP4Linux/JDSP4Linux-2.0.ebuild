@@ -27,7 +27,7 @@ DEPEND="
 	    media-libs/gstreamer
 	 )
 	pipewire? (
-	    media-sound/pipewire
+	    media-video/pipewire
 	)
 "
 
