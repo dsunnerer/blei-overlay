@@ -7,7 +7,7 @@ KEYWORDS="~amd64"
 
 DESCRIPTION="DSP for Pipewire and Pulseaudio"
 HOMEPAGE="https://github.com/Audio4Linux/JDSP4Linux"
-LICENSE="GPL3"
+LICENSE="GPL-3"
 SLOT="0"
 
 IUSE="+pulseaudio pipewire"
