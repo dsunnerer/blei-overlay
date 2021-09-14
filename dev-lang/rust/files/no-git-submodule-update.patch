@@ -1,0 +1,11 @@
+--- src/bootstrap/lib.rs	2021-09-06 20:42:35.000000000 +0200
++++ src/bootstrap/lib.rs-mod	2021-09-14 20:23:03.548224564 +0200
+@@ -590,7 +590,7 @@
+             job::setup(self);
+         }
+ 
+-        self.maybe_update_submodules();
++        // self.maybe_update_submodules();
+ 
+         if let Subcommand::Format { check, paths } = &self.config.cmd {
+             return format::format(self, *check, &paths);

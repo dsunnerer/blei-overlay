@@ -153,8 +153,9 @@ RESTRICT="test"
 VERIFY_SIG_OPENPGP_KEY_PATH=${BROOT}/usr/share/openpgp-keys/rust.asc
 
 PATCHES=(
-	"${FILESDIR}"/1.47.0-ignore-broken-and-non-applicable-tests.patch
-	"${FILESDIR}"/1.53.0-rustversion-1.0.5.patch # https://github.com/rust-lang/rust/pull/86425
+    "${FILESDIR}"/1.55.0-ignore-broken-and-non-applicable-tests.patch
+    "${FILESDIR}"/1.49.0-gentoo-musl-target-specs.patch
+    "${FILESDIR}"/1.54.0-parallel-miri.patch # https://github.com/rust-lang/miri/pull/1863
 	"${FILESDIR}"/0001-Use-lld-provided-by-system-for-wasm.patch
 	"${FILESDIR}"/0002-compiler-Change-LLVM-targets.patch
 )
@@ -270,7 +271,7 @@ src_prepare() {
 		rm -rf src/ci
 	fi
 
-	# Remove other unused vendored libraries 
+	# Remove other unused vendored libraries
 	rm -rf vendor/jemalloc-sys/jemalloc/
 	rm -rf vendor/openssl-src/openssl/
 
@@ -295,6 +296,10 @@ src_prepare() {
 	# LLVM LibUwind hack
 	#sed -i /std=c99/d library/unwind/build.rs
 	#sed -i /std=c++11/d library/unwind/build.rs
+
+	# Disable GIT submodule updates during bootstrap
+	patch -d "${S}" -p0 < "${FILESDIR}"/no-git-submodule-update.patch || \
+		die "Disabling GIT subodule updates failed ..."
 
 	default
 }
