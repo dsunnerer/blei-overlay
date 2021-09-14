@@ -12,10 +12,7 @@ SLOT="0"
 
 IUSE="+pulseaudio pipewire"
 
-REQUIRED_USE="
-    pulseaudio ( !pipewire )
-    pipewire ( !pulseaudio )
-"
+REQUIRED_USE="pulseaudio ( !pipewire )"
 
 DEPEND="
 	dev-qt/qtcore:5=
