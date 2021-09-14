@@ -12,17 +12,24 @@ SLOT="0"
 
 IUSE="+pulseaudio pipewire"
 
+REQUIRED_USE="
+    pulseaudio ( !pipewire )
+    pipewire ( !pulseaudio )
+"
+
 DEPEND="
 	dev-qt/qtcore:5=
 	dev-qt/qtsvg:5=
 	dev-libs/glib
 	dev-cpp/glibmm
 	pulseaudio? (
-	    "media-sound/pulseaudio"
-	    "media-libs/gst-plugins-base"
-	    "media-libs/gstreamer"
+	    media-sound/pulseaudio
+	    media-libs/gst-plugins-base
+	    media-libs/gstreamer
 	 )
-	pipewire?  ( media-sound/pipewire )
+	pipewire? (
+	    media-sound/pipewire
+	)
 "
 
 RDEPEND="${DEPEND}"
