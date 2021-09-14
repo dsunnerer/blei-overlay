@@ -10,10 +10,10 @@ HOMEPAGE="https://github.com/Audio4Linux/JDSP4Linux"
 LICENSE="GPL-3"
 SLOT="0"
 
-IUSE="pulseaudio -pipewire"
+IUSE="+pulseaudio pipewire"
 
-REQUIRED_USE="pulseaudio ( !pipewire )
-    pipewire ( !pulseaudio )
+REQUIRED_USE="pulseaudio? ( !pipewire )
+    pipewire? ( !pulseaudio )
 "
 
 DEPEND="
