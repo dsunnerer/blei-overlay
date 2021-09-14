@@ -1,12 +1,18 @@
-#!/bin/bash
+#!/usr/bin/bash
 # Run wayland compositor and set WAYLAND_DISPLAY env variable
 
 set -x
 
-echo export DESKTOP_SESSION=kde > $HOME/.xsessionrc
-echo export XDG_CURRENT_DESKTOP=KDE > $HOME/.xsessionrc
+echo export DESKTOP_SESSION=gnome > $HOME/.xsessionrc
+echo export XDG_CURRENT_DESKTOP=GNOME > $HOME/.xsessionrc
 echo export XDG_SESSION_TYPE=wayland >> $HOME/.xsessionrc
 
+# Turn off the screen saver and screen locking
+gsettings set org.gnome.desktop.screensaver idle-activation-enabled false
+gsettings set org.gnome.desktop.screensaver lock-enabled false
+gsettings set org.gnome.desktop.screensaver lock-delay 3600
+
+# Disable the screen saver
 # This starts the gnome-keyring-daemon with an unlocked login keyring. libsecret uses this to
 # store secrets. Firefox uses libsecret to store a key that protects sensitive information like
 # credit card numbers.
@@ -14,12 +20,13 @@ if test -z "$DBUS_SESSION_BUS_ADDRESS" ; then
     # if not found, launch a new one
     eval `dbus-launch --sh-syntax`
 fi
+eval `echo '' | /usr/bin/gnome-keyring-daemon -r -d --unlock --components=secrets`
 
 if [ -z "$XDG_RUNTIME_DIR" ]; then
   export XDG_RUNTIME_DIR=$HOME
 fi
 
-. xvfb-run -s "-screen 0 1600x1200x24" -n 80 kwin_wayland --wayland-display=:80 &
+. xvfb-run -s "-screen 0 1600x1200x24" -n 80 mutter --display=:80 --wayland --nested &
 export DISPLAY=:80
 
 if [ -z "$WAYLAND_DISPLAY" ] ; then
@@ -35,7 +42,7 @@ until [ $retry_count -gt $max_retries ]; do
     retry_count=$(($max_retries + 1))
   else
     retry_count=$(($retry_count + 1))
-    echo "Waiting for kwin_wayland, retry: $retry_count"
+    echo "Waiting for Mutter, retry: $retry_count"
     sleep 2
   fi
 done

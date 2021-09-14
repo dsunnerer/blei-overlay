@@ -1,0 +1,5 @@
+mozilla-1672139.patch
+mozilla-1728749.patch
+rhbz-1173156.patch
+rhbz-1354671.patch
+run-wayland-compositor
