@@ -34,6 +34,7 @@ UNIPATCH_LIST_DEFAULT=""
 	patch -n -p1 -i "${FILESDIR}/uksm.patch" || die "UKSM patch failed to apply ..."
 	# dirty fix
 	sed -i 's/radix-tree\.o/radix-tree\.o sradix-tree.o/' "${S}/lib/Makefile"
+	sed -i 's/SUBLEVEL = 5/SUBLEVEL = 6/' "${S}/Makefile"
 }
 
 src_prepare() {
