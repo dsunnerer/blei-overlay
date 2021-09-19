@@ -3,7 +3,7 @@
 
 EAPI=7
 
-_jdk_build="1504.27"
+_jdk_build="1649.1"
 MY_PV="${PV//\./_}"
 
 DESCRIPTION="JetBrains JDK"
