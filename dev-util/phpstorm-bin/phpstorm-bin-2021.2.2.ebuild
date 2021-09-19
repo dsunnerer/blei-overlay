@@ -20,7 +20,7 @@ RDEPEND="${DEPEND}
 	dev-libs/libdbusmenu"
 BDEPEND="dev-util/patchelf"
 
-_PV="212.5080.71"
+_PV="212.5284.49"
 _CAP_IDE=PhpStorm
 _IDE=phpstorm
 
