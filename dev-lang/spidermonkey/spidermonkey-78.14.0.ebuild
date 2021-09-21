@@ -4,16 +4,16 @@
 EAPI="7"
 
 # Patch version
-FIREFOX_PATCHSET="firefox-78esr-patches-12.tar.xz"
-SPIDERMONKEY_PATCHSET="spidermonkey-78-patches-03.tar.xz"
+FIREFOX_PATCHSET="firefox-78esr-patches-17.tar.xz"
+SPIDERMONKEY_PATCHSET="spidermonkey-78-patches-04.tar.xz"
 
 LLVM_MAX_SLOT=13
 
-PYTHON_COMPAT=( python3_{8..9} )
+PYTHON_COMPAT=( python3_{7..9} )
 
 WANT_AUTOCONF="2.1"
 
-inherit autotools check-reqs flag-o-matic llvm multiprocessing python-any-r1 toolchain-funcs
+inherit autotools check-reqs flag-o-matic llvm multiprocessing prefix python-any-r1 toolchain-funcs
 
 MY_PN="mozjs"
 MY_PV="${PV/_pre*}" # Handle Gentoo pre-releases
@@ -60,7 +60,7 @@ SRC_URI="${MOZ_SRC_BASE_URI}/source/${MOZ_P}.source.tar.xz -> ${MOZ_P_DISTFILES}
 DESCRIPTION="SpiderMonkey is Mozilla's JavaScript engine written in C and C++"
 HOMEPAGE="https://developer.mozilla.org/en-US/docs/Mozilla/Projects/SpiderMonkey"
 
-KEYWORDS="amd64 arm arm64 ~mips ppc64 ~s390 x86"
+KEYWORDS="~amd64 ~arm ~arm64 ~mips ~ppc64 ~riscv ~s390 ~x86"
 
 SLOT="78"
 LICENSE="MPL-2.0"
@@ -77,6 +77,27 @@ BDEPEND="${PYTHON_DEPS}
 			clang? (
 				sys-devel/clang:13
 				lto? ( =sys-devel/lld-13* )
+			)
+		)
+		(
+			sys-devel/llvm:12
+			clang? (
+				sys-devel/clang:12
+				lto? ( =sys-devel/lld-12* )
+			)
+		)
+		(
+			sys-devel/llvm:11
+			clang? (
+				sys-devel/clang:11
+				lto? ( =sys-devel/lld-11* )
+			)
+		)
+		(
+			sys-devel/llvm:10
+			clang? (
+				sys-devel/clang:10
+				lto? ( =sys-devel/lld-10* )
 			)
 		)
 	)
@@ -99,15 +120,20 @@ RDEPEND="${CDEPEND}"
 S="${WORKDIR}/firefox-${MY_PV}/js/src"
 
 llvm_check_deps() {
+	if ! has_version -b "sys-devel/llvm:${LLVM_SLOT}" ; then
+		einfo "sys-devel/llvm:${LLVM_SLOT} is missing! Cannot use LLVM slot ${LLVM_SLOT} ..." >&2
+		return 1
+	fi
+
 	if use clang ; then
 		if ! has_version -b "sys-devel/clang:${LLVM_SLOT}" ; then
-			ewarn "sys-devel/clang:${LLVM_SLOT} is missing! Cannot use LLVM slot ${LLVM_SLOT} ..." >&2
+			einfo "sys-devel/clang:${LLVM_SLOT} is missing! Cannot use LLVM slot ${LLVM_SLOT} ..." >&2
 			return 1
 		fi
 
 		if use lto ; then
 			if ! has_version -b "=sys-devel/lld-${LLVM_SLOT}*" ; then
-				ewarn "=sys-devel/lld-${LLVM_SLOT}* is missing! Cannot use LLVM slot ${LLVM_SLOT} ..." >&2
+				einfo "=sys-devel/lld-${LLVM_SLOT}* is missing! Cannot use LLVM slot ${LLVM_SLOT} ..." >&2
 				return 1
 			fi
 		fi
@@ -156,7 +182,7 @@ pkg_setup() {
 			[[ -z ${version_rust} ]] && die "Failed to read version from rustc!"
 
 			if ver_test "${version_rust}" -ge "1.49" && ver_test "${version_rust}" -le "1.50" ; then
-				local version_llvm_rust="13"
+				local version_llvm_rust="11"
 			else
 				local version_llvm_rust=$(rustc -Vv 2>/dev/null | grep -F -- 'LLVM version:' | awk '{ print $3 }')
 				[[ -n ${version_llvm_rust} ]] && version_llvm_rust=$(ver_cut 1 "${version_llvm_rust}")
@@ -210,6 +236,9 @@ src_prepare() {
 		-e "s/objdump/${CHOST}-objdump/" \
 		python/mozbuild/mozbuild/configure/check_debug_ranges.py \
 		|| die "sed failed to set toolchain prefix"
+
+	# use prefix shell in wrapper linker scripts, bug #789660
+	hprefixify "${S}"/../../build/cargo-{,host-}linker
 
 	einfo "Removing pre-built binaries ..."
 	find third_party -type f \( -name '*.so' -o -name '*.o' \) -print -delete || die
