@@ -110,10 +110,7 @@ DEPEND="
 	sys-libs/zlib:=
 	dev-libs/openssl:0=
 	elibc_musl? ( sys-libs/libunwind:= )
-	system-llvm? (
-		${LLVM_DEPEND}
-		>=sys-devel/clang-runtime-8.0[libcxx]
-	)
+	system-llvm? ( ${LLVM_DEPEND} )
 "
 
 # we need to block older versions due to layout changes.
