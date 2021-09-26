@@ -4,7 +4,8 @@
 EAPI=7
 
 _jdk_build="1649.1"
-MY_PV="${PV//\./_}"
+MY_PV="${PV//_.*/}"
+MY_PV="${MY_PV//\./_}"
 
 DESCRIPTION="JetBrains JDK"
 HOMEPAGE="https://github.com/JetBrains/JetBrainsRuntime"
