@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "http://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>audvare@gmail.com</email>
+		<name>Andrew Udvare</name>
+	</maintainer>
+	<use>
+		<flag name="faudio">Enable audio rendering with app-emulation/faudio</flag>
+		<flag name="joystick">Enable support for input devices with evdev</flag>
+		<flag name="llvm">LLVM recompiler support</flag>
+		<flag name="vulkan">Enable Vulkan graphics library support</flag>
+	</use>
+</pkgmetadata>
