@@ -3,7 +3,7 @@
 
 EAPI="7"
 
-FIREFOX_PATCHSET="firefox-93-patches-02.tar.xz"
+FIREFOX_PATCHSET="firefox-94-patches-01.tar.xz"
 
 LLVM_MAX_SLOT=13
 
@@ -489,10 +489,6 @@ src_unpack() {
 
 src_prepare() {
 	use lto && rm -v "${WORKDIR}"/firefox-patches/*-LTO-Only-enable-LTO-*.patch
-
-	# Remove broken patches
-	rm -v "${WORKDIR}/firefox-patches/0033-bmo-1725828-Preload-dependencies-for-the-Widevine-CD.patch"
-	rm -v "${WORKDIR}/firefox-patches/0034-bmo-1730397-Update-packed_simd-to-a-version-that-sup.patch"
 
 	eapply "${WORKDIR}/firefox-patches"
 
