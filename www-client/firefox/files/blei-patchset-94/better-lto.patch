@@ -1,0 +1,28 @@
+--- firefox-93.0/build/moz.configure/lto-pgo.configure	2021-10-31 21:48:08.752248250 +0100
++++ firefox-93.0/build/moz.configure/lto-pgo.configure-mod	2021-10-31 21:50:31.591322377 +0100
+@@ -272,7 +272,7 @@
+             #
+             # https://github.com/llvm/llvm-project/blob/e7694f34ab6a12b8bb480cbfcb396d0a64fe965f/llvm/lib/Target/X86/X86.td#L1165-L1187
+             if target.cpu == "x86_64":
+-                ldflags.append("-mllvm:-mcpu=x86-64")
++                ldflags.append("-mllvm:-mcpu=_NATIVE_ARCH_")
+             # We do not need special flags for arm64.  Hooray for fixed-length
+             # instruction sets.
+         else:
+@@ -296,8 +296,6 @@
+             ldflags.append("-mllvm:-import-instr-limit=10")
+         elif target.os == "OSX":
+             ldflags.append("-Wl,-mllvm,-import-instr-limit=10")
+-        elif c_compiler.type == "clang":
+-            ldflags.append("-Wl,-plugin-opt=-import-instr-limit=10")
+ 
+         # If we're using the new pass manager, we can also enable the new PM
+         # during LTO. Further we can use the resulting size savings to increase
+@@ -311,7 +309,6 @@
+                     ldflags.append("-mllvm:-import-hot-multiplier=30")
+             elif select_linker.KIND != "ld64" and c_compiler.type == "clang":
+                 ldflags.append("-Wl,-plugin-opt=new-pass-manager")
+-                ldflags.append("-Wl,-plugin-opt=-import-hot-multiplier=30")
+ 
+     return namespace(
+         enabled=enabled,
