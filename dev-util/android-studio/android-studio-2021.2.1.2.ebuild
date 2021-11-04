@@ -88,7 +88,7 @@ src_install() {
 		dosym "../../etc/java-config-2/current-system-vm" "${dir}/jre"
 	fi
 
-	fperms 755 "${dir}"/bin/{format.sh,studio.sh,inspect.sh,printenv.py,restart.py,fsnotifier{,64},game-tools.sh,ltedit.sh,profiler.sh}
+	fperms 755 "${dir}"/bin/{format.sh,studio.sh,inspect.sh,printenv.py,restart.py,fsnotifier,game-tools.sh,ltedit.sh,profiler.sh}
 
 	dosym "${dir}/bin/studio.sh" "/usr/bin/${PN}"
 	dosym "${dir}/bin/studio.png" "/usr/share/pixmaps/${PN}.png"
