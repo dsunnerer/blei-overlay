@@ -510,12 +510,6 @@ src_prepare() {
 		"${S}"/build/moz.configure/lto-pgo.configure \
 		|| die "sed failed to set num_cores"
 
-	# Use native CPU arch optimizations
-	sed -i \
-    	-e "s/_NATIVE_ARCH_/tc-arch/" \
-	    "${S}"/build/moz.configure/lto-pgo.configure \
-	    || die "sed failed to set cpu arch"
-
 	# Make ICU respect MAKEOPTS
 	sed -i \
 		-e "s/multiprocessing.cpu_count()/$(makeopts_jobs)/" \
@@ -631,8 +625,9 @@ src_prepare() {
 		fi
 	done
 	# Use native CPU arch optimizations
+	_CPU_ARCH=$(llc --version | grep "Host CPU" | sed 's/\s*Host CPU:\s*//')
 	sed -i \
-    	-e "s|_NATIVE_ARCH_|$(tc-arch)|" \
+    	-e "s|_NATIVE_ARCH_|${_CPU_ARCH}|" \
 	    "${S}"/build/moz.configure/lto-pgo.configure \
 	        || die "sed failed to set cpu arch"
 
@@ -1024,7 +1019,7 @@ src_configure() {
 
 	mozconfig_add_options_ac '' --disable-memory-sanitizer
 	mozconfig_add_options_ac '' --disable-mobile-optimize
-	
+
 	mozconfig_add_options_ac '' --disable-necko-wifi
 
 	mozconfig_add_options_ac '' --disable-parental-controls
@@ -1148,7 +1143,7 @@ src_install() {
 	insinto "${MOZILLA_FIVE_HOME}/distribution"
 	newins "${FILESDIR}"/distribution.ini distribution.ini
 	#######
-	if use privacy; then 
+	if use privacy; then
 		newins "${FILESDIR}"/enable-privacy.policy.json policies.json
 	else
 		newins "${FILESDIR}"/disable-auto-update.policy.json policies.json
