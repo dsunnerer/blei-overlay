@@ -48,7 +48,7 @@ if [[ ${PV} == *_rc* ]] ; then
 fi
 
 PATCH_URIS=(
-	https://dev.gentoo.org/~{axs,polynomial-c,whissi}/mozilla/patchsets/${FIREFOX_PATCHSET}
+	https://dev.gentoo.org/~{polynomial-c,whissi}/mozilla/patchsets/${FIREFOX_PATCHSET}
 )
 
 SRC_URI="${MOZ_SRC_BASE_URI}/source/${MOZ_P}.source.tar.xz -> ${MOZ_P_DISTFILES}.source.tar.xz
@@ -61,14 +61,23 @@ KEYWORDS="~amd64 ~arm64 ~ppc64 ~x86"
 
 SLOT="0/$(ver_cut 1)"
 LICENSE="MPL-2.0 GPL-2 LGPL-2.1"
-IUSE="+clang cpu_flags_arm_neon dbus debug eme-free geckodriver +gmp-autoupdate
-	hardened hwaccel jack lto +openh264 pgo pulseaudio screencast sndio selinux
-	+system-av1 +system-harfbuzz +system-icu +system-jpeg +system-libevent
-	+system-libvpx +system-webp wayland wifi
-	+jit +kde +privacy"
+
+IUSE="+clang cpu_flags_arm_neon dbus debug eme-free hardened hwaccel"
+IUSE+=" jack lto +openh264 pgo pulseaudio sndio selinux"
+IUSE+=" +system-av1 +system-harfbuzz +system-icu +system-jpeg +system-libevent +system-libvpx +system-webp"
+IUSE+=" wayland wifi"
+IUSE+=" +kde +privacy"
+
+# Firefox-only IUSE
+IUSE+=" geckodriver"
+IUSE+=" +gmp-autoupdate"
+IUSE+=" screencast"
 
 REQUIRED_USE="debug? ( !system-av1 )
-	screencast? ( wayland )"
+	wifi? ( dbus )"
+
+# Firefox-only REQUIRED_USE flags
+REQUIRED_USE+=" screencast? ( wayland )"
 
 BDEPEND="${PYTHON_DEPS}
 	app-arch/unzip
@@ -99,7 +108,7 @@ BDEPEND="${PYTHON_DEPS}
 	x86? ( >=dev-lang/nasm-2.13 )"
 
 CDEPEND="
-	>=dev-libs/nss-3.70
+	>=dev-libs/nss-3.71
 	>=dev-libs/nspr-4.32
 	dev-libs/atk
 	dev-libs/expat
@@ -621,6 +630,11 @@ src_prepare() {
 			einfo -------------------------
 		fi
 	done
+	# Use native CPU arch optimizations
+	sed -i \
+    	-e "s|_NATIVE_ARCH_|$(tc-arch)|" \
+	    "${S}"/build/moz.configure/lto-pgo.configure \
+	        || die "sed failed to set cpu arch"
 
 
 	#######
@@ -1010,7 +1024,7 @@ src_configure() {
 
 	mozconfig_add_options_ac '' --disable-memory-sanitizer
 	mozconfig_add_options_ac '' --disable-mobile-optimize
-
+	
 	mozconfig_add_options_ac '' --disable-necko-wifi
 
 	mozconfig_add_options_ac '' --disable-parental-controls
@@ -1134,7 +1148,7 @@ src_install() {
 	insinto "${MOZILLA_FIVE_HOME}/distribution"
 	newins "${FILESDIR}"/distribution.ini distribution.ini
 	#######
-	if use privacy; then
+	if use privacy; then 
 		newins "${FILESDIR}"/enable-privacy.policy.json policies.json
 	else
 		newins "${FILESDIR}"/disable-auto-update.policy.json policies.json
@@ -1144,9 +1158,9 @@ src_install() {
 	# Install system-wide preferences
 	local PREFS_DIR="${MOZILLA_FIVE_HOME}/browser/defaults/preferences"
 	insinto "${PREFS_DIR}"
-	newins "${FILESDIR}"/gentoo-default-prefs.js all-gentoo.js
+	newins "${FILESDIR}"/gentoo-default-prefs.js gentoo-prefs.js
 
-	local GENTOO_PREFS="${ED}${PREFS_DIR}/all-gentoo.js"
+	local GENTOO_PREFS="${ED}${PREFS_DIR}/gentoo-prefs.js"
 
 	# Set dictionary path to use system hunspell
 	cat >>"${GENTOO_PREFS}" <<-EOF || die "failed to set spellchecker.dictionary_path pref"
@@ -1178,11 +1192,9 @@ src_install() {
 	fi
 
 	#######
-	if [ -f "${FILESDIR}"/opensuse-kde-$(ver_cut 1)/kde.js ]; then
-		cat "${FILESDIR}"/opensuse-kde-$(ver_cut 1)/kde.js >> \
-			"${GENTOO_PREFS}" \
-			|| die
-	fi
+	cat "${FILESDIR}"/opensuse-kde-$(ver_cut 1)/kde.js >> \
+	"${GENTOO_PREFS}" \
+	|| die
 
 	cat "${FILESDIR}"/privacy-patchset/privacy.js >> \
 	"${GENTOO_PREFS}" \
@@ -1308,7 +1320,9 @@ pkg_postinst() {
 		elog
 	fi
 
-	local show_doh_information show_normandy_information show_shortcut_information
+	local show_doh_information
+	local show_normandy_information
+	local show_shortcut_information
 
 	if [[ -z "${REPLACING_VERSIONS}" ]] ; then
 		# New install; Tell user that DoH is disabled by default
@@ -1355,10 +1369,10 @@ pkg_postinst() {
 
 	if [[ -n "${show_shortcut_information}" ]] ; then
 		elog
-		elog "Since firefox-91.0 we no longer install multiple shortcuts for"
+		elog "Since ${PN}-91.0 we no longer install multiple shortcuts for"
 		elog "each supported display protocol.  Instead we will only install"
-		elog "one generic Mozilla Firefox shortcut."
-		elog "If you still want to be able to select between running Mozilla Firefox"
+		elog "one generic Mozilla ${PN^} shortcut."
+		elog "If you still want to be able to select between running Mozilla ${PN^}"
 		elog "on X11 or Wayland, you have to re-create these shortcuts on your own."
 	fi
 }
