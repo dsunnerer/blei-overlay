@@ -30,8 +30,8 @@ UNIPATCH_LIST_DEFAULT=""
 
 	kernel-2-src-prepare-overlay_src_unpack
 
-	patch -n -p1 -i "${FILESDIR}/cacule-5.15.patch"
-	patch "${S}/kernel/sched/fair.c" < "${FILESDIR}/cacule-gentoo-fix.patch"  || die "cacule patch failed to apply ..."
+	#patch -n -p1 -i "${FILESDIR}/cacule-5.15.patch"
+	#patch "${S}/kernel/sched/fair.c" < "${FILESDIR}/cacule-gentoo-fix.patch"  || die "cacule patch failed to apply ..."
 	patch -n -p1 -i "${FILESDIR}/maple-tree-v2.patch" || die "maple-tree-v2 patch failed to apply ..."
 	patch -n -p1 -i "${FILESDIR}/uksm.patch" || die "UKSM patch failed to apply ..."
 }
