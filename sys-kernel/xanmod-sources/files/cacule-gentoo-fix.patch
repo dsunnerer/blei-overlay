@@ -1,0 +1,117 @@
+--- kernel/sched/fair.c                                                                                               
++++ kernel/sched/fair.c 
+@@ -6916,6 +6916,8 @@ select_task_rq_fair(struct task_struct *
+ 	 * required for stable ->cpus_allowed
+ 	 */
+ 	lockdep_assert_held(&p->pi_lock);
++
++#if !defined(CONFIG_CACULE_SCHED)
+ 	if (wake_flags & WF_TTWU) {
+ 		record_wakee(p);
+ 		want_affine = !wake_wide(p) && cpumask_test_cpu(cpu, p->cpus_ptr);
+@@ -7033,6 +7035,7 @@ balance_fair(struct rq *rq, struct task_
+ }
+ #endif /* CONFIG_SMP */
+ 
++#if !defined(CONFIG_CACULE_SCHED)
+ static unsigned long wakeup_gran(struct sched_entity *se)
+ {
+ 	unsigned long gran = sysctl_sched_wakeup_granularity;
+@@ -7135,6 +7138,7 @@ static void check_preempt_wakeup(struct
+ 	if (unlikely(throttled_hierarchy(cfs_rq_of(pse))))
+ 		return;
+ 
++#if !defined(CONFIG_CACULE_SCHED)
+ 	if (sched_feat(NEXT_BUDDY) && scale && !(wake_flags & WF_FORK)) {
+ 		set_next_buddy(pse);
+ 		next_buddy_marked = 1;
+@@ -7182,6 +7186,7 @@ static void check_preempt_wakeup(struct
+ 		return;
+ 
+ 	update_curr(cfs_rq_of(se));
++#if !defined(CONFIG_CACULE_SCHED)
+ 	if (wakeup_preempt_entity(se, pse) == 1) {
+ 		/*
+ 		 * Bias pick_next to pick the sched entity that is
+@@ -7191,11 +7196,14 @@ static void check_preempt_wakeup(struct
+ 			set_next_buddy(pse);
+ 		goto preempt;
+ 	}
++#endif /* CONFIG_CACULE_SCHED */
+ 
+ 	return;
+ 
+ preempt:
+ 	resched_curr(rq);
++
++#if !defined(CONFIG_CACULE_SCHED)
+ 	/*
+ 	 * Only set the backward buddy when the current task is still
+ 	 * on the rq. This can happen when a wakeup gets interleaved
+@@ -7210,6 +7218,7 @@ preempt:
+ 
+ 	if (sched_feat(LAST_BUDDY) && scale && entity_is_task(se))
+ 		set_last_buddy(se);
++#endif /* CONFIG_CACULE_SCHED */
+ }
+ 
+ #ifdef CONFIG_SMP
+@@ -7347,6 +7356,10 @@ simple:
+ 	p = task_of(se);
+ 
+ done: __maybe_unused;
++#ifdef CONFIG_CACULE_SCHED
++	if (prev)
++		prev->se.cacule_node.vruntime &=YIELD_UNMARK;
++#endif
+ #ifdef CONFIG_SMP
+ 	/*
+ 	 * Move the next running task to the front of
+@@ -7417,7 +7430,15 @@ static void yield_task_fair(struct rq *r
+ {
+ 	struct task_struct *curr = rq->curr;
+ 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
+-	struct sched_entity *se = &curr->se;
++
++#ifdef CONFIG_CACULE_SCHED
++	struct cacule_node *cn = &curr->se.cacule_node;
++
++	if (cacule_yield)
++		cn->vruntime |= YIELD_MARK;
++#else
++		struct sched_entity *se = &curr->se;
++#endif
+ 
+ 	/*
+ 	 * Are we the only task in the tree?
+@@ -7425,7 +7446,9 @@ static void yield_task_fair(struct rq *r
+ 	if (unlikely(rq->nr_running == 1))
+ 		return;
+ 
++#if !defined(CONFIG_CACULE_SCHED)
+ 	clear_buddies(cfs_rq, se);
++#endif
+ 
+ 	if (curr->policy != SCHED_BATCH) {
+ 		update_rq_clock(rq);
+@@ -7441,7 +7464,9 @@ static void yield_task_fair(struct rq *r
+ 		rq_clock_skip_update(rq);
+ 	}
+ 
++#if !defined(CONFIG_CACULE_SCHED)
+ 	set_skip_buddy(se);
++#endif
+ }
+ 
+ static bool yield_to_task_fair(struct rq *rq, struct task_struct *p)
+@@ -7452,8 +7477,10 @@ static bool yield_to_task_fair(struct rq
+ 	if (!se->on_rq || throttled_hierarchy(cfs_rq_of(se)))
+ 		return false;
+ 
++#if !defined(CONFIG_CACULE_SCHED)
+ 	/* Tell the scheduler that we'd really like pse to run next. */
+ 	set_next_buddy(se);
++#endif
+ 
+ 	yield_task_fair(rq);
+ 
