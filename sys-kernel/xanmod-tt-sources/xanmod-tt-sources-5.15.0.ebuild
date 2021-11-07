@@ -3,7 +3,7 @@
 
 EAPI="6"
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="3"
+K_GENPATCHES_VER="2"
 K_SECURITY_UNSUPPORTED="1"
 K_NOSETEXTRAVERSION="1"
 ETYPE="sources"
@@ -18,13 +18,13 @@ XANMOD_VERSION="1"
 XANMOD_URI="https://github.com/xanmod/linux/releases/download/"
 SRC_URI="
 	${KERNEL_BASE_URI}/linux-${KV_MAJOR}.${KV_MINOR}.tar.xz
-	${XANMOD_URI}/${OKV}-xanmod${XANMOD_VERSION}-tt/patch-${OKV}-xanmod${XANMOD_VERSION}-tt.xz
+	${XANMOD_URI}/5.15.1-xanmod${XANMOD_VERSION}-tt/patch-5.15.1-xanmod${XANMOD_VERSION}-tt.xz
 	${GENPATCHES_URI}
 "
 
 src_unpack() {
 UNIPATCH_LIST_DEFAULT=""
-		UNIPATCH_LIST="${DISTDIR}/patch-${OKV}-xanmod${XANMOD_VERSION}-tt.xz
+		UNIPATCH_LIST="${DISTDIR}/patch-5.15.1-xanmod${XANMOD_VERSION}-tt.xz
 						${FILESDIR}/maple-tree-v2.patch"
 
 	kernel-2-src-prepare-overlay_src_unpack
