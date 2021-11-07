@@ -34,6 +34,9 @@ UNIPATCH_LIST_DEFAULT=""
 	#patch "${S}/kernel/sched/fair.c" < "${FILESDIR}/cacule-gentoo-fix.patch"  || die "cacule patch failed to apply ..."
 	patch -n -p1 -i "${FILESDIR}/maple-tree-v2.patch" || die "maple-tree-v2 patch failed to apply ..."
 	patch -n -p1 -i "${FILESDIR}/uksm.patch" || die "UKSM patch failed to apply ..."
+
+	# Fix for maple tree
+	sed -i 's/radix-tree\.o/radix-tree\.o sradix-tree.o/' "${S}/lib/Makefile"
 }
 
 src_prepare() {
