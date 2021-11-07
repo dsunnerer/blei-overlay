@@ -24,17 +24,17 @@ SRC_URI="
 
 src_unpack() {
 UNIPATCH_LIST_DEFAULT=""
-		UNIPATCH_LIST="${DISTDIR}/patch-${OKV}-xanmod${XANMOD_VERSION}-tt.xz
-						${FILESDIR}/maple-tree-v2.patch"
+		UNIPATCH_LIST="${DISTDIR}/patch-${OKV}-xanmod${XANMOD_VERSION}-tt.xz"
+#						${FILESDIR}/maple-tree-v2.patch"
 
 	kernel-2-src-prepare-overlay_src_unpack
 
 	# Dirty fix for maple tree v2
-	sed -i 's/radix-tree\.o/radix-tree\.o sradix-tree.o/' "${S}/lib/Makefile"
+	#sed -i 's/radix-tree\.o/radix-tree\.o sradix-tree.o/' "${S}/lib/Makefile"
 
 	# UKSM patch
-	cd "${S}"
-	patch -n -p1 -i "${FILESDIR}/uksm.patch" || die "UKSM patch failed to apply ..."
+	#cd "${S}"
+	#patch -n -p1 -i "${FILESDIR}/uksm.patch" || die "UKSM patch failed to apply ..."
 }
 
 src_prepare() {
