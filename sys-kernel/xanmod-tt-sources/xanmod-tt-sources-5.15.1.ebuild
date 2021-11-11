@@ -18,23 +18,19 @@ XANMOD_VERSION="1"
 XANMOD_URI="https://github.com/xanmod/linux/releases/download/"
 SRC_URI="
 	${KERNEL_BASE_URI}/linux-${KV_MAJOR}.${KV_MINOR}.tar.xz
-	${XANMOD_URI}/5.15.1-xanmod${XANMOD_VERSION}-tt/patch-5.15.1-xanmod${XANMOD_VERSION}-tt.xz
+	${XANMOD_URI}/${OKV}-xanmod${XANMOD_VERSION}/patch-${OKV}-xanmod${XANMOD_VERSION}-tt.xz
 	${GENPATCHES_URI}
 "
 
 src_unpack() {
 UNIPATCH_LIST_DEFAULT=""
-		UNIPATCH_LIST="${DISTDIR}/patch-5.15.1-xanmod${XANMOD_VERSION}-tt.xz
-						${FILESDIR}/maple-tree-v2.patch"
-
+		UNIPATCH_LIST="${DISTDIR}/patch-${OKV}-xanmod${XANMOD_VERSION}-tt.xz
+						${FILESDIR}/maple-tree-v2.patch
+						${FILESDIR}/uksm.patch "
 	kernel-2-src-prepare-overlay_src_unpack
 
-	# Dirty fix for maple tree v2
+	# dirty fix for maple-tree-v2
 	sed -i 's/radix-tree\.o/radix-tree\.o sradix-tree.o/' "${S}/lib/Makefile"
-
-	# UKSM patch
-	cd "${S}"
-	patch -n -p1 -i "${FILESDIR}/uksm.patch" || die "UKSM patch failed to apply ..."
 }
 
 src_prepare() {
