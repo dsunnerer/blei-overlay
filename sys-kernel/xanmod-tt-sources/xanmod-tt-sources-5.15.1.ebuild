@@ -28,14 +28,14 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/maple-tree-v2.patch "
 						# ${FILESDIR}/uksm.patch "
 	kernel-2-src-prepare-overlay_src_unpack
-
-	# dirty fix for maple-tree-v2
-	sed -i 's/radix-tree\.o/radix-tree\.o sradix-tree.o/' "${S}/lib/Makefile"
 }
 
 src_prepare() {
 
 	kernel-2-src-prepare-overlay_src_prepare
+
+	# dirty fix for maple-tree-v2
+	sed -i 's/radix-tree\.o/radix-tree\.o sradix-tree.o/' "${S}/lib/Makefile"
 
 }
 
