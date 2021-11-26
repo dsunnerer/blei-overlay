@@ -1,0 +1,38 @@
+--- mm/damon/dbgfs.c.orig	2021-10-31 21:53:10.000000000 +0100
++++ mm/damon/dbgfs.c.mod	2021-11-24 22:47:24.520678891 +0100
+@@ -538,15 +538,27 @@
+ 		return -EINVAL;
+ 	}
+ 
+-	if (!strncmp(kbuf, "on", count))
+-		err = damon_start(dbgfs_ctxs, dbgfs_nr_ctxs);
+-	else if (!strncmp(kbuf, "off", count))
+-		err = damon_stop(dbgfs_ctxs, dbgfs_nr_ctxs);
+-	else
+-		err = -EINVAL;
++	mutex_lock(&damon_dbgfs_lock);
++	  if (!strncmp(kbuf, "on", count)) {    
++    int i;    
++     
++    for (i = 0; i < dbgfs_nr_ctxs; i++) {    
++      if (damon_targets_empty(dbgfs_ctxs[i])) {    
++        kfree(kbuf);    
++                                 mutex_unlock(&damon_dbgfs_lock);    
++        return -EINVAL;    
++      }    
++    }    
++    ret = damon_start(dbgfs_ctxs, dbgfs_nr_ctxs);    
++  } else if (!strncmp(kbuf, "off", count)) {    
++    ret = damon_stop(dbgfs_ctxs, dbgfs_nr_ctxs);    
++  } else {    
++    ret = -EINVAL;    
++  }
++	mutex_unlock(&damon_dbgfs_lock);
+ 
+-	if (err)
+-		ret = err;
++	if (!ret)
++		ret = count;
+ 	kfree(kbuf);
+ 	return ret;
+ }
