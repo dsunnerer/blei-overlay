@@ -48,7 +48,7 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/cachy-patches/0001-bbr2.patch
 						${FILESDIR}/cachy-patches/0001-block-patches.patch
 						${FILESDIR}/cachy-patches/0001-block-sbitmap.patch
-						${FILESDIR}/cachy-patches/0001-btrfs-next.patch
+						${FILESDIR}/cachy-patches-integration/0001-btrfs-next.patch
 						${FILESDIR}/cachy-patches/0001-ck-hrtimer.patch
 						${FILESDIR}/cachy-patches/0001-clang.patch
 						${FILESDIR}/cachy-patches/0001-cpu-patches.patch
@@ -64,7 +64,9 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/cachy-patches/arch-patches-v2/0001-arch-patches.patch
 						${FILESDIR}/cachy-patches-integration/0001-misc.patch
 						${FILESDIR}/cachy-patches/0001-pf-patches.patch
-						${FILESDIR}/maple-tree-v2.patch"
+						${FILESDIR}/maple-tree-v2.patch
+						${FILESDIR}/cachy-patches-integration/0001-fix-tcp.patch
+						${FILESDIR}/cachy-patches-integration/0001-fix-string.patch"
 	kernel-2-src-prepare-overlay_src_unpack
 
 	for patch in ${CACHY_PATCHES[@]}; do
