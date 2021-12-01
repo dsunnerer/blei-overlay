@@ -1,4 +1,4 @@
-From 6298b3a5b5219d2c4a06f77108e8fb48e0c925be Mon Sep 17 00:00:00 2001
+From 314e86225918b9da8c394cc1f96140d28d4dcc47 Mon Sep 17 00:00:00 2001
 From: Thomas Gleixner <tglx@linutronix.de>
 Date: Sat, 5 Dec 2020 17:19:18 +0100
 Subject: [PATCH 1/9] genirq, i2c: Provide and use generic_dispatch_irq()
@@ -104,7 +104,7 @@ index 4e3c29bb6..fa146ad93 100644
 2.33.1.711.g9d530dc002
 
 
-From 80e20570f7b698cc43af64086323d9b252a04429 Mon Sep 17 00:00:00 2001
+From 0ebb0592320a42c310f2b340ebef59252abb9696 Mon Sep 17 00:00:00 2001
 From: Deepak Sharma <deepak.sharma@amd.com>
 Date: Wed, 18 Aug 2021 17:43:05 -0700
 Subject: [PATCH 2/9] x86: ACPI: cstate: Optimize C3 entry on AMD CPUs
@@ -149,7 +149,7 @@ index 7de599eba..62a5986d6 100644
 2.33.1.711.g9d530dc002
 
 
-From 69553cafe50eaacebfbcd8bf50fb9b7dd316db41 Mon Sep 17 00:00:00 2001
+From 4ce584c7394b1f3c70c4f193f95c2a29f00dc71d Mon Sep 17 00:00:00 2001
 From: Oleksandr Natalenko <oleksandr@natalenko.name>
 Date: Tue, 13 Jul 2021 10:27:20 +0200
 Subject: [PATCH 3/9] net: replace WARN_ONCE with pr_warn_once
@@ -207,7 +207,7 @@ index edfc0f801..7aaaeec08 100644
 2.33.1.711.g9d530dc002
 
 
-From 8040fb0b1548a9265df0b93015ade3283b31afad Mon Sep 17 00:00:00 2001
+From ae68617f576a45016978d2b7216010059158ca15 Mon Sep 17 00:00:00 2001
 From: Oleksandr Natalenko <oleksandr@natalenko.name>
 Date: Fri, 8 Oct 2021 09:26:24 +0200
 Subject: [PATCH 4/9] mac80211: minstrel_ht: force ampdu_len to be > 0
@@ -268,7 +268,7 @@ index 72b44d4c4..f60003530 100644
 2.33.1.711.g9d530dc002
 
 
-From 85b901d5b236ec16a93c343aaf5ac3b0b78c2553 Mon Sep 17 00:00:00 2001
+From 653828b38d2385ca1d3b11b5e3a379f02813a946 Mon Sep 17 00:00:00 2001
 From: Oleksandr Natalenko <oleksandr@natalenko.name>
 Date: Fri, 8 Oct 2021 09:25:03 +0200
 Subject: [PATCH 5/9] mac80211: rate: replace WARN_ON with pr_warn
@@ -335,7 +335,7 @@ index 8c6416129..6d36c5eff 100644
 2.33.1.711.g9d530dc002
 
 
-From f36f52d9efa64c8cee81f073c2dc0847ae84b64c Mon Sep 17 00:00:00 2001
+From e87eba78dd7bf7d8563a7e1e983c6f00a7f30eaf Mon Sep 17 00:00:00 2001
 From: Oleksandr Natalenko <oleksandr@natalenko.name>
 Date: Fri, 8 Oct 2021 09:21:54 +0200
 Subject: [PATCH 6/9] mac80211: airtime: replace WARN_ON_ONCE with pr_warn_once
@@ -402,7 +402,7 @@ index 26d2f8ba7..03fb8070b 100644
 2.33.1.711.g9d530dc002
 
 
-From b12d5a4477cbcc706069442fe992263dada9dd83 Mon Sep 17 00:00:00 2001
+From 798db21cdd3de05ce5343aaf66bd0202ac4fdef0 Mon Sep 17 00:00:00 2001
 From: Oleksandr Natalenko <oleksandr@natalenko.name>
 Date: Fri, 8 Oct 2021 09:31:15 +0200
 Subject: [PATCH 7/9] mac80211: rate: replace WARN_ON_ONCE with pr_warn_once
@@ -469,7 +469,7 @@ index 6d36c5eff..8a732b013 100644
 2.33.1.711.g9d530dc002
 
 
-From c26b5f92071dbb590bac465239cdd436cf34da71 Mon Sep 17 00:00:00 2001
+From 7d39678b340fd76455f52cf924c89dcbf9052b3f Mon Sep 17 00:00:00 2001
 From: Oleksandr Natalenko <oleksandr@natalenko.name>
 Date: Fri, 8 Oct 2021 09:23:59 +0200
 Subject: [PATCH 8/9] mac80211: rate: replace WARN_ON with pr_warn
@@ -536,50 +536,30 @@ index 8a732b013..810ea5cd6 100644
 2.33.1.711.g9d530dc002
 
 
-From 4e38d44eb65faa64c611d3343a4eb93b3fdb13b8 Mon Sep 17 00:00:00 2001
-From: Jesse Brandeburg <jesse.brandeburg@intel.com>
-Date: Tue, 23 Nov 2021 12:40:00 -0800
-Subject: [PATCH 9/9] igb: fix netpoll exit with traffic
+From e4c4cc33a8ffe845e62041a5dab2db32cb68dd70 Mon Sep 17 00:00:00 2001
+From: Oleksandr Natalenko <oleksandr@natalenko.name>
+Date: Thu, 25 Nov 2021 09:26:50 +0100
+Subject: [PATCH 9/9] Revert "net: replace WARN_ONCE with pr_warn_once"
 
-Oleksandr brought a bug report where netpoll causes trace
-messages in the log on igb.
-
-Danielle brought this back up as still occuring, so we'll try
-again.
-
-[22038.710800] ------------[ cut here ]------------
-[22038.710801] igb_poll+0x0/0x1440 [igb] exceeded budget in poll
-[22038.710802] WARNING: CPU: 12 PID: 40362 at net/core/netpoll.c:155 netpoll_poll_dev+0x18a/0x1a0
-
-As Alex suggested, change the driver to return work_done at the
-exit of napi_poll, which should be safe to do in this driver
-because it is not polling multiple queues in this single napi
-context (multiple queues attached to one MSI-X vector). Several
-other drivers contain the same simple sequence, so I hope
-this will not create new problems.
-
-Fixes: 16eb8815c235 ("igb: Refactor clean_rx_irq to reduce overhead and improve performance")
-Reported-by: Oleksandr Natalenko <oleksandr@natalenko.name>
-Reported-by: Danielle Ratson <danieller@nvidia.com>
-Suggested-by: Alexander Duyck <alexander.duyck@gmail.com>
-Signed-off-by: Jesse Brandeburg <jesse.brandeburg@intel.com>
+This reverts commit 27ee8dfd787409588f0a6c4ef1019fd41bbf3605.
 ---
- drivers/net/ethernet/intel/igb/igb_main.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ net/core/netpoll.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/drivers/net/ethernet/intel/igb/igb_main.c b/drivers/net/ethernet/intel/igb/igb_main.c
-index 751de0601..8f3057738 100644
---- a/drivers/net/ethernet/intel/igb/igb_main.c
-+++ b/drivers/net/ethernet/intel/igb/igb_main.c
-@@ -8019,7 +8019,7 @@ static int igb_poll(struct napi_struct *napi, int budget)
- 	if (likely(napi_complete_done(napi, work_done)))
- 		igb_ring_irq_enable(q_vector);
+diff --git a/net/core/netpoll.c b/net/core/netpoll.c
+index 7aaaeec08..edfc0f801 100644
+--- a/net/core/netpoll.c
++++ b/net/core/netpoll.c
+@@ -152,8 +152,7 @@ static void poll_one_napi(struct napi_struct *napi)
+ 	 * indicate that we are clearing the Tx path only.
+ 	 */
+ 	work = napi->poll(napi, 0);
+-	if (unlikely(work))
+-		pr_warn_once("%pS exceeded budget in poll\n", napi->poll);
++	WARN_ONCE(work, "%pS exceeded budget in poll\n", napi->poll);
+ 	trace_napi_poll(napi, work, 0);
  
--	return min(work_done, budget - 1);
-+	return work_done;
- }
- 
- /**
+ 	clear_bit(NAPI_STATE_NPSVC, &napi->state);
 -- 
 2.33.1.711.g9d530dc002
 

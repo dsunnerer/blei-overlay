@@ -1,7 +1,7 @@
-From c9a10c04b28bd7c9d6241dba847373ea21cf2121 Mon Sep 17 00:00:00 2001
+From 1647f5aa2b27cedce2bf68269024dc6e72814a68 Mon Sep 17 00:00:00 2001
 From: "Jan Alexander Steffens (heftig)" <jan.steffens@gmail.com>
 Date: Mon, 16 Sep 2019 04:53:20 +0200
-Subject: [PATCH 1/7] ZEN: Add sysctl and CONFIG to disallow unprivileged
+Subject: [PATCH 1/6] ZEN: Add sysctl and CONFIG to disallow unprivileged
  CLONE_NEWUSER
 
 Our default behavior continues to match the vanilla kernel.
@@ -153,58 +153,10 @@ index 6b2e3ca7e..025300218 100644
 2.33.1.711.g9d530dc002
 
 
-From 8ad7b119265c325faf76c11d1b3a459f3f32d7e5 Mon Sep 17 00:00:00 2001
-From: Larry Finger <Larry.Finger@lwfinger.net>
-Date: Sun, 7 Nov 2021 11:35:43 -0600
-Subject: [PATCH 2/7] staging: r8188eu: Fix breakage introduced when 5G code
- was removed
-
-In commit 221abd4d478a ("staging: r8188eu: Remove no more necessary definitions
-and code"), two entries were removed from RTW_ChannelPlanMap[], but not replaced
-with zeros. The position within this table is important, thus the patch broke
-systems operating in regulatory domains osted later than entry 0x13 in the table.
-Unfortunately, the FCC entry comes before that point and most testers did not see
-this problem.
-
-Reported-and-tested-by: Zameer Manji <zmanji@gmail.com>
-Reported-by: kernel test robot <lkp@intel.com>
-Fixes: 221abd4d478a ("staging: r8188eu: Remove no more necessary definitions and code")
-Cc: Stable <stable@vger.kernel.org> # v5.5+
-Signed-off-by: Larry Finger <Larry.Finger@lwfinger.net>
-For: https://bugs.archlinux.org/task/72659
-For: https://bugs.archlinux.org/task/72760
----
- drivers/staging/r8188eu/core/rtw_mlme_ext.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/drivers/staging/r8188eu/core/rtw_mlme_ext.c b/drivers/staging/r8188eu/core/rtw_mlme_ext.c
-index 5a472a495..e5c907ac1 100644
---- a/drivers/staging/r8188eu/core/rtw_mlme_ext.c
-+++ b/drivers/staging/r8188eu/core/rtw_mlme_ext.c
-@@ -104,6 +104,7 @@ static struct rt_channel_plan_map	RTW_ChannelPlanMap[RT_CHANNEL_DOMAIN_MAX] = {
- 	{0x01},	/* 0x10, RT_CHANNEL_DOMAIN_JAPAN */
- 	{0x02},	/* 0x11, RT_CHANNEL_DOMAIN_FCC_NO_DFS */
- 	{0x01},	/* 0x12, RT_CHANNEL_DOMAIN_JAPAN_NO_DFS */
-+	{0x00}, /* 0x13 */
- 	{0x02},	/* 0x14, RT_CHANNEL_DOMAIN_TAIWAN_NO_DFS */
- 	{0x00},	/* 0x15, RT_CHANNEL_DOMAIN_ETSI_NO_DFS */
- 	{0x00},	/* 0x16, RT_CHANNEL_DOMAIN_KOREA_NO_DFS */
-@@ -115,6 +116,7 @@ static struct rt_channel_plan_map	RTW_ChannelPlanMap[RT_CHANNEL_DOMAIN_MAX] = {
- 	{0x00},	/* 0x1C, */
- 	{0x00},	/* 0x1D, */
- 	{0x00},	/* 0x1E, */
-+	{0x00},	/* 0x1F, */
- 	/*  0x20 ~ 0x7F , New Define ===== */
- 	{0x00},	/* 0x20, RT_CHANNEL_DOMAIN_WORLD_NULL */
- 	{0x01},	/* 0x21, RT_CHANNEL_DOMAIN_ETSI1_NULL */
--- 
-2.33.1.711.g9d530dc002
-
-
-From a021eaeb457e42a8259c8136225421c226e404bd Mon Sep 17 00:00:00 2001
+From f78d1b7e6312231ca00d330396bf160a82b5ad42 Mon Sep 17 00:00:00 2001
 From: "Jan Alexander Steffens (heftig)" <heftig@archlinux.org>
 Date: Thu, 18 Nov 2021 22:53:31 +0100
-Subject: [PATCH 3/7] PCI: Add more NVIDIA controllers to the MSI masking quirk
+Subject: [PATCH 2/6] PCI: Add more NVIDIA controllers to the MSI masking quirk
 
 For: https://bugs.archlinux.org/task/72734
 For: https://bugs.archlinux.org/task/72777
@@ -226,119 +178,10 @@ index 208fa03ac..7fdb7e9c2 100644
 2.33.1.711.g9d530dc002
 
 
-From 8a818c7b6a3571e299ff2cc7e26c9b482f10846c Mon Sep 17 00:00:00 2001
-From: Evan Quan <evan.quan@amd.com>
-Date: Mon, 15 Nov 2021 10:51:37 +0800
-Subject: [PATCH 4/7] drm/amd/pm: avoid duplicate powergate/ungate setting
-
-Just bail out if the target IP block is already in the desired
-powergate/ungate state. This can avoid some duplicate settings
-which sometimes may cause unexpected issues.
-
-Link: https://lore.kernel.org/all/YV81vidWQLWvATMM@zn.tnic/
-
-Change-Id: I66346c69f121df0f5ee20182451313ae4fda2d04
-Signed-off-by: Evan Quan <evan.quan@amd.com>
-Tested-by: Borislav Petkov <bp@suse.de>
-Reviewed-by: Lijo Lazar <lijo.lazar@amd.com>
-For: https://bugs.archlinux.org/task/72753
----
- drivers/gpu/drm/amd/amdgpu/amdgpu_device.c |  3 +++
- drivers/gpu/drm/amd/include/amd_shared.h   |  3 ++-
- drivers/gpu/drm/amd/pm/amdgpu_dpm.c        | 10 ++++++++++
- drivers/gpu/drm/amd/pm/inc/amdgpu_dpm.h    |  8 ++++++++
- 4 files changed, 23 insertions(+), 1 deletion(-)
-
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
-index c1e34aa59..96ca42bcf 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
-@@ -3532,6 +3532,9 @@ int amdgpu_device_init(struct amdgpu_device *adev,
- 		adev->rmmio_size = pci_resource_len(adev->pdev, 2);
- 	}
- 
-+	for (i = 0; i < AMD_IP_BLOCK_TYPE_NUM; i++)
-+		atomic_set(&adev->pm.pwr_state[i], POWER_STATE_UNKNOWN);
-+
- 	adev->rmmio = ioremap(adev->rmmio_base, adev->rmmio_size);
- 	if (adev->rmmio == NULL) {
- 		return -ENOMEM;
-diff --git a/drivers/gpu/drm/amd/include/amd_shared.h b/drivers/gpu/drm/amd/include/amd_shared.h
-index 257f280d3..bd077ea22 100644
---- a/drivers/gpu/drm/amd/include/amd_shared.h
-+++ b/drivers/gpu/drm/amd/include/amd_shared.h
-@@ -98,7 +98,8 @@ enum amd_ip_block_type {
- 	AMD_IP_BLOCK_TYPE_ACP,
- 	AMD_IP_BLOCK_TYPE_VCN,
- 	AMD_IP_BLOCK_TYPE_MES,
--	AMD_IP_BLOCK_TYPE_JPEG
-+	AMD_IP_BLOCK_TYPE_JPEG,
-+	AMD_IP_BLOCK_TYPE_NUM,
- };
- 
- enum amd_clockgating_state {
-diff --git a/drivers/gpu/drm/amd/pm/amdgpu_dpm.c b/drivers/gpu/drm/amd/pm/amdgpu_dpm.c
-index 03581d5b1..08362d506 100644
---- a/drivers/gpu/drm/amd/pm/amdgpu_dpm.c
-+++ b/drivers/gpu/drm/amd/pm/amdgpu_dpm.c
-@@ -927,6 +927,13 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block
- {
- 	int ret = 0;
- 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
-+	enum ip_power_state pwr_state = gate ? POWER_STATE_OFF : POWER_STATE_ON;
-+
-+	if (atomic_read(&adev->pm.pwr_state[block_type]) == pwr_state) {
-+		dev_dbg(adev->dev, "IP block%d already in the target %s state!",
-+				block_type, gate ? "gate" : "ungate");
-+		return 0;
-+	}
- 
- 	switch (block_type) {
- 	case AMD_IP_BLOCK_TYPE_UVD:
-@@ -979,6 +986,9 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block
- 		break;
- 	}
- 
-+	if (!ret)
-+		atomic_set(&adev->pm.pwr_state[block_type], pwr_state);
-+
- 	return ret;
- }
- 
-diff --git a/drivers/gpu/drm/amd/pm/inc/amdgpu_dpm.h b/drivers/gpu/drm/amd/pm/inc/amdgpu_dpm.h
-index 98f1b3d8c..16e3f72d3 100644
---- a/drivers/gpu/drm/amd/pm/inc/amdgpu_dpm.h
-+++ b/drivers/gpu/drm/amd/pm/inc/amdgpu_dpm.h
-@@ -417,6 +417,12 @@ struct amdgpu_dpm {
- 	enum amd_dpm_forced_level forced_level;
- };
- 
-+enum ip_power_state {
-+	POWER_STATE_UNKNOWN,
-+	POWER_STATE_ON,
-+	POWER_STATE_OFF,
-+};
-+
- struct amdgpu_pm {
- 	struct mutex		mutex;
- 	u32                     current_sclk;
-@@ -452,6 +458,8 @@ struct amdgpu_pm {
- 	struct i2c_adapter smu_i2c;
- 	struct mutex		smu_i2c_mutex;
- 	struct list_head	pm_attr_list;
-+
-+	atomic_t		pwr_state[AMD_IP_BLOCK_TYPE_NUM];
- };
- 
- #define R600_SSTU_DFLT                               0
--- 
-2.33.1.711.g9d530dc002
-
-
-From 1527d09a7c1853753bf1eb8c3d56546dea3006f9 Mon Sep 17 00:00:00 2001
+From c775a9a9763aed3813fa98a0552a159a6249c49c Mon Sep 17 00:00:00 2001
 From: Ajay Garg <ajaygargnsit@gmail.com>
 Date: Tue, 12 Oct 2021 19:26:53 +0530
-Subject: [PATCH 5/7] iommu: intel: do deep dma-unmapping, to avoid
+Subject: [PATCH 3/6] iommu: intel: do deep dma-unmapping, to avoid
  kernel-flooding.
 
 Origins at :
@@ -408,10 +251,10 @@ Link: https://lore.kernel.org/linux-iommu/20211012135653.3852-1-ajaygargnsit@gma
  1 file changed, 2 insertions(+)
 
 diff --git a/drivers/iommu/intel/iommu.c b/drivers/iommu/intel/iommu.c
-index d75f59ae2..485a8ea71 100644
+index 78f8c8e68..d8da48a91 100644
 --- a/drivers/iommu/intel/iommu.c
 +++ b/drivers/iommu/intel/iommu.c
-@@ -5090,6 +5090,8 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
+@@ -5092,6 +5092,8 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
  	gather->freelist = domain_unmap(dmar_domain, start_pfn,
  					last_pfn, gather->freelist);
  
@@ -424,10 +267,10 @@ index d75f59ae2..485a8ea71 100644
 2.33.1.711.g9d530dc002
 
 
-From 1f3eceb908e4eec90892e0b48c2aeb78891d7c5d Mon Sep 17 00:00:00 2001
+From 6e93e8609d9255f921a19a6cad842db043481355 Mon Sep 17 00:00:00 2001
 From: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
 Date: Thu, 18 Nov 2021 21:18:01 -0800
-Subject: [PATCH 6/7] cpufreq: intel_pstate: ITMT support for overclocked
+Subject: [PATCH 4/6] cpufreq: intel_pstate: ITMT support for overclocked
  system
 
 On systems with overclocking enabled, CPPC Highest Performance can be
@@ -449,7 +292,7 @@ Signed-off-by: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
  1 file changed, 10 insertions(+)
 
 diff --git a/drivers/cpufreq/intel_pstate.c b/drivers/cpufreq/intel_pstate.c
-index dafa63158..7307b3c4a 100644
+index e15c3bc17..8a2c6b58b 100644
 --- a/drivers/cpufreq/intel_pstate.c
 +++ b/drivers/cpufreq/intel_pstate.c
 @@ -335,6 +335,8 @@ static void intel_pstste_sched_itmt_work_fn(struct work_struct *work)
@@ -480,10 +323,10 @@ index dafa63158..7307b3c4a 100644
 2.33.1.711.g9d530dc002
 
 
-From efb2787a14c212b6a2ceb202b2a6485c3f7907b2 Mon Sep 17 00:00:00 2001
+From b271aab177dc0dd7f15769c1ffdf71715d0f13c3 Mon Sep 17 00:00:00 2001
 From: Kiran K <kiran.k@intel.com>
 Date: Wed, 13 Oct 2021 13:35:11 +0530
-Subject: [PATCH 7/7] Bluetooth: btintel: Fix bdaddress comparison with garbage
+Subject: [PATCH 5/6] Bluetooth: btintel: Fix bdaddress comparison with garbage
  value
 
 Intel Read Verision(TLV) data is parsed into a local structure variable
@@ -537,6 +380,46 @@ index f1705b46f..b9055a3e6 100644
  	/* For TLV type device, parse the tlv data */
  	err = btintel_parse_version_tlv(hdev, &ver_tlv, skb);
  	if (err) {
+-- 
+2.33.1.711.g9d530dc002
+
+
+From 992da3bdd3f5fb586b3ad42de27aac477cb0b201 Mon Sep 17 00:00:00 2001
+From: Matan Ziv-Av <matan@svgalib.org>
+Date: Tue, 23 Nov 2021 22:14:55 +0200
+Subject: [PATCH 6/6] lg-laptop: Recognize more models
+
+LG uses 5 instead of 0 in the third digit (second digit after 2019) of the year string to indicate newer models in the same year. Handle this case as well.
+
+Signed-off-by: Matan Ziv-Av <matan@svgalib.org>
+For: https://bugs.archlinux.org/task/71772
+---
+ drivers/platform/x86/lg-laptop.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/drivers/platform/x86/lg-laptop.c b/drivers/platform/x86/lg-laptop.c
+index 88b551cae..d6f74d3a7 100644
+--- a/drivers/platform/x86/lg-laptop.c
++++ b/drivers/platform/x86/lg-laptop.c
+@@ -658,6 +658,18 @@ static int acpi_add(struct acpi_device *device)
+ 	if (product && strlen(product) > 4)
+ 		switch (product[4]) {
+ 		case '5':
++			if (strlen(product) > 5)
++				switch (product[5]) {
++				case 'N':
++					year = 2021;
++					break;
++				case '0':
++					year = 2016;
++					break;
++				default:
++					year = 2022;
++				}
++			break;
+ 		case '6':
+ 			year = 2016;
+ 			break;
 -- 
 2.33.1.711.g9d530dc002
 
