@@ -70,7 +70,8 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/maple-tree-v2.patch
 						${FILESDIR}/cachy-patches-integration/0001-fix-string.patch
 						${FILESDIR}/cachy-patches/0004-tcp-optimizations.patch
-						${FILESDIR}/cachy-patches-integration/0001-fix-tcp.patch"
+						${FILESDIR}/cachy-patches-integration/0001-fix-tcp.patch
+						${FILESDIR}/cachy-patches/AMD/amd-sched.patch"
 	kernel-2-src-prepare-overlay_src_unpack
 
 	for patch in ${CACHY_PATCHES[@]}; do
