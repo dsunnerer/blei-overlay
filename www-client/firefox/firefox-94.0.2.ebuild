@@ -66,7 +66,7 @@ IUSE="+clang cpu_flags_arm_neon dbus debug eme-free hardened hwaccel"
 IUSE+=" jack lto +openh264 pgo pulseaudio sndio selinux"
 IUSE+=" +system-av1 +system-harfbuzz +system-icu +system-jpeg +system-libevent +system-libvpx +system-webp"
 IUSE+=" wayland wifi"
-IUSE+=" +kde +privacy"
+IUSE+=" kde +privacy"
 
 # Firefox-only IUSE
 IUSE+=" geckodriver"
@@ -1187,9 +1187,11 @@ src_install() {
 	fi
 
 	#######
-	cat "${FILESDIR}"/opensuse-kde-$(ver_cut 1)/kde.js >> \
-	"${GENTOO_PREFS}" \
-	|| die
+	if use kde; then
+		cat "${FILESDIR}"/opensuse-kde-$(ver_cut 1)/kde.js >> \
+		"${GENTOO_PREFS}" \
+		|| die
+	fi
 
 	cat "${FILESDIR}"/privacy-patchset/privacy.js >> \
 	"${GENTOO_PREFS}" \
