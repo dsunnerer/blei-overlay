@@ -63,7 +63,7 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/cachy-patches/0001-xfs-backport.patch
 						${FILESDIR}/cachy-patches/0001-zen-patches.patch
 						${FILESDIR}/cachy-patches/0001-zstd-patches-v2.patch
-						${FILESDIR}/cachy-patches/TT/0001-tt-r2.patch
+						${FILESDIR}/cachy-patches/TT/0001-tt-r3.patch
 						${FILESDIR}/cachy-patches/arch-patches-v2/0001-arch-patches.patch
 						${FILESDIR}/cachy-patches-integration/0001-misc.patch
 						${FILESDIR}/cachy-patches/0001-pf-patches.patch

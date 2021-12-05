@@ -776,7 +776,7 @@ index 28f8ad16db25..78404625bad2 100644
 @@ -254,17 +254,6 @@ period (in this case 2603), the grace-period sequence number (7075), and
  an estimate of the total number of RCU callbacks queued across all CPUs
  (625 in this case).
- 
+
 -In kernels with CONFIG_RCU_FAST_NO_HZ, more information is printed
 -for each CPU::
 -
@@ -796,50 +796,50 @@ index 17e95ab2a201..c34d2212eaca 100644
 --- a/Documentation/RCU/whatisRCU.rst
 +++ b/Documentation/RCU/whatisRCU.rst
 @@ -39,9 +39,11 @@ different paths, as follows:
- 
+
  :ref:`6.	ANALOGY WITH READER-WRITER LOCKING <6_whatisRCU>`
- 
+
 -:ref:`7.	FULL LIST OF RCU APIs <7_whatisRCU>`
 +:ref:`7.	ANALOGY WITH REFERENCE COUNTING <7_whatisRCU>`
- 
+
 -:ref:`8.	ANSWERS TO QUICK QUIZZES <8_whatisRCU>`
 +:ref:`8.	FULL LIST OF RCU APIs <8_whatisRCU>`
 +
 +:ref:`9.	ANSWERS TO QUICK QUIZZES <9_whatisRCU>`
- 
+
  People who prefer starting with a conceptual overview should focus on
  Section 1, though most readers will profit by reading this section at
 @@ -677,7 +679,7 @@ Quick Quiz #1:
  		occur when using this algorithm in a real-world Linux
  		kernel?  How could this deadlock be avoided?
- 
+
 -:ref:`Answers to Quick Quiz <8_whatisRCU>`
 +:ref:`Answers to Quick Quiz <9_whatisRCU>`
- 
+
  5B.  "TOY" EXAMPLE #2: CLASSIC RCU
  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 @@ -732,7 +734,7 @@ Quick Quiz #2:
  		Give an example where Classic RCU's read-side
  		overhead is **negative**.
- 
+
 -:ref:`Answers to Quick Quiz <8_whatisRCU>`
 +:ref:`Answers to Quick Quiz <9_whatisRCU>`
- 
+
  .. _quiz_3:
- 
+
 @@ -741,7 +743,7 @@ Quick Quiz #3:
  		critical section, what the heck do you do in
  		CONFIG_PREEMPT_RT, where normal spinlocks can block???
- 
+
 -:ref:`Answers to Quick Quiz <8_whatisRCU>`
 +:ref:`Answers to Quick Quiz <9_whatisRCU>`
- 
+
  .. _6_whatisRCU:
- 
+
 @@ -872,7 +874,79 @@ be used in place of synchronize_rcu().
- 
+
  .. _7_whatisRCU:
- 
+
 -7.  FULL LIST OF RCU APIs
 +7.  ANALOGY WITH REFERENCE COUNTING
 +-----------------------------------
@@ -915,19 +915,19 @@ index 17e95ab2a201..c34d2212eaca 100644
 +
 +8.  FULL LIST OF RCU APIs
  -------------------------
- 
+
  The RCU APIs are documented in docbook-format header comments in the
 @@ -1035,9 +1109,9 @@ g.	Otherwise, use RCU.
  Of course, this all assumes that you have determined that RCU is in fact
  the right tool for your job.
- 
+
 -.. _8_whatisRCU:
 +.. _9_whatisRCU:
- 
+
 -8.  ANSWERS TO QUICK QUIZZES
 +9.  ANSWERS TO QUICK QUIZZES
  ----------------------------
- 
+
  Quick Quiz #1:
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
 index 9725c546a0d4..35f9879bd6d2 100644
@@ -941,13 +941,13 @@ index 9725c546a0d4..35f9879bd6d2 100644
 -			four attempts to read the clock under test.
 +			unstable.  Defaults to two retries, that is,
 +			three attempts to read the clock under test.
- 
+
  	clocksource.verify_n_cpus= [KNL]
  			Limit the number of CPUs checked for clocksources
 @@ -4343,19 +4343,30 @@
  				Disable the Correctable Errors Collector,
  				see CONFIG_RAS_CEC help text.
- 
+
 -	rcu_nocbs=	[KNL]
 -			The argument is a cpu list, as described above.
 -
@@ -985,13 +985,13 @@ index 9725c546a0d4..35f9879bd6d2 100644
 +			arguments are omitted, no CPU will be set to
 +			no-callback mode from boot but the mode may be
 +			toggled at runtime via cpusets.
- 
+
  	rcu_nocb_poll	[KNL]
  			Rather than requiring that offloaded CPUs
 @@ -4489,10 +4500,6 @@
  			on rcutree.qhimark at boot time and to zero to
  			disable more aggressive help enlistment.
- 
+
 -	rcutree.rcu_idle_gp_delay= [KNL]
 -			Set wakeup interval for idle CPUs that have
 -			RCU callbacks (RCU_FAST_NO_HZ=y).
@@ -1001,7 +1001,7 @@ index 9725c546a0d4..35f9879bd6d2 100644
  			wake_up() if it sleeps three times longer than
 @@ -4603,8 +4610,12 @@
  			in seconds.
- 
+
  	rcutorture.fwd_progress= [KNL]
 -			Enable RCU grace-period forward-progress testing
 +			Specifies the number of kthreads to be used
@@ -1010,13 +1010,13 @@ index 9725c546a0d4..35f9879bd6d2 100644
 +			Defaults to 1 kthread, values less than zero or
 +			greater than the number of CPUs cause the number
 +			of CPUs to be used.
- 
+
  	rcutorture.fwd_progress_div= [KNL]
  			Specify the fraction of a CPU-stall-warning
 @@ -4805,6 +4816,21 @@
  			period to instead use normal non-expedited
  			grace-period processing.
- 
+
 +	rcupdate.rcu_task_contend_lim= [KNL]
 +			Set the minimum number of callback-queuing-time
 +			lock-contention events per jiffy required to
@@ -1042,7 +1042,7 @@ index 5e51ee5b0358..e4a5fc26f1a9 100644
 @@ -208,7 +208,7 @@ Do at least one of the following:
  2.	Enable RCU to do its processing remotely via dyntick-idle by
  	doing all of the following:
- 
+
 -	a.	Build with CONFIG_NO_HZ=y and CONFIG_RCU_FAST_NO_HZ=y.
 +	a.	Build with CONFIG_NO_HZ=y.
  	b.	Ensure that the CPU goes idle frequently, allowing other
@@ -1274,7 +1274,7 @@ index 20ad23a6c618..f8786be15183 100644
 @@ -184,16 +184,12 @@ There are situations in which idle CPUs cannot be permitted to
  enter either dyntick-idle mode or adaptive-tick mode, the most
  common being when that CPU has RCU callbacks pending.
- 
+
 -The CONFIG_RCU_FAST_NO_HZ=y Kconfig option may be used to cause such CPUs
 -to enter dyntick-idle mode or adaptive-tick mode anyway.  In this case,
 -a timer will awaken these CPUs every four jiffies in order to ensure
@@ -1288,7 +1288,7 @@ index 20ad23a6c618..f8786be15183 100644
 -"1,3-5" selects CPUs 1, 3, 4, and 5.
 +"1,3-5" selects CPUs 1, 3, 4, and 5.  Note that CPUs specified by
 +the "nohz_full" kernel boot parameter are also offloaded.
- 
+
  The offloaded CPUs will never queue RCU callbacks, and therefore RCU
  never prevents offloaded CPUs from entering either dyntick-idle mode
 diff --git a/include/linux/rcu_segcblist.h b/include/linux/rcu_segcblist.h
@@ -1412,7 +1412,7 @@ index 3db96c4f45fd..659d13a7ddaa 100644
 +#define SEGCBLIST_KTHREAD_CB	BIT(3)
 +#define SEGCBLIST_KTHREAD_GP	BIT(4)
 +#define SEGCBLIST_OFFLOADED	BIT(5)
- 
+
  struct rcu_segcblist {
  	struct rcu_head *head;
 diff --git a/include/linux/rcupdate.h b/include/linux/rcupdate.h
@@ -1422,7 +1422,7 @@ index 5e0beb5c5659..88b42eb46406 100644
 @@ -364,6 +364,12 @@ static inline void rcu_preempt_sleep_check(void) { }
  #define rcu_check_sparse(p, space)
  #endif /* #else #ifdef __CHECKER__ */
- 
+
 +#define __unrcu_pointer(p, local)					\
 +({									\
 +	typeof(*p) *local = (typeof(*p) *__force)(p);			\
@@ -1443,7 +1443,7 @@ index 5e0beb5c5659..88b42eb46406 100644
 -	((typeof(*p) __force __kernel *)(_________p1)); 		\
 -})
 +#define unrcu_pointer(p) __unrcu_pointer(p, __UNIQUE_ID(rcu))
- 
+
 -#define __rcu_access_pointer(p, space) \
 +#define __rcu_access_pointer(p, local, space) \
  ({ \
@@ -1481,7 +1481,7 @@ index 5e0beb5c5659..88b42eb46406 100644
 +	((typeof(*p) __force __kernel *)(local)); \
  })
 +#define rcu_dereference_raw(p) __rcu_dereference_raw(p, __UNIQUE_ID(rcu))
- 
+
  /**
   * RCU_INITIALIZER() - statically initialize an RCU-protected global variable
 @@ -490,7 +492,7 @@ do {									      \
@@ -1490,7 +1490,7 @@ index 5e0beb5c5659..88b42eb46406 100644
   */
 -#define rcu_access_pointer(p) __rcu_access_pointer((p), __rcu)
 +#define rcu_access_pointer(p) __rcu_access_pointer((p), __UNIQUE_ID(rcu), __rcu)
- 
+
  /**
   * rcu_dereference_check() - rcu_dereference with debug checking
 @@ -526,7 +528,8 @@ do {									      \
@@ -1500,7 +1500,7 @@ index 5e0beb5c5659..88b42eb46406 100644
 -	__rcu_dereference_check((p), (c) || rcu_read_lock_held(), __rcu)
 +	__rcu_dereference_check((p), __UNIQUE_ID(rcu), \
 +				(c) || rcu_read_lock_held(), __rcu)
- 
+
  /**
   * rcu_dereference_bh_check() - rcu_dereference_bh with debug checking
 @@ -541,7 +544,8 @@ do {									      \
@@ -1510,7 +1510,7 @@ index 5e0beb5c5659..88b42eb46406 100644
 -	__rcu_dereference_check((p), (c) || rcu_read_lock_bh_held(), __rcu)
 +	__rcu_dereference_check((p), __UNIQUE_ID(rcu), \
 +				(c) || rcu_read_lock_bh_held(), __rcu)
- 
+
  /**
   * rcu_dereference_sched_check() - rcu_dereference_sched with debug checking
 @@ -556,7 +560,8 @@ do {									      \
@@ -1521,7 +1521,7 @@ index 5e0beb5c5659..88b42eb46406 100644
 +	__rcu_dereference_check((p), __UNIQUE_ID(rcu), \
 +				(c) || rcu_read_lock_sched_held(), \
  				__rcu)
- 
+
  /*
 @@ -566,7 +571,8 @@ do {									      \
   * The no-tracing version of rcu_dereference_raw() must not call
@@ -1530,7 +1530,7 @@ index 5e0beb5c5659..88b42eb46406 100644
 -#define rcu_dereference_raw_check(p) __rcu_dereference_check((p), 1, __rcu)
 +#define rcu_dereference_raw_check(p) \
 +	__rcu_dereference_check((p), __UNIQUE_ID(rcu), 1, __rcu)
- 
+
  /**
   * rcu_dereference_protected() - fetch RCU pointer when updates prevented
 @@ -585,7 +591,7 @@ do {									      \
@@ -1539,8 +1539,8 @@ index 5e0beb5c5659..88b42eb46406 100644
  #define rcu_dereference_protected(p, c) \
 -	__rcu_dereference_protected((p), (c), __rcu)
 +	__rcu_dereference_protected((p), __UNIQUE_ID(rcu), (c), __rcu)
- 
- 
+
+
  /**
 diff --git a/include/linux/rcutiny.h b/include/linux/rcutiny.h
 index 9be015305f9f..858f4d429946 100644
@@ -1566,7 +1566,7 @@ index e6011a9975af..01226e4d960a 100644
 -	__rcu_dereference_check((p), (c) || srcu_read_lock_held(ssp), __rcu)
 +	__rcu_dereference_check((p), __UNIQUE_ID(rcu), \
 +				(c) || srcu_read_lock_held(ssp), __rcu)
- 
+
  /**
   * srcu_dereference - fetch SRCU-protected pointer for later dereferencing
 diff --git a/include/linux/torture.h b/include/linux/torture.h
@@ -1587,7 +1587,7 @@ index 24f58e50a94b..63fa4196e51c 100644
 +#define TOROUT_ERRSTRING(s) \
 +	pr_alert("%s" TORTURE_FLAG "!!! %s\n", torture_type, s)
  void verbose_torout_sleep(void);
- 
+
  #define torture_init_error(firsterr)						\
 diff --git a/kernel/locking/locktorture.c b/kernel/locking/locktorture.c
 index 397ac13d2ef7..9c2fb613a55d 100644
@@ -1617,17 +1617,17 @@ index 3128b7cf8e1f..bf8e341e75b4 100644
 +++ b/kernel/rcu/Kconfig
 @@ -112,7 +112,7 @@ config RCU_STALL_COMMON
  	  making these warnings mandatory for the tree variants.
- 
+
  config RCU_NEED_SEGCBLIST
 -	def_bool ( TREE_RCU || TREE_SRCU )
 +	def_bool ( TREE_RCU || TREE_SRCU || TASKS_RCU_GENERIC )
- 
+
  config RCU_FANOUT
  	int "Tree-based hierarchical RCU fanout value"
 @@ -169,24 +169,6 @@ config RCU_FANOUT_LEAF
- 
+
  	  Take the default if unsure.
- 
+
 -config RCU_FAST_NO_HZ
 -	bool "Accelerate last non-dyntick-idle CPU's grace periods"
 -	depends on NO_HZ_COMMON && SMP && RCU_EXPERT
@@ -1655,7 +1655,7 @@ index aaa111237b60..81145c3ece25 100644
 +++ b/kernel/rcu/rcu_segcblist.c
 @@ -261,16 +261,14 @@ void rcu_segcblist_disable(struct rcu_segcblist *rsclp)
  }
- 
+
  /*
 - * Mark the specified rcu_segcblist structure as offloaded.
 + * Mark the specified rcu_segcblist structure as offloaded (or not)
@@ -1672,7 +1672,7 @@ index aaa111237b60..81145c3ece25 100644
  		rcu_segcblist_clear_flags(rsclp, SEGCBLIST_OFFLOADED);
 -	}
  }
- 
+
  /*
 diff --git a/kernel/rcu/rcu_segcblist.h b/kernel/rcu/rcu_segcblist.h
 index 9a19328ff251..e373fbe44da5 100644
@@ -1681,7 +1681,7 @@ index 9a19328ff251..e373fbe44da5 100644
 @@ -80,11 +80,14 @@ static inline bool rcu_segcblist_is_enabled(struct rcu_segcblist *rsclp)
  	return rcu_segcblist_test_flags(rsclp, SEGCBLIST_ENABLED);
  }
- 
+
 -/* Is the specified rcu_segcblist offloaded, or is SEGCBLIST_SOFTIRQ_ONLY set? */
 +/*
 + * Is the specified rcu_segcblist NOCB offloaded (or in the middle of the
@@ -1693,10 +1693,10 @@ index 9a19328ff251..e373fbe44da5 100644
 -	    !rcu_segcblist_test_flags(rsclp, SEGCBLIST_SOFTIRQ_ONLY))
 +	    rcu_segcblist_test_flags(rsclp, SEGCBLIST_LOCKING))
  		return true;
- 
+
  	return false;
 @@ -92,9 +95,8 @@ static inline bool rcu_segcblist_is_offloaded(struct rcu_segcblist *rsclp)
- 
+
  static inline bool rcu_segcblist_completely_offloaded(struct rcu_segcblist *rsclp)
  {
 -	int flags = SEGCBLIST_KTHREAD_CB | SEGCBLIST_KTHREAD_GP | SEGCBLIST_OFFLOADED;
@@ -1705,7 +1705,7 @@ index 9a19328ff251..e373fbe44da5 100644
 +	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU) &&
 +	    !rcu_segcblist_test_flags(rsclp, SEGCBLIST_RCU_CORE))
  		return true;
- 
+
  	return false;
 diff --git a/kernel/rcu/rcuscale.c b/kernel/rcu/rcuscale.c
 index 228f143bf935..5e4f1f83d38e 100644
@@ -1719,7 +1719,7 @@ index 228f143bf935..5e4f1f83d38e 100644
 -	do { if (verbose) pr_alert("%s" SCALE_FLAG "!!! %s\n", scale_type, s); } while (0)
 +#define SCALEOUT_ERRSTRING(s) \
 +	pr_alert("%s" SCALE_FLAG "!!! %s\n", scale_type, s)
- 
+
  /*
   * The intended use cases for the nreaders and nwriters module parameters
 @@ -514,11 +514,11 @@ rcu_scale_cleanup(void)
@@ -1734,7 +1734,7 @@ index 228f143bf935..5e4f1f83d38e 100644
  	if (gp_exp && gp_async)
 -		VERBOSE_SCALEOUT_ERRSTRING("No expedited async GPs, so went with async!");
 +		SCALEOUT_ERRSTRING("No expedited async GPs, so went with async!");
- 
+
  	if (torture_cleanup_begin())
  		return;
 @@ -845,7 +845,7 @@ rcu_scale_init(void)
@@ -1764,12 +1764,12 @@ index 8b410d982990..33ea446101b3 100644
  #include <linux/tick.h>
  #include <linux/rcupdate_trace.h>
 +#include <linux/nmi.h>
- 
+
  #include "rcu.h"
- 
+
 @@ -53,15 +54,18 @@ MODULE_LICENSE("GPL");
  MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com> and Josh Triplett <josh@joshtriplett.org>");
- 
+
  /* Bits for ->extendables field, extendables param, and related definitions. */
 -#define RCUTORTURE_RDR_SHIFT	 8	/* Put SRCU index in upper bits. */
 -#define RCUTORTURE_RDR_MASK	 ((1 << RCUTORTURE_RDR_SHIFT) - 1)
@@ -1829,7 +1829,7 @@ index 8b410d982990..33ea446101b3 100644
 +	int no_pi_lock;
  	const char *name;
  };
- 
+
 @@ -667,6 +675,7 @@ static struct rcu_torture_ops srcu_ops = {
  	.cb_barrier	= srcu_torture_barrier,
  	.stats		= srcu_torture_stats,
@@ -1837,7 +1837,7 @@ index 8b410d982990..33ea446101b3 100644
 +	.no_pi_lock	= IS_ENABLED(CONFIG_TINY_SRCU),
  	.name		= "srcu"
  };
- 
+
 @@ -700,6 +709,7 @@ static struct rcu_torture_ops srcud_ops = {
  	.cb_barrier	= srcu_torture_barrier,
  	.stats		= srcu_torture_stats,
@@ -1845,7 +1845,7 @@ index 8b410d982990..33ea446101b3 100644
 +	.no_pi_lock	= IS_ENABLED(CONFIG_TINY_SRCU),
  	.name		= "srcud"
  };
- 
+
 @@ -720,6 +730,7 @@ static struct rcu_torture_ops busted_srcud_ops = {
  	.cb_barrier	= srcu_torture_barrier,
  	.stats		= srcu_torture_stats,
@@ -1882,13 +1882,13 @@ index 8b410d982990..33ea446101b3 100644
 +	int idxold2 = idxold1;
  	int statesnew = ~*readstate & newstate;
  	int statesold = *readstate & ~newstate;
- 
+
 -	WARN_ON_ONCE(idxold < 0);
 -	WARN_ON_ONCE((idxold >> RCUTORTURE_RDR_SHIFT) > 1);
 +	WARN_ON_ONCE(idxold2 < 0);
 +	WARN_ON_ONCE((idxold2 >> RCUTORTURE_RDR_SHIFT_2) > 1);
  	rtrsp->rt_readstate = newstate;
- 
+
  	/* First, put new protection in place to avoid critical-section gap. */
 @@ -1440,8 +1455,10 @@ static void rcutorture_one_extend(int *readstate, int newstate,
  		preempt_disable();
@@ -1900,7 +1900,7 @@ index 8b410d982990..33ea446101b3 100644
 +		idxnew1 = (cur_ops->readlock() & 0x1) << RCUTORTURE_RDR_SHIFT_1;
 +	if (statesnew & RCUTORTURE_RDR_RCU_2)
 +		idxnew2 = (cur_ops->readlock() & 0x1) << RCUTORTURE_RDR_SHIFT_2;
- 
+
  	/*
  	 * Next, remove old protection, in decreasing order of strength
 @@ -1460,12 +1477,20 @@ static void rcutorture_one_extend(int *readstate, int newstate,
@@ -1916,7 +1916,7 @@ index 8b410d982990..33ea446101b3 100644
 +	}
 +	if (statesold & RCUTORTURE_RDR_RCU_1) {
 +		bool lockit;
- 
+
 +		lockit = !cur_ops->no_pi_lock && !statesnew && !(torture_random(trsp) & 0xffff);
  		if (lockit)
  			raw_spin_lock_irqsave(&current->pi_lock, flags);
@@ -1929,7 +1929,7 @@ index 8b410d982990..33ea446101b3 100644
  	}
 @@ -1475,13 +1500,19 @@ static void rcutorture_one_extend(int *readstate, int newstate,
  		cur_ops->read_delay(trsp, rtrsp);
- 
+
  	/* Update the reader state. */
 -	if (idxnew == -1)
 -		idxnew = idxold & ~RCUTORTURE_RDR_MASK;
@@ -1952,21 +1952,21 @@ index 8b410d982990..33ea446101b3 100644
 +	if (WARN_ON_ONCE((*readstate >> RCUTORTURE_RDR_SHIFT_2) > 1))
 +		pr_info("Unexpected idxnew2 value of %#x\n", idxnew2);
  }
- 
+
  /* Return the biggest extendables mask given current RCU and boot parameters. */
 @@ -1491,7 +1522,7 @@ static int rcutorture_extend_mask_max(void)
- 
+
  	WARN_ON_ONCE(extendables & ~RCUTORTURE_MAX_EXTEND);
  	mask = extendables & RCUTORTURE_MAX_EXTEND & cur_ops->extendables;
 -	mask = mask | RCUTORTURE_RDR_RCU;
 +	mask = mask | RCUTORTURE_RDR_RCU_1 | RCUTORTURE_RDR_RCU_2;
  	return mask;
  }
- 
+
 @@ -1506,13 +1537,21 @@ rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
  	unsigned long preempts_irq = preempts | RCUTORTURE_RDR_IRQ;
  	unsigned long bhs = RCUTORTURE_RDR_BH | RCUTORTURE_RDR_RBH;
- 
+
 -	WARN_ON_ONCE(mask >> RCUTORTURE_RDR_SHIFT);
 +	WARN_ON_ONCE(mask >> RCUTORTURE_RDR_SHIFT_1);
  	/* Mostly only one bit (need preemption!), sometimes lots of bits. */
@@ -1974,7 +1974,7 @@ index 8b410d982990..33ea446101b3 100644
  		mask = mask & randmask2;
  	else
  		mask = mask & (1 << (randmask2 % RCUTORTURE_RDR_NBITS));
- 
+
 +	// Can't have nested RCU reader without outer RCU reader.
 +	if (!(mask & RCUTORTURE_RDR_RCU_1) && (mask & RCUTORTURE_RDR_RCU_2)) {
 +		if (oldmask & RCUTORTURE_RDR_RCU_1)
@@ -1989,11 +1989,11 @@ index 8b410d982990..33ea446101b3 100644
 @@ -1532,7 +1571,7 @@ rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
  			mask |= oldmask & bhs;
  	}
- 
+
 -	return mask ?: RCUTORTURE_RDR_RCU;
 +	return mask ?: RCUTORTURE_RDR_RCU_1;
  }
- 
+
  /*
 @@ -1626,7 +1665,7 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
  			  rcu_torture_writer_state,
@@ -2019,13 +2019,13 @@ index 8b410d982990..33ea446101b3 100644
  	unsigned long rcu_launder_gp_seq_start;
 +	int rcu_fwd_id;
  };
- 
+
  static DEFINE_MUTEX(rcu_fwd_mutex);
  static struct rcu_fwd *rcu_fwds;
 +static unsigned long rcu_fwd_seq;
 +static atomic_long_t rcu_fwd_max_cbs;
  static bool rcu_fwd_emergency_stop;
- 
+
  static void rcu_torture_fwd_cb_hist(struct rcu_fwd *rfp)
 @@ -2139,8 +2183,9 @@ static void rcu_torture_fwd_cb_hist(struct rcu_fwd *rfp)
  	for (i = ARRAY_SIZE(rfp->n_launders_hist) - 1; i > 0; i--)
@@ -2045,7 +2045,7 @@ index 8b410d982990..33ea446101b3 100644
  	pr_cont("\n");
 +	mutex_unlock(&rcu_fwd_mutex);
  }
- 
+
  /* Callback function for continuous-flood RCU callbacks. */
 @@ -2276,7 +2322,8 @@ static void rcu_torture_fwd_prog_nr(struct rcu_fwd *rfp,
  		cver = READ_ONCE(rcu_torture_current_version) - cver;
@@ -2094,7 +2094,7 @@ index 8b410d982990..33ea446101b3 100644
 +	int i;
 +	long ncbs;
  	struct rcu_fwd *rfp;
- 
+
  	mutex_lock(&rcu_fwd_mutex);
 @@ -2404,18 +2457,26 @@ static int rcutorture_oom_notify(struct notifier_block *self,
  	}
@@ -2174,7 +2174,7 @@ index 8b410d982990..33ea446101b3 100644
 +		     (rcu_inkernel_boot_has_ended() &&
 +		      torture_num_online_cpus() > rfp->rcu_fwd_id)))
 +			rcu_torture_fwd_prog_nr(rfp, &tested, &tested_tries);
- 
+
  		/* Avoid slow periods, better to test when busy. */
  		if (stutter_wait("rcu_torture_fwd_prog"))
  			sched_set_normal(current, oldnice);
@@ -2196,7 +2196,7 @@ index 8b410d982990..33ea446101b3 100644
 +	int i;
 +	int ret = 0;
  	struct rcu_fwd *rfp;
- 
+
  	if (!fwd_progress)
  		return 0; /* Not requested, so don't do it. */
 +	if (fwd_progress >= nr_cpu_ids) {
@@ -2255,12 +2255,12 @@ index 8b410d982990..33ea446101b3 100644
 +	}
 +	return 0;
  }
- 
+
  static void rcu_torture_fwd_prog_cleanup(void)
  {
 +	int i;
  	struct rcu_fwd *rfp;
- 
+
 -	torture_stop_kthread(rcu_torture_fwd_prog, fwd_prog_task);
 -	rfp = rcu_fwds;
 +	if (!rcu_fwds || !fwd_prog_tasks)
@@ -2277,7 +2277,7 @@ index 8b410d982990..33ea446101b3 100644
 +	kfree(fwd_prog_tasks);
 +	fwd_prog_tasks = NULL;
  }
- 
+
  /* Callback function for RCU barrier testing. */
 @@ -2741,7 +2855,7 @@ static int rcu_torture_read_exit(void *unused)
  				     &trs, "%s",
@@ -2321,16 +2321,16 @@ index 1631ef8a138d..bbf2e915f835 100644
 +++ b/kernel/rcu/refscale.c
 @@ -44,7 +44,10 @@
  	pr_alert("%s" SCALE_FLAG s, scale_type, ## x)
- 
+
  #define VERBOSE_SCALEOUT(s, x...) \
 -	do { if (verbose) pr_alert("%s" SCALE_FLAG s, scale_type, ## x); } while (0)
 +	do { \
 +		if (verbose) \
 +			pr_alert("%s" SCALE_FLAG s "\n", scale_type, ## x); \
 +	} while (0)
- 
+
  static atomic_t verbose_batch_ctr;
- 
+
 @@ -54,12 +57,12 @@ do {											\
  	    (verbose_batched <= 0 ||							\
  	     !(atomic_inc_return(&verbose_batch_ctr) % verbose_batched))) {		\
@@ -2339,25 +2339,25 @@ index 1631ef8a138d..bbf2e915f835 100644
 +		pr_alert("%s" SCALE_FLAG s "\n", scale_type, ## x);			\
  	}										\
  } while (0)
- 
+
 -#define VERBOSE_SCALEOUT_ERRSTRING(s, x...) \
 -	do { if (verbose) pr_alert("%s" SCALE_FLAG "!!! " s, scale_type, ## x); } while (0)
 +#define SCALEOUT_ERRSTRING(s, x...) \
 +	do { pr_alert("%s" SCALE_FLAG "!!! " s "\n", scale_type, ## x); } while (0)
- 
+
  MODULE_LICENSE("GPL");
  MODULE_AUTHOR("Joel Fernandes (Google) <joel@joelfernandes.org>");
 @@ -604,7 +607,7 @@ static u64 process_durations(int n)
  	char *buf;
  	u64 sum = 0;
- 
+
 -	buf = kmalloc(128 + nreaders * 32, GFP_KERNEL);
 +	buf = kmalloc(800 + 64, GFP_KERNEL);
  	if (!buf)
  		return 0;
  	buf[0] = 0;
 @@ -617,13 +620,15 @@ static u64 process_durations(int n)
- 
+
  		if (i % 5 == 0)
  			strcat(buf, "\n");
 +		if (strlen(buf) >= 800) {
@@ -2365,14 +2365,14 @@ index 1631ef8a138d..bbf2e915f835 100644
 +			buf[0] = 0;
 +		}
  		strcat(buf, buf1);
- 
+
  		sum += rt->last_duration_ns;
  	}
 -	strcat(buf, "\n");
 -
 -	SCALEOUT("%s\n", buf);
 +	pr_alert("%s\n", buf);
- 
+
  	kfree(buf);
  	return sum;
 @@ -637,7 +642,6 @@ static u64 process_durations(int n)
@@ -2384,7 +2384,7 @@ index 1631ef8a138d..bbf2e915f835 100644
  	char buf1[64];
  	char *buf;
 @@ -648,10 +652,10 @@ static int main_func(void *arg)
- 
+
  	VERBOSE_SCALEOUT("main_func task started");
  	result_avg = kzalloc(nruns * sizeof(*result_avg), GFP_KERNEL);
 -	buf = kzalloc(64 + nruns * 32, GFP_KERNEL);
@@ -2398,18 +2398,18 @@ index 1631ef8a138d..bbf2e915f835 100644
  	if (holdoff)
  		schedule_timeout_interruptible(holdoff * HZ);
 @@ -663,8 +667,6 @@ static int main_func(void *arg)
- 
+
  	// Start exp readers up per experiment
  	for (exp = 0; exp < nruns && !torture_must_stop(); exp++) {
 -		if (errexit)
 -			break;
  		if (torture_must_stop())
  			goto end;
- 
+
 @@ -698,26 +700,23 @@ static int main_func(void *arg)
  	// Print the average of all experiments
  	SCALEOUT("END OF TEST. Calculating average duration per loop (nanoseconds)...\n");
- 
+
 -	if (!errexit) {
 -		buf[0] = 0;
 -		strcat(buf, "\n");
@@ -2420,7 +2420,7 @@ index 1631ef8a138d..bbf2e915f835 100644
  	for (exp = 0; exp < nruns; exp++) {
  		u64 avg;
  		u32 rem;
- 
+
 -		if (errexit)
 -			break;
  		avg = div_u64_rem(result_avg[exp], 1000, &rem);
@@ -2431,11 +2431,11 @@ index 1631ef8a138d..bbf2e915f835 100644
 +			buf[0] = 0;
 +		}
  	}
- 
+
 -	if (!errexit)
 -		SCALEOUT("%s", buf);
 +	pr_alert("%s", buf);
- 
+
 +oom_exit:
  	// This will shutdown everything including us.
  	if (shutdown) {
@@ -2449,10 +2449,10 @@ index 1631ef8a138d..bbf2e915f835 100644
  		firsterr = -ENOMEM;
  		goto unwind;
  	}
- 
+
 -	VERBOSE_SCALEOUT("Starting %d reader threads\n", nreaders);
 +	VERBOSE_SCALEOUT("Starting %d reader threads", nreaders);
- 
+
  	for (i = 0; i < nreaders; i++) {
  		firsterr = torture_create_kthread(ref_scale_reader, (void *)i,
 diff --git a/kernel/rcu/srcutiny.c b/kernel/rcu/srcutiny.c
@@ -2461,7 +2461,7 @@ index a0ba2ed49bc6..92c002d65482 100644
 +++ b/kernel/rcu/srcutiny.c
 @@ -99,7 +99,7 @@ void __srcu_read_unlock(struct srcu_struct *ssp, int idx)
  	int newval = READ_ONCE(ssp->srcu_lock_nesting[idx]) - 1;
- 
+
  	WRITE_ONCE(ssp->srcu_lock_nesting[idx], newval);
 -	if (!newval && READ_ONCE(ssp->srcu_gp_waiting))
 +	if (!newval && READ_ONCE(ssp->srcu_gp_waiting) && in_task())
@@ -2474,16 +2474,16 @@ index 7da3c81c3f59..7da3b500fb90 100644
 +++ b/kernel/rcu/tasks.h
 @@ -6,6 +6,7 @@
   */
- 
+
  #ifdef CONFIG_TASKS_RCU_GENERIC
 +#include "rcu_segcblist.h"
- 
+
  ////////////////////////////////////////////////////////////////////////
  //
 @@ -19,12 +20,34 @@ typedef void (*postscan_func_t)(struct list_head *hop);
  typedef void (*holdouts_func_t)(struct list_head *hop, bool ndrpt, bool *frptp);
  typedef void (*postgp_func_t)(struct rcu_tasks *rtp);
- 
+
 +/**
 + * struct rcu_tasks_percpu - Per-CPU component of definition for a Tasks-RCU-like mechanism.
 + * @cblist: Callback list.
@@ -2571,7 +2571,7 @@ index 7da3c81c3f59..7da3b500fb90 100644
  	char *name;
  	char *kname;
  };
- 
+
 -#define DEFINE_RCU_TASKS(rt_name, gp, call, n)				\
 -static struct rcu_tasks rt_name =					\
 -{									\
@@ -2603,12 +2603,12 @@ index 7da3c81c3f59..7da3b500fb90 100644
 +	.barrier_q_seq = (0UL - 50UL) << RCU_SEQ_CTR_SHIFT,				\
 +	.kname = #rt_name,								\
  }
- 
+
  /* Track exiting tasks in order to allow them to be waited for. */
 @@ -94,6 +139,13 @@ module_param(rcu_task_ipi_delay, int, 0644);
  static int rcu_task_stall_timeout __read_mostly = RCU_TASK_STALL_TIMEOUT;
  module_param(rcu_task_stall_timeout, int, 0644);
- 
+
 +static int rcu_task_enqueue_lim __read_mostly = -1;
 +module_param(rcu_task_enqueue_lim, int, 0444);
 +
@@ -2622,7 +2622,7 @@ index 7da3c81c3f59..7da3b500fb90 100644
 @@ -128,6 +180,8 @@ static const char * const rcu_tasks_gp_state_names[] = {
  //
  // Generic code.
- 
+
 +static void rcu_tasks_invoke_cbs_wq(struct work_struct *wp);
 +
  /* Record grace-period phase and time. */
@@ -2631,7 +2631,7 @@ index 7da3c81c3f59..7da3b500fb90 100644
 @@ -148,23 +202,103 @@ static const char *tasks_gp_state_getname(struct rcu_tasks *rtp)
  }
  #endif /* #ifndef CONFIG_TINY_RCU */
- 
+
 +// Initialize per-CPU callback lists for the specified flavor of
 +// Tasks RCU.
 +static void cblist_init_generic(struct rcu_tasks *rtp)
@@ -2691,7 +2691,7 @@ index 7da3c81c3f59..7da3b500fb90 100644
 +	bool needadjust = false;
  	bool needwake;
 +	struct rcu_tasks_percpu *rtpcp;
- 
+
  	rhp->next = NULL;
  	rhp->func = func;
 -	raw_spin_lock_irqsave(&rtp->cbs_lock, flags);
@@ -2737,12 +2737,12 @@ index 7da3c81c3f59..7da3b500fb90 100644
 +		irq_work_queue(&rtpcp->rtp_irq_work);
 +	}
  }
- 
+
  // Wait for a grace period for the specified flavor of Tasks RCU.
 @@ -178,12 +312,137 @@ static void synchronize_rcu_tasks_generic(struct rcu_tasks *rtp)
  	wait_rcu_gp(rtp->call_func);
  }
- 
+
 +// RCU callback function for rcu_barrier_tasks_generic().
 +static void rcu_barrier_tasks_generic_cb(struct rcu_head *rhp)
 +{
@@ -2878,12 +2878,12 @@ index 7da3c81c3f59..7da3b500fb90 100644
 -	struct rcu_head *next;
 +	int needgpcb;
  	struct rcu_tasks *rtp = arg;
- 
+
  	/* Run on housekeeping CPUs by default.  Sysadm can move if desired. */
 @@ -199,42 +458,22 @@ static int __noreturn rcu_tasks_kthread(void *arg)
  	for (;;) {
  		set_tasks_gp_state(rtp, RTGS_WAIT_CBS);
- 
+
 -		/* Pick up any new callbacks. */
 -		raw_spin_lock_irqsave(&rtp->cbs_lock, flags);
 -		smp_mb__after_spinlock(); // Order updates vs. GP.
@@ -2912,7 +2912,7 @@ index 7da3c81c3f59..7da3b500fb90 100644
 +			rtp->gp_func(rtp);
 +			rcu_seq_end(&rtp->tasks_gp_seq);
  		}
- 
+
 -		// Wait for one grace period.
 -		set_tasks_gp_state(rtp, RTGS_WAIT_GP);
 -		rtp->gp_start = jiffies;
@@ -2962,7 +2962,7 @@ index 7da3c81c3f59..7da3b500fb90 100644
 +	rcu_barrier_tasks_generic(&rcu_tasks);
  }
  EXPORT_SYMBOL_GPL(rcu_barrier_tasks);
- 
+
  static int __init rcu_spawn_tasks_kthread(void)
  {
 +	cblist_init_generic(&rcu_tasks);
@@ -2978,7 +2978,7 @@ index 7da3c81c3f59..7da3b500fb90 100644
 +	rcu_barrier_tasks_generic(&rcu_tasks_rude);
  }
  EXPORT_SYMBOL_GPL(rcu_barrier_tasks_rude);
- 
+
  static int __init rcu_spawn_tasks_rude_kthread(void)
  {
 +	cblist_init_generic(&rcu_tasks_rude);
@@ -2988,7 +2988,7 @@ index 7da3c81c3f59..7da3b500fb90 100644
 @@ -1313,25 +1553,50 @@ static void rcu_tasks_trace_postscan(struct list_head *hop)
  	// Any tasks that exit after this point will set ->trc_reader_checked.
  }
- 
+
 +/* Communicate task state back to the RCU tasks trace stall warning request. */
 +struct trc_stall_chk_rdr {
 +	int nesting;
@@ -3014,7 +3014,7 @@ index 7da3c81c3f59..7da3b500fb90 100644
  	int cpu;
 +	struct trc_stall_chk_rdr trc_rdr;
 +	bool is_idle_tsk = is_idle_task(t);
- 
+
  	if (*firstreport) {
  		pr_err("INFO: rcu_tasks_trace detected stalls on tasks:\n");
  		*firstreport = false;
@@ -3044,10 +3044,10 @@ index 7da3c81c3f59..7da3b500fb90 100644
 +			 cpu);
  	sched_show_task(t);
  }
- 
+
 @@ -1121,7 +1386,8 @@ static void check_all_holdout_tasks_trace(struct list_head *hop,
  			trc_wait_for_one_reader(t, hop);
- 
+
  		// If check succeeded, remove this task from the list.
 -		if (READ_ONCE(t->trc_reader_checked))
 +		if (smp_load_acquire(&t->trc_ipi_to_cpu) == -1 &&
@@ -3064,7 +3064,7 @@ index 7da3c81c3f59..7da3b500fb90 100644
 +	rcu_barrier_tasks_generic(&rcu_tasks_trace);
  }
  EXPORT_SYMBOL_GPL(rcu_barrier_tasks_trace);
- 
+
  static int __init rcu_spawn_tasks_trace_kthread(void)
  {
 +	cblist_init_generic(&rcu_tasks_trace);
@@ -3090,12 +3090,12 @@ index ef8d36f580fc..a4c25a6283b0 100644
  	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !user && !is_idle_task(current));
 -	rcu_prepare_for_idle();
  	rcu_preempt_deferred_qs(current);
- 
+
  	// instrumentation for the noinstr rcu_dynticks_eqs_enter()
 @@ -768,9 +767,6 @@ noinstr void rcu_nmi_exit(void)
  	trace_rcu_dyntick(TPS("Startirq"), rdp->dynticks_nmi_nesting, 0, atomic_read(&rdp->dynticks));
  	WRITE_ONCE(rdp->dynticks_nmi_nesting, 0); /* Avoid store tearing. */
- 
+
 -	if (!in_nmi())
 -		rcu_prepare_for_idle();
 -
@@ -3105,7 +3105,7 @@ index ef8d36f580fc..a4c25a6283b0 100644
 @@ -872,7 +868,6 @@ static void noinstr rcu_eqs_exit(bool user)
  	// instrumentation for the noinstr rcu_dynticks_eqs_exit()
  	instrument_atomic_write(&rdp->dynticks, sizeof(rdp->dynticks));
- 
+
 -	rcu_cleanup_after_idle();
  	trace_rcu_dyntick(TPS("End"), rdp->dynticks_nesting, 1, atomic_read(&rdp->dynticks));
  	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !user && !is_idle_task(current));
@@ -3113,7 +3113,7 @@ index ef8d36f580fc..a4c25a6283b0 100644
 @@ -1014,12 +1009,6 @@ noinstr void rcu_nmi_enter(void)
  		rcu_dynticks_eqs_exit();
  		// ... but is watching here.
- 
+
 -		if (!in_nmi()) {
 -			instrumentation_begin();
 -			rcu_cleanup_after_idle();
@@ -3126,7 +3126,7 @@ index ef8d36f580fc..a4c25a6283b0 100644
 @@ -1086,6 +1075,24 @@ void rcu_irq_enter_irqson(void)
  	local_irq_restore(flags);
  }
- 
+
 +/*
 + * Check to see if any future non-offloaded RCU-related work will need
 + * to be done by the current CPU, even if none need be done immediately,
@@ -3151,7 +3151,7 @@ index ef8d36f580fc..a4c25a6283b0 100644
 @@ -1467,7 +1474,7 @@ static void rcu_gp_kthread_wake(void)
  {
  	struct task_struct *t = READ_ONCE(rcu_state.gp_kthread);
- 
+
 -	if ((current == t && !in_irq() && !in_serving_softirq()) ||
 +	if ((current == t && !in_hardirq() && !in_serving_softirq()) ||
  	    !READ_ONCE(rcu_state.gp_flags) || !t)
@@ -3171,7 +3171,7 @@ index ef8d36f580fc..a4c25a6283b0 100644
 +		WARN_ON_ONCE(rcu_advance_cbs(rnp, rdp));
  	raw_spin_unlock_rcu_node(rnp);
  }
- 
+
 @@ -2277,7 +2285,7 @@ rcu_report_qs_rdp(struct rcu_data *rdp)
  	unsigned long flags;
  	unsigned long mask;
@@ -3179,7 +3179,7 @@ index ef8d36f580fc..a4c25a6283b0 100644
 -	const bool offloaded = rcu_rdp_is_offloaded(rdp);
 +	bool needacc = false;
  	struct rcu_node *rnp;
- 
+
  	WARN_ON_ONCE(rdp->cpu != smp_processor_id());
 @@ -2304,15 +2312,30 @@ rcu_report_qs_rdp(struct rcu_data *rdp)
  		/*
@@ -3198,7 +3198,7 @@ index ef8d36f580fc..a4c25a6283b0 100644
 +			 */
 +			needacc = true;
 +		}
- 
+
  		rcu_disable_urgency_upon_qs(rdp);
  		rcu_report_qs_rnp(mask, rnp, rnp->gp_seq, flags);
  		/* ^^^ Released rnp->lock */
@@ -3212,7 +3212,7 @@ index ef8d36f580fc..a4c25a6283b0 100644
 +		}
  	}
  }
- 
+
 @@ -2444,7 +2467,6 @@ static void rcu_do_batch(struct rcu_data *rdp)
  	int div;
  	bool __maybe_unused empty;
@@ -3223,7 +3223,7 @@ index ef8d36f580fc..a4c25a6283b0 100644
  	long bl, count = 0;
 @@ -2462,18 +2484,17 @@ static void rcu_do_batch(struct rcu_data *rdp)
  	}
- 
+
  	/*
 -	 * Extract the list of ready callbacks, disabling to prevent
 +	 * Extract the list of ready callbacks, disabling IRQs to prevent
@@ -3241,7 +3241,7 @@ index ef8d36f580fc..a4c25a6283b0 100644
 -	if (unlikely(bl > 100)) {
 +	if (in_serving_softirq() && unlikely(bl > 100)) {
  		long rrn = READ_ONCE(rcu_resched_ns);
- 
+
  		rrn = rrn < NSEC_PER_MSEC ? NSEC_PER_MSEC : rrn > NSEC_PER_SEC ? NSEC_PER_SEC : rrn;
 @@ -2482,7 +2503,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
  	trace_rcu_batch_start(rcu_state.name,
@@ -3250,7 +3250,7 @@ index ef8d36f580fc..a4c25a6283b0 100644
 -	if (offloaded)
 +	if (rcu_rdp_is_offloaded(rdp))
  		rdp->qlen_last_fqs_check = rcu_segcblist_n_cbs(&rdp->cblist);
- 
+
  	trace_rcu_segcb_stats(&rdp->cblist, TPS("SegCbDequeued"));
 @@ -2510,18 +2531,21 @@ static void rcu_do_batch(struct rcu_data *rdp)
  		/*
@@ -3289,7 +3289,7 @@ index ef8d36f580fc..a4c25a6283b0 100644
 @@ -2530,8 +2554,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
  		}
  	}
- 
+
 -	local_irq_save(flags);
 -	rcu_nocb_lock(rdp);
 +	rcu_nocb_lock_irqsave(rdp, flags);
@@ -3297,15 +3297,15 @@ index ef8d36f580fc..a4c25a6283b0 100644
  	trace_rcu_batch_end(rcu_state.name, count, !!rcl.head, need_resched(),
  			    is_idle_task(current), rcu_is_callbacks_kthread());
 @@ -2565,9 +2588,6 @@ static void rcu_do_batch(struct rcu_data *rdp)
- 
+
  	rcu_nocb_unlock_irqrestore(rdp, flags);
- 
+
 -	/* Re-invoke RCU core processing if there are callbacks remaining. */
 -	if (!offloaded && rcu_segcblist_ready_cbs(&rdp->cblist))
 -		invoke_rcu_core();
  	tick_dep_clear_task(current, TICK_DEP_BIT_RCU);
  }
- 
+
 @@ -2706,6 +2726,23 @@ static __latent_entropy void rcu_core(void)
  	unsigned long flags;
  	struct rcu_data *rdp = raw_cpu_ptr(&rcu_data);
@@ -3328,11 +3328,11 @@ index ef8d36f580fc..a4c25a6283b0 100644
 +	 *                 for the next rcu_pending() check in the next jiffy.
 +	 */
  	const bool do_batch = !rcu_segcblist_completely_offloaded(&rdp->cblist);
- 
+
  	if (cpu_is_offline(smp_processor_id()))
 @@ -2714,7 +2751,7 @@ static __latent_entropy void rcu_core(void)
  	WARN_ON_ONCE(!rdp->beenonline);
- 
+
  	/* Report any deferred quiescent states if preemption enabled. */
 -	if (!(preempt_count() & PREEMPT_MASK)) {
 +	if (IS_ENABLED(CONFIG_PREEMPT_COUNT) && (!(preempt_count() & PREEMPT_MASK))) {
@@ -3340,7 +3340,7 @@ index ef8d36f580fc..a4c25a6283b0 100644
  	} else if (rcu_preempt_need_deferred_qs(current)) {
  		set_tsk_need_resched(current);
 @@ -2737,8 +2774,12 @@ static __latent_entropy void rcu_core(void)
- 
+
  	/* If there are callbacks ready, invoke them. */
  	if (do_batch && rcu_segcblist_ready_cbs(&rdp->cblist) &&
 -	    likely(READ_ONCE(rcu_scheduler_fully_active)))
@@ -3350,7 +3350,7 @@ index ef8d36f580fc..a4c25a6283b0 100644
 +		if (rcu_segcblist_ready_cbs(&rdp->cblist))
 +			invoke_rcu_core();
 +	}
- 
+
  	/* Do any needed deferred wakeups of rcuo kthreads. */
  	do_nocb_deferred_wakeup(rdp);
 @@ -2982,7 +3023,7 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func)
@@ -3360,12 +3360,12 @@ index ef8d36f580fc..a4c25a6283b0 100644
 -	kasan_record_aux_stack(head);
 +	kasan_record_aux_stack_noalloc(head);
  	rdp = this_cpu_ptr(&rcu_data);
- 
+
  	/* Add the callback to our list. */
 @@ -3547,7 +3588,7 @@ void kvfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
  		return;
  	}
- 
+
 -	kasan_record_aux_stack(ptr);
 +	kasan_record_aux_stack_noalloc(ptr);
  	success = add_ptr_to_bulk_krc_lock(&krcp, &flags, ptr, !head);
@@ -3392,7 +3392,7 @@ index 305cf6aeb408..486fc901bd08 100644
 -	unsigned long last_advance_all;	/* Last jiffy CBs were all advanced. */
 -	int tick_nohz_enabled_snap;	/* Previously seen value from sysfs. */
 -#endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
- 
+
  	/* 4) rcu_barrier(), OOM callbacks, and expediting. */
  	struct rcu_head barrier_head;
 @@ -227,8 +221,11 @@ struct rcu_data {
@@ -3406,7 +3406,7 @@ index 305cf6aeb408..486fc901bd08 100644
 +					 * if rdp_gp.
 +					 */
 +	struct list_head nocb_entry_rdp; /* rcu_data node in wakeup chain. */
- 
+
  	/* The following fields are used by CB kthread, hence new cacheline. */
  	struct rcu_data *nocb_gp_rdp ____cacheline_internodealigned_in_smp;
 @@ -419,8 +416,6 @@ static bool rcu_is_callbacks_kthread(void);
@@ -3453,7 +3453,7 @@ index f3947c49eee7..a96d17206d87 100644
 +	WRITE_ONCE(rdp->cpu_no_qs.b.exp, false);
  	rcu_report_exp_cpu_mult(rdp->mynode, rdp->grpmask, true);
  }
- 
+
 @@ -506,7 +506,10 @@ static void synchronize_rcu_expedited_wait(void)
  				if (rdp->rcu_forced_tick_exp)
  					continue;
@@ -3521,7 +3521,7 @@ index 368ef7b9af4f..eeafb546a7a0 100644
  }
 -__setup("rcu_nocbs=", rcu_nocb_setup);
 +__setup("rcu_nocbs", rcu_nocb_setup);
- 
+
  static int __init parse_rcu_nocb_poll(char *arg)
  {
 @@ -625,7 +631,21 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
@@ -3545,12 +3545,12 @@ index 368ef7b9af4f..eeafb546a7a0 100644
 +	 */
 +	list_for_each_entry_rcu(rdp, &my_rdp->nocb_head_rdp, nocb_entry_rdp, 1) {
  		bool needwake_state = false;
- 
+
  		if (!nocb_gp_enabled_cb(rdp))
 @@ -789,6 +809,18 @@ static void nocb_cb_wait(struct rcu_data *rdp)
  	bool can_sleep = true;
  	struct rcu_node *rnp = rdp->mynode;
- 
+
 +	do {
 +		swait_event_interruptible_exclusive(rdp->nocb_cb_wq,
 +						    nocb_cb_wait_cond(rdp));
@@ -3567,7 +3567,7 @@ index 368ef7b9af4f..eeafb546a7a0 100644
  	rcu_momentary_dyntick_idle();
  	local_irq_restore(flags);
 @@ -841,17 +873,6 @@ static void nocb_cb_wait(struct rcu_data *rdp)
- 
+
  	if (needwake_state)
  		swake_up_one(&rdp->nocb_state_wq);
 -
@@ -3582,7 +3582,7 @@ index 368ef7b9af4f..eeafb546a7a0 100644
 -		}
 -	} while (!nocb_cb_can_run(rdp));
  }
- 
+
  /*
 @@ -990,22 +1011,33 @@ static long rcu_nocb_rdp_deoffload(void *arg)
  	 * will refuse to put anything into the bypass.
@@ -3623,7 +3623,7 @@ index 368ef7b9af4f..eeafb546a7a0 100644
  	raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
 @@ -1057,15 +1089,26 @@ static long rcu_nocb_rdp_offload(void *arg)
  		return -EINVAL;
- 
+
  	pr_info("Offloading %d\n", rdp->cpu);
 +
 +	/*
@@ -3643,7 +3643,7 @@ index 368ef7b9af4f..eeafb546a7a0 100644
 +	 * is set.
  	 */
  	raw_spin_lock_irqsave(&rdp->nocb_lock, flags);
- 
+
  	/*
  	 * We didn't take the nocb lock while working on the
 -	 * rdp->cblist in SEGCBLIST_SOFTIRQ_ONLY mode.
@@ -3654,7 +3654,7 @@ index 368ef7b9af4f..eeafb546a7a0 100644
 @@ -1084,6 +1127,14 @@ static long rcu_nocb_rdp_offload(void *arg)
  			      rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB) &&
  			      rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP));
- 
+
 +	/*
 +	 * All kthreads are ready to work, we can finally relieve rcu_core() and
 +	 * enable nocb bypass.
@@ -3665,11 +3665,11 @@ index 368ef7b9af4f..eeafb546a7a0 100644
 +
  	return ret;
  }
- 
+
 @@ -1122,13 +1173,17 @@ void __init rcu_init_nohz(void)
  		need_rcu_nocb_mask = true;
  #endif /* #if defined(CONFIG_NO_HZ_FULL) */
- 
+
 -	if (!cpumask_available(rcu_nocb_mask) && need_rcu_nocb_mask) {
 -		if (!zalloc_cpumask_var(&rcu_nocb_mask, GFP_KERNEL)) {
 -			pr_info("rcu_nocb_mask allocation failed, callback offloading disabled.\n");
@@ -3687,7 +3687,7 @@ index 368ef7b9af4f..eeafb546a7a0 100644
 +
 +	if (!rcu_nocb_is_setup)
  		return;
- 
+
  #if defined(CONFIG_NO_HZ_FULL)
 @@ -1154,8 +1209,8 @@ void __init rcu_init_nohz(void)
  		if (rcu_segcblist_empty(&rdp->cblist))
@@ -3710,7 +3710,7 @@ index 368ef7b9af4f..eeafb546a7a0 100644
  	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
  	struct rcu_data *rdp_gp;
  	struct task_struct *t;
- 
+
 -	/*
 -	 * If this isn't a no-CBs CPU or if it already has an rcuo kthread,
 -	 * then nothing to do.
@@ -3722,12 +3722,12 @@ index 368ef7b9af4f..eeafb546a7a0 100644
 +	/* If there already is an rcuo kthread, then nothing to do. */
 +	if (rdp->nocb_cb_kthread)
  		return;
- 
+
  	/* If we didn't spawn the GP kthread first, reorganize! */
 @@ -1210,16 +1265,6 @@ static void rcu_spawn_one_nocb_kthread(int cpu)
  	WRITE_ONCE(rdp->nocb_gp_kthread, rdp_gp->nocb_gp_kthread);
  }
- 
+
 -/*
 - * If the specified CPU is a no-CBs CPU that does not already have its
 - * rcuo kthread, spawn it.
@@ -3744,7 +3744,7 @@ index 368ef7b9af4f..eeafb546a7a0 100644
 @@ -1230,8 +1275,10 @@ static void __init rcu_spawn_nocb_kthreads(void)
  {
  	int cpu;
- 
+
 -	for_each_online_cpu(cpu)
 -		rcu_spawn_cpu_nocb_kthread(cpu);
 +	if (rcu_nocb_is_setup) {
@@ -3752,14 +3752,14 @@ index 368ef7b9af4f..eeafb546a7a0 100644
 +			rcu_spawn_cpu_nocb_kthread(cpu);
 +	}
  }
- 
+
  /* How many CB CPU IDs per GP kthread?  Default of -1 for sqrt(nr_cpu_ids). */
 @@ -1251,7 +1298,6 @@ static void __init rcu_organize_nocb_kthreads(void)
  	int nl = 0;  /* Next GP kthread. */
  	struct rcu_data *rdp;
  	struct rcu_data *rdp_gp = NULL;  /* Suppress misguided gcc warn. */
 -	struct rcu_data *rdp_prev = NULL;
- 
+
  	if (!cpumask_available(rcu_nocb_mask))
  		return;
 @@ -1265,14 +1311,14 @@ static void __init rcu_organize_nocb_kthreads(void)
@@ -3806,7 +3806,7 @@ index 368ef7b9af4f..eeafb546a7a0 100644
 @@ -1359,11 +1406,16 @@ static void show_rcu_nocb_state(struct rcu_data *rdp)
  	if (rdp->nocb_gp_rdp == rdp)
  		show_rcu_nocb_gp_state(rdp);
- 
+
 +	nocb_next_rdp = list_next_or_null_rcu(&rdp->nocb_gp_rdp->nocb_head_rdp,
 +					      &rdp->nocb_entry_rdp,
 +					      typeof(*rdp),
@@ -3875,7 +3875,7 @@ index 5199559fbbf0..463735a3b657 100644
 -		WARN_ON_ONCE(rdp->exp_deferred_qs);
 +		WARN_ON_ONCE(rdp->cpu_no_qs.b.exp);
  }
- 
+
  /*
 @@ -277,12 +275,16 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
   * current task, there might be any number of other tasks blocked while
@@ -3920,7 +3920,7 @@ index 5199559fbbf0..463735a3b657 100644
 -	if (rdp->exp_deferred_qs)
 +	if (rdp->cpu_no_qs.b.exp)
  		rcu_report_exp_rdp(rdp);
- 
+
  	/* Clean up if blocked during RCU read-side critical section. */
 @@ -580,7 +582,7 @@ rcu_preempt_deferred_qs_irqrestore(struct task_struct *t, unsigned long flags)
   */
@@ -3951,7 +3951,7 @@ index 5199559fbbf0..463735a3b657 100644
 +	if (__this_cpu_read(rcu_data.cpu_no_qs.b.exp))
 +		rcu_report_exp_rdp(this_cpu_ptr(&rcu_data));
  }
- 
+
  /*
 @@ -925,7 +925,18 @@ static bool rcu_preempt_need_deferred_qs(struct task_struct *t)
  {
@@ -3970,7 +3970,7 @@ index 5199559fbbf0..463735a3b657 100644
 +	if (rdp->cpu_no_qs.b.exp)
 +		rcu_report_exp_rdp(rdp);
 +}
- 
+
  /*
   * Because there is no preemptible RCU, there can be no readers blocked,
 @@ -1153,7 +1164,6 @@ static void rcu_preempt_boost_start_gp(struct rcu_node *rnp)
@@ -3993,9 +3993,9 @@ index 5199559fbbf0..463735a3b657 100644
  	free_cpumask_var(cm);
  }
 @@ -1253,201 +1264,6 @@ static void __init rcu_spawn_boost_kthreads(void)
- 
+
  #endif /* #else #ifdef CONFIG_RCU_BOOST */
- 
+
 -#if !defined(CONFIG_RCU_FAST_NO_HZ)
 -
 -/*
@@ -4210,7 +4210,7 @@ index 5e2fa6fd97f1..21bebf7c9030 100644
 @@ -347,26 +347,6 @@ static void rcu_dump_cpu_stacks(void)
  	}
  }
- 
+
 -#ifdef CONFIG_RCU_FAST_NO_HZ
 -
 -static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
@@ -4269,7 +4269,7 @@ index 5e2fa6fd97f1..21bebf7c9030 100644
 -	       fast_no_hz,
  	       falsepositive ? " (false positive?)" : "");
  }
- 
+
 diff --git a/kernel/scftorture.c b/kernel/scftorture.c
 index 5d42f44e3e1a..dcb0410950e4 100644
 --- a/kernel/scftorture.c
@@ -4277,18 +4277,18 @@ index 5d42f44e3e1a..dcb0410950e4 100644
 @@ -38,14 +38,10 @@
  #define SCFTORT_STRING "scftorture"
  #define SCFTORT_FLAG SCFTORT_STRING ": "
- 
+
 -#define SCFTORTOUT(s, x...) \
 -	pr_alert(SCFTORT_FLAG s, ## x)
 -
  #define VERBOSE_SCFTORTOUT(s, x...) \
 -	do { if (verbose) pr_alert(SCFTORT_FLAG s, ## x); } while (0)
 +	do { if (verbose) pr_alert(SCFTORT_FLAG s "\n", ## x); } while (0)
- 
+
 -#define VERBOSE_SCFTORTOUT_ERRSTRING(s, x...) \
 -	do { if (verbose) pr_alert(SCFTORT_FLAG "!!! " s, ## x); } while (0)
 +#define SCFTORTOUT_ERRSTRING(s, x...) pr_alert(SCFTORT_FLAG "!!! " s "\n", ## x)
- 
+
  MODULE_LICENSE("GPL");
  MODULE_AUTHOR("Paul E. McKenney <paulmck@kernel.org>");
 @@ -587,14 +583,14 @@ static int __init scf_torture_init(void)
@@ -4317,26 +4317,12 @@ index 5d42f44e3e1a..dcb0410950e4 100644
  		firsterr = -ENOMEM;
  		goto unwind;
  	}
- 
+
 -	VERBOSE_SCFTORTOUT("Starting %d smp_call_function() threads\n", nthreads);
 +	VERBOSE_SCFTORTOUT("Starting %d smp_call_function() threads", nthreads);
- 
+
  	atomic_set(&n_started, nthreads);
  	for (i = 0; i < nthreads; i++) {
-diff --git a/kernel/softirq.c b/kernel/softirq.c
-index 322b65d45676..41f470929e99 100644
---- a/kernel/softirq.c
-+++ b/kernel/softirq.c
-@@ -595,7 +595,8 @@ void irq_enter_rcu(void)
- {
- 	__irq_enter_raw();
- 
--	if (is_idle_task(current) && (irq_count() == HARDIRQ_OFFSET))
-+	if (tick_nohz_full_cpu(smp_processor_id()) ||
-+	    (is_idle_task(current) && (irq_count() == HARDIRQ_OFFSET)))
- 		tick_irq_enter();
- 
- 	account_hardirq_enter(current);
 diff --git a/kernel/time/clocksource-wdtest.c b/kernel/time/clocksource-wdtest.c
 index df922f49d171..ffa881e9c606 100644
 --- a/kernel/time/clocksource-wdtest.c
@@ -4348,7 +4334,7 @@ index df922f49d171..ffa881e9c606 100644
 -	char *s;
 +	char *s1, *s2;
  	int i;
- 
+
  	schedule_timeout_uninterruptible(holdoff * HZ);
 @@ -141,17 +141,22 @@ static int wdtest_func(void *arg)
  	/* Verify tsc-like stability with various numbers of errors injected. */
@@ -4378,7 +4364,7 @@ index df922f49d171..ffa881e9c606 100644
 +		WARN_ON_ONCE(clocksource_wdtest_ktime.flags & CLOCK_SOURCE_UNSTABLE);
  		wdtest_ktime_clocksource_reset();
  	}
- 
+
 diff --git a/kernel/time/clocksource.c b/kernel/time/clocksource.c
 index b8a14d2fb5ba..b7e52a642948 100644
 --- a/kernel/time/clocksource.c
@@ -4389,20 +4375,20 @@ index b8a14d2fb5ba..b7e52a642948 100644
   */
 -#define WATCHDOG_MAX_SKEW (50 * NSEC_PER_USEC)
 +#define WATCHDOG_MAX_SKEW (100 * NSEC_PER_USEC)
- 
+
  #ifdef CONFIG_CLOCKSOURCE_WATCHDOG
  static void clocksource_watchdog_work(struct work_struct *work);
 @@ -199,23 +199,30 @@ void clocksource_mark_unstable(struct clocksource *cs)
  	spin_unlock_irqrestore(&watchdog_lock, flags);
  }
- 
+
 -ulong max_cswd_read_retries = 3;
 +ulong max_cswd_read_retries = 2;
  module_param(max_cswd_read_retries, ulong, 0644);
  EXPORT_SYMBOL_GPL(max_cswd_read_retries);
  static int verify_n_cpus = 8;
  module_param(verify_n_cpus, int, 0644);
- 
+
 -static bool cs_watchdog_read(struct clocksource *cs, u64 *csnow, u64 *wdnow)
 +enum wd_read_status {
 +	WD_READ_SUCCESS,
@@ -4417,7 +4403,7 @@ index b8a14d2fb5ba..b7e52a642948 100644
 -	int64_t wd_delay;
 +	u64 wd_end, wd_end2, wd_delta;
 +	int64_t wd_delay, wd_seq_delay;
- 
+
  	for (nretries = 0; nretries <= max_cswd_read_retries; nretries++) {
  		local_irq_disable();
  		*wdnow = watchdog->read(watchdog);
@@ -4425,7 +4411,7 @@ index b8a14d2fb5ba..b7e52a642948 100644
  		wd_end = watchdog->read(watchdog);
 +		wd_end2 = watchdog->read(watchdog);
  		local_irq_enable();
- 
+
  		wd_delta = clocksource_delta(wd_end, *wdnow, watchdog->mask);
 @@ -226,13 +233,34 @@ static bool cs_watchdog_read(struct clocksource *cs, u64 *csnow, u64 *wdnow)
  				pr_warn("timekeeping watchdog on CPU%d: %s retried %d times before success\n",
@@ -4449,7 +4435,7 @@ index b8a14d2fb5ba..b7e52a642948 100644
 +		if (wd_seq_delay > WATCHDOG_MAX_SKEW/2)
 +			goto skip_test;
  	}
- 
+
  	pr_warn("timekeeping watchdog on CPU%d: %s read-back delay of %lldns, attempt %d, marking unstable\n",
  		smp_processor_id(), watchdog->name, wd_delay, nretries);
 -	return false;
@@ -4462,7 +4448,7 @@ index b8a14d2fb5ba..b7e52a642948 100644
 +		cs->name, wd_delay);
 +	return WD_READ_SKIP;
  }
- 
+
  static u64 csnow_mid;
 @@ -356,6 +384,7 @@ static void clocksource_watchdog(struct timer_list *unused)
  	int next_cpu, reset_pending;
@@ -4470,12 +4456,12 @@ index b8a14d2fb5ba..b7e52a642948 100644
  	struct clocksource *cs;
 +	enum wd_read_status read_ret;
  	u32 md;
- 
+
  	spin_lock(&watchdog_lock);
 @@ -373,9 +402,12 @@ static void clocksource_watchdog(struct timer_list *unused)
  			continue;
  		}
- 
+
 -		if (!cs_watchdog_read(cs, &csnow, &wdnow)) {
 -			/* Clock readout unreliable, so give it up. */
 -			__clocksource_unstable(cs);
@@ -4487,38 +4473,20 @@ index b8a14d2fb5ba..b7e52a642948 100644
 +				__clocksource_unstable(cs);
  			continue;
  		}
- 
-diff --git a/kernel/time/tick-sched.c b/kernel/time/tick-sched.c
-index 6bffe5af8cb1..17a283ce2b20 100644
---- a/kernel/time/tick-sched.c
-+++ b/kernel/time/tick-sched.c
-@@ -1375,6 +1375,13 @@ static inline void tick_nohz_irq_enter(void)
- 	now = ktime_get();
- 	if (ts->idle_active)
- 		tick_nohz_stop_idle(ts, now);
-+	/*
-+	 * If all CPUs are idle. We may need to update a stale jiffies value.
-+	 * Note nohz_full is a special case: a timekeeper is guaranteed to stay
-+	 * alive but it might be busy looping with interrupts disabled in some
-+	 * rare case (typically stop machine). So we must make sure we have a
-+	 * last resort.
-+	 */
- 	if (ts->tick_stopped)
- 		tick_nohz_update_jiffies(now);
- }
+
 diff --git a/kernel/torture.c b/kernel/torture.c
 index bb8f411c974b..ef27a6c82451 100644
 --- a/kernel/torture.c
 +++ b/kernel/torture.c
 @@ -570,7 +570,7 @@ int torture_shuffle_init(long shuffint)
  	shuffle_idle_cpu = -1;
- 
+
  	if (!alloc_cpumask_var(&shuffle_tmp_mask, GFP_KERNEL)) {
 -		VERBOSE_TOROUT_ERRSTRING("Failed to alloc mask");
 +		TOROUT_ERRSTRING("Failed to alloc mask");
  		return -ENOMEM;
  	}
- 
+
 @@ -934,7 +934,7 @@ int _torture_create_kthread(int (*fn)(void *arg), void *arg, char *s, char *m,
  	*tp = kthread_run(fn, arg, "%s", s);
  	if (IS_ERR(*tp)) {
@@ -4563,7 +4531,7 @@ index 3430667b0d24..c1c285fe494a 100644
 + * Link x86-64 ABI: https://gitlab.com/x86-psABIs/x86-64-ABI/-/wikis/x86-64-psABI
 + *
   */
- 
+
  #define my_syscall0(num)                                                      \
 @@ -280,9 +285,9 @@ struct stat {
  									      \
@@ -4653,7 +4621,7 @@ index 3430667b0d24..c1c285fe494a 100644
  		: "rcx", "r11", "memory", "cc"                                \
 @@ -399,17 +404,23 @@ struct stat {
  })
- 
+
  /* startup code */
 +/*
 + * x86-64 System V ABI mandates:
@@ -4681,7 +4649,7 @@ index 3430667b0d24..c1c285fe494a 100644
      "");
 @@ -577,20 +588,28 @@ struct sys_stat_struct {
  })
- 
+
  /* startup code */
 +/*
 + * i386 System V ABI mandates:
@@ -4711,7 +4679,7 @@ index 3430667b0d24..c1c285fe494a 100644
 +    "int $0x80\n"               // exit now
      "hlt\n"                     // ensure it does not
      "");
- 
+
 @@ -774,7 +793,6 @@ asm(".section .text\n"
      "and %r3, %r1, $-8\n"         // AAPCS : sp must be 8-byte aligned in the
      "mov %sp, %r3\n"              //         callee, an bl doesn't push (lr=pc)
@@ -4748,7 +4716,7 @@ index 3430667b0d24..c1c285fe494a 100644
 @@ -1555,6 +1571,12 @@ pid_t sys_getpid(void)
  	return my_syscall0(__NR_getpid);
  }
- 
+
 +static __attribute__((unused))
 +pid_t sys_gettid(void)
 +{
@@ -4761,7 +4729,7 @@ index 3430667b0d24..c1c285fe494a 100644
 @@ -2013,6 +2035,18 @@ pid_t getpid(void)
  	return ret;
  }
- 
+
 +static __attribute__((unused))
 +pid_t gettid(void)
 +{
@@ -4784,7 +4752,7 @@ index 5d72f3112e56..394ee57d58f2 100644
 @@ -1813,15 +1813,16 @@ spin_trylock() -- we can call these things lock-releases and
  lock-acquires -- have two properties beyond those of ordinary releases
  and acquires.
- 
+
 -First, when a lock-acquire reads from a lock-release, the LKMM
 -requires that every instruction po-before the lock-release must
 -execute before any instruction po-after the lock-acquire.  This would
@@ -4798,11 +4766,11 @@ index 5d72f3112e56..394ee57d58f2 100644
 +different CPUs and accessed the same lock variable, but the LKMM says
 +it also holds when they are on the same CPU, even if they access
 +different lock variables.  For example:
- 
+
  	int x, y;
 -	spinlock_t s;
 +	spinlock_t s, t;
- 
+
  	P0()
  	{
 @@ -1830,9 +1831,9 @@ For example:
@@ -4815,12 +4783,12 @@ index 5d72f3112e56..394ee57d58f2 100644
 -		spin_unlock(&s);
 +		spin_unlock(&t);
  	}
- 
+
  	P1()
 @@ -1842,10 +1843,10 @@ For example:
  		WRITE_ONCE(x, 1);
  	}
- 
+
 -Here the second spin_lock() reads from the first spin_unlock(), and
 -therefore the load of x must execute before the load of y.  Thus we
 -cannot have r1 = 1 and r2 = 0 at the end (this is an instance of the
@@ -4829,13 +4797,13 @@ index 5d72f3112e56..394ee57d58f2 100644
 +therefore the load of x must execute before the load of y, even though
 +the two locking operations use different locks.  Thus we cannot have
 +r1 = 1 and r2 = 0 at the end (this is an instance of the MP pattern).
- 
+
  This requirement does not apply to ordinary release and acquire
  fences, only to lock-related operations.  For instance, suppose P0()
 @@ -1872,13 +1873,13 @@ instructions in the following order:
- 
+
  and thus it could load y before x, obtaining r2 = 0 and r1 = 1.
- 
+
 -Second, when a lock-acquire reads from a lock-release, and some other
 -stores W and W' occur po-before the lock-release and po-after the
 -lock-acquire respectively, the LKMM requires that W must propagate to
@@ -4844,15 +4812,15 @@ index 5d72f3112e56..394ee57d58f2 100644
 +and some other stores W and W' occur po-before the lock-release and
 +po-after the lock-acquire respectively, the LKMM requires that W must
 +propagate to each CPU before W' does.  For example, consider:
- 
+
  	int x, y;
 -	spinlock_t x;
 +	spinlock_t s;
- 
+
  	P0()
  	{
 @@ -1908,7 +1909,12 @@ each CPU before W' does.  For example, consider:
- 
+
  If r1 = 1 at the end then the spin_lock() in P1 must have read from
  the spin_unlock() in P0.  Hence the store to x must propagate to P2
 -before the store to y does, so we cannot have r2 = 1 and r3 = 0.
@@ -4862,7 +4830,7 @@ index 5d72f3112e56..394ee57d58f2 100644
 +P1 had all executed on a single CPU, as in the example before this
 +one, then the writes would have propagated in order even if the two
 +critical sections used different lock variables.)
- 
+
  These two special requirements for lock-release and lock-acquire do
  not arise from the operational model.  Nevertheless, kernel developers
 diff --git a/tools/memory-model/Documentation/locking.txt b/tools/memory-model/Documentation/locking.txt
@@ -5198,7 +5166,7 @@ index 9a84c45504ab..9edd402704c4 100644
 @@ -195,6 +195,18 @@ litmus-tests
  	are listed in litmus-tests/README.  A great deal more litmus
  	tests are available at https://github.com/paulmckrcu/litmus.
- 
+
 +	By "representative", it means the one in the litmus-tests
 +	directory is:
 +
@@ -5224,7 +5192,7 @@ index 2a9b4fe4a84e..d70315fddef6 100644
  let po-rel = [M] ; po ; [Release]
 -let po-unlock-rf-lock-po = po ; [UL] ; rf ; [LKR] ; po
 +let po-unlock-lock-po = po ; [UL] ; (po|rf) ; [LKR] ; po
- 
+
  (* Fences *)
  let R4rmb = R \ Noreturn	(* Reads for which rmb works *)
 @@ -70,12 +70,12 @@ let rwdep = (dep | ctrl) ; [W]
@@ -5233,7 +5201,7 @@ index 2a9b4fe4a84e..d70315fddef6 100644
  let to-r = addr | (dep ; [Marked] ; rfi)
 -let ppo = to-r | to-w | fence | (po-unlock-rf-lock-po & int)
 +let ppo = to-r | to-w | fence | (po-unlock-lock-po & int)
- 
+
  (* Propagation: Ordering from release operations and strong fences. *)
  let A-cumul(r) = (rfe ; [Marked])? ; r
  let cumul-fence = [Marked] ; (A-cumul(strong-fence | po-rel) | wmb |
@@ -5241,7 +5209,7 @@ index 2a9b4fe4a84e..d70315fddef6 100644
 +	po-unlock-lock-po) ; [Marked]
  let prop = [Marked] ; (overwrite & ext)? ; cumul-fence* ;
  	[Marked] ; rfe? ; [Marked]
- 
+
 diff --git a/tools/memory-model/litmus-tests/.gitignore b/tools/memory-model/litmus-tests/.gitignore
 index c492a1ddad91..19c379cf069d 100644
 --- a/tools/memory-model/litmus-tests/.gitignore
@@ -5337,18 +5305,18 @@ index 681f9067fa9e..d311a0ff1ae6 100644
 @@ -63,6 +63,10 @@ LB+poonceonces.litmus
  	As above, but with store-release replaced with WRITE_ONCE()
  	and load-acquire replaced with READ_ONCE().
- 
+
 +LB+unlocklockonceonce+poacquireonce.litmus
 +	Does a unlock+lock pair provides ordering guarantee between a
 +	load and a store?
 +
  MP+onceassign+derefonce.litmus
  	As below, but with rcu_assign_pointer() and an rcu_dereference().
- 
+
 @@ -90,6 +94,10 @@ MP+porevlocks.litmus
  	As below, but with the first access of the writer process
  	and the second access of reader process protected by a lock.
- 
+
 +MP+unlocklockonceonce+fencermbonceonce.litmus
 +	Does a unlock+lock pair provides ordering guarantee between a
 +	store and another store?
@@ -5362,7 +5330,7 @@ index 095c7eb36f9f..cc2c4e5be9ec 100644
 +++ b/tools/memory-model/scripts/README
 @@ -27,6 +27,14 @@ checklitmushist.sh
  checklitmus.sh
- 
+
  	Check a single litmus test against its "Result:" expected result.
 +	Not intended to for manual use.
 +
@@ -5372,13 +5340,13 @@ index 095c7eb36f9f..cc2c4e5be9ec 100644
 +	expected results.  This takes optional parseargs.sh arguments,
 +	followed by "--" followed by pathnames starting from the current
 +	directory.
- 
+
  cmplitmushist.sh
- 
+
 @@ -43,10 +51,10 @@ initlitmushist.sh
- 
+
  judgelitmus.sh
- 
+
 -	Given a .litmus file and its .litmus.out herd7 output, check the
 -	.litmus.out file against the .litmus file's "Result:" comment to
 -	judge whether the test ran correctly.  Not normally run manually,
@@ -5387,9 +5355,9 @@ index 095c7eb36f9f..cc2c4e5be9ec 100644
 +	against the .litmus file's "Result:" comment to judge whether
 +	the test ran correctly.  Not normally run manually, provided
 +	instead for use by other scripts.
- 
+
  newlitmushist.sh
- 
+
 diff --git a/tools/memory-model/scripts/checkalllitmus.sh b/tools/memory-model/scripts/checkalllitmus.sh
 index 3c0c7fbbd223..2d3ee850a839 100755
 --- a/tools/memory-model/scripts/checkalllitmus.sh
@@ -5418,13 +5386,13 @@ index 3c0c7fbbd223..2d3ee850a839 100755
  #
 -# Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 +# Author: Paul E. McKenney <paulmck@linux.ibm.com>
- 
+
  . scripts/parseargs.sh
- 
+
 @@ -30,29 +35,23 @@ else
  	exit 255
  fi
- 
+
 -# Create any new directories that have appeared in the github litmus
 -# repo since the last run.
 +# Create any new directories that have appeared in the litmus-tests
@@ -5434,7 +5402,7 @@ index 3c0c7fbbd223..2d3ee850a839 100755
  	find $litmusdir -type d -print |
  	( cd "$LKMM_DESTDIR"; sed -e 's/^/mkdir -p /' | sh )
  fi
- 
+
 -# Find the checklitmus script.  If it is not where we expect it, then
 -# assume that the caller has the PATH environment variable set
 -# appropriately.
@@ -5464,16 +5432,16 @@ index 6589fbb6f653..cedd0290b73f 100755
 +++ b/tools/memory-model/scripts/checkghlitmus.sh
 @@ -10,6 +10,7 @@
  # parseargs.sh scripts for arguments.
- 
+
  . scripts/parseargs.sh
 +. scripts/hwfnseg.sh
- 
+
  T=/tmp/checkghlitmus.sh.$$
  trap 'rm -rf $T' 0
 @@ -32,19 +33,19 @@ then
  	( cd "$LKMM_DESTDIR"; sed -e 's/^/mkdir -p /' | sh )
  fi
- 
+
 -# Create a list of the C-language litmus tests previously run.
 -( cd $LKMM_DESTDIR; find litmus -name '*.litmus.out' -print ) |
 -	sed -e 's/\.out$//' |
@@ -5482,18 +5450,18 @@ index 6589fbb6f653..cedd0290b73f 100755
 +	sed -e "s/${hwfnseg}"'\.out$//' |
  	xargs -r egrep -l '^ \* Result: (Never|Sometimes|Always|DEADLOCK)' |
  	xargs -r grep -L "^P${LKMM_PROCS}"> $T/list-C-already
- 
+
  # Create a list of C-language litmus tests with "Result:" commands and
  # no more than the specified number of processes.
 -find litmus -name '*.litmus' -exec grep -l -m 1 "^C " {} \; > $T/list-C
 +find litmus -name '*.litmus' -print | mselect7 -arch C > $T/list-C
  xargs < $T/list-C -r egrep -l '^ \* Result: (Never|Sometimes|Always|DEADLOCK)' > $T/list-C-result
  xargs < $T/list-C-result -r grep -L "^P${LKMM_PROCS}" > $T/list-C-result-short
- 
+
 -# Form list of tests without corresponding .litmus.out files
 +# Form list of tests without corresponding .out files
  sort $T/list-C-already $T/list-C-result-short | uniq -u > $T/list-C-needed
- 
+
  # Run any needed tests.
 diff --git a/tools/memory-model/scripts/checklitmus.sh b/tools/memory-model/scripts/checklitmus.sh
 index 11461ed40b5e..4c1d0cf0ddad 100755
@@ -5518,7 +5486,7 @@ index 11461ed40b5e..4c1d0cf0ddad 100755
  #
 -# Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 +# Author: Paul E. McKenney <paulmck@linux.ibm.com>
- 
+
 -litmus=$1
 -herdoptions=${LKMM_HERD_OPTIONS--conf linux-kernel.cfg}
 -
@@ -5546,9 +5514,9 @@ index 1d210ffb7c8a..406ecfc0aee4 100755
  #
 -# Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 +# Author: Paul E. McKenney <paulmck@linux.ibm.com>
- 
+
  . scripts/parseargs.sh
- 
+
 diff --git a/tools/memory-model/scripts/checktheselitmus.sh b/tools/memory-model/scripts/checktheselitmus.sh
 new file mode 100755
 index 000000000000..10eeb5ecea6d
@@ -5604,7 +5572,7 @@ index 0f498aeeccf5..ca1ac8b64614 100755
 +++ b/tools/memory-model/scripts/cmplitmushist.sh
 @@ -12,12 +12,49 @@ trap 'rm -rf $T' 0
  mkdir $T
- 
+
  # comparetest oldpath newpath
 +badmacnam=0
 +timedout=0
@@ -5714,13 +5682,13 @@ index 956b6957484d..31ea782955d3 100755
 --- a/tools/memory-model/scripts/initlitmushist.sh
 +++ b/tools/memory-model/scripts/initlitmushist.sh
 @@ -60,7 +60,7 @@ fi
- 
+
  # Create a list of the C-language litmus tests with no more than the
  # specified number of processes (per the --procs argument).
 -find litmus -name '*.litmus' -exec grep -l -m 1 "^C " {} \; > $T/list-C
 +find litmus -name '*.litmus' -print | mselect7 -arch C > $T/list-C
  xargs < $T/list-C -r grep -L "^P${LKMM_PROCS}" > $T/list-C-short
- 
+
  scripts/runlitmushist.sh < $T/list-C-short
 diff --git a/tools/memory-model/scripts/judgelitmus.sh b/tools/memory-model/scripts/judgelitmus.sh
 index 0cc63875e395..1ec5d89fcfbb 100755
@@ -5758,9 +5726,9 @@ index 0cc63875e395..1ec5d89fcfbb 100755
  #
 -# Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 +# Author: Paul E. McKenney <paulmck@linux.ibm.com>
- 
+
  litmus=$1
- 
+
 @@ -24,55 +37,120 @@ else
  	echo ' --- ' error: \"$litmus\" is not a readable file
  	exit 255
@@ -5812,7 +5780,7 @@ index 0cc63875e395..1ec5d89fcfbb 100755
  else
  	outcome=specified
  fi
- 
+
 -grep '^Observation' $LKMM_DESTDIR/$litmus.out
 -if grep -q '^Observation' $LKMM_DESTDIR/$litmus.out
 +grep '^Observation' $LKMM_DESTDIR/$litmusout
@@ -5909,17 +5877,17 @@ index 991f8f814881..25235e2049cf 100755
  #
 -# Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 +# Author: Paul E. McKenney <paulmck@linux.ibm.com>
- 
+
  . scripts/parseargs.sh
- 
+
 @@ -43,7 +43,7 @@ fi
- 
+
  # Form full list of litmus tests with no more than the specified
  # number of processes (per the --procs argument).
 -find litmus -name '*.litmus' -exec grep -l -m 1 "^C " {} \; > $T/list-C-all
 +find litmus -name '*.litmus' -print | mselect7 -arch C > $T/list-C-all
  xargs < $T/list-C-all -r grep -L "^P${LKMM_PROCS}" > $T/list-C-short
- 
+
  # Form list of new tests.  Note: This does not handle litmus-test deletion!
 diff --git a/tools/memory-model/scripts/parseargs.sh b/tools/memory-model/scripts/parseargs.sh
 index 40f52080fdbd..08ded5909860 100755
@@ -5940,11 +5908,11 @@ index 40f52080fdbd..08ded5909860 100755
  #
 -# Author: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 +# Author: Paul E. McKenney <paulmck@linux.ibm.com>
- 
+
  T=/tmp/parseargs.sh.$$
  mkdir $T
 @@ -27,6 +27,7 @@ initparam () {
- 
+
  initparam LKMM_DESTDIR "."
  initparam LKMM_HERD_OPTIONS "-conf linux-kernel.cfg"
 +initparam LKMM_HW_MAP_FILE ""
@@ -5963,7 +5931,7 @@ index 40f52080fdbd..08ded5909860 100755
 +	echo "Defaults: --destdir '$LKMM_DESTDIR_DEF' --herdopts '$LKMM_HERD_OPTIONS_DEF' --hw '$LKMM_HW_MAP_FILE' --jobs '$LKMM_JOBS_DEF' --procs '$LKMM_PROCS_DEF' --timeout '$LKMM_TIMEOUT_DEF'"
  	exit 1
  }
- 
+
 @@ -81,7 +83,7 @@ do
  			echo "Cannot create directory --destdir '$LKMM_DESTDIR'"
  			usage
@@ -6103,7 +6071,7 @@ index 6ed376f495bb..c6c2bdc67a50 100755
 +# Author: Paul E. McKenney <paulmck@linux.ibm.com>
 +
 +. scripts/hwfnseg.sh
- 
+
  T=/tmp/runlitmushist.sh.$$
  trap 'rm -rf $T' 0
 @@ -30,15 +32,12 @@ fi
@@ -6158,7 +6126,7 @@ index 6ed376f495bb..c6c2bdc67a50 100755
 +	print "\techo runtest " dq $2 dq " " hwfnseg " >> " t "/" NR % ncpu ".sh";
 +	print "fi"
  }
- 
+
  END {
 diff --git a/tools/memory-model/scripts/simpletest.sh b/tools/memory-model/scripts/simpletest.sh
 new file mode 100755
@@ -6213,7 +6181,7 @@ index 0f9525293881..86b7d5d84eec 100644
 +	if (CHECK(err || retval, "test_run cmpxchg",
  		  "err %d errno %d retval %d duration %d\n", err, errno, retval, duration))
  		goto cleanup;
- 
+
 @@ -196,7 +196,7 @@ static void test_xchg(struct atomics_lskel *skel)
  	prog_fd = skel->progs.xchg.prog_fd;
  	err = bpf_prog_test_run(prog_fd, 1, NULL, 0,
@@ -6222,7 +6190,7 @@ index 0f9525293881..86b7d5d84eec 100644
 +	if (CHECK(err || retval, "test_run xchg",
  		  "err %d errno %d retval %d duration %d\n", err, errno, retval, duration))
  		goto cleanup;
- 
+
 diff --git a/tools/testing/selftests/rcutorture/bin/kvm-find-errors.sh b/tools/testing/selftests/rcutorture/bin/kvm-find-errors.sh
 index daf64b507038..2e9e9e2eedb6 100755
 --- a/tools/testing/selftests/rcutorture/bin/kvm-find-errors.sh
@@ -6273,7 +6241,7 @@ index c7d42ef80c53..5bc2216bcf85 100755
 +		fi
  	fi
  done
- 
+
 diff --git a/tools/testing/selftests/rcutorture/bin/kvm.sh b/tools/testing/selftests/rcutorture/bin/kvm.sh
 index 6cf9ec6a3d1c..6de0c183db5b 100755
 --- a/tools/testing/selftests/rcutorture/bin/kvm.sh
@@ -6333,13 +6301,13 @@ index eae88aacca2a..738a633f2f6f 100755
 --- a/tools/testing/selftests/rcutorture/bin/torture.sh
 +++ b/tools/testing/selftests/rcutorture/bin/torture.sh
 @@ -386,7 +386,7 @@ fi
- 
+
  if test "$do_clocksourcewd" = "yes"
  then
 -	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000"
 +	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000 clocksource.max_cswd_coarse_reads=-1" // max_cswd_coarse_reads=2 to test splatting.
  	torture_set "clocksourcewd-1" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration 45s --configs TREE03 --kconfig "CONFIG_TEST_CLOCKSOURCE_WATCHDOG=y" --trust-make
- 
+
  	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000 clocksource.max_cswd_read_retries=1"
 diff --git a/tools/testing/selftests/rcutorture/configs/rcu/SRCU-T b/tools/testing/selftests/rcutorture/configs/rcu/SRCU-T
 index d6557c38dfe4..c70cf0405f24 100644
@@ -6610,6 +6578,5 @@ index 1b96d68473b8..42acb1a64ce1 100644
  CONFIG_RCU_NOCB_CPU -- Do three, one with no rcu_nocbs CPUs, one with
  	rcu_nocbs=0, and one with all rcu_nocbs CPUs.
  CONFIG_RCU_TRACE -- Do half.
--- 
+--
 2.34.1
-
