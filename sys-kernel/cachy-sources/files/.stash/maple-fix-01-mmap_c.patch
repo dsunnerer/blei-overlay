@@ -1,0 +1,130 @@
+--- mm/mmap.c	2021-12-08 19:25:44.618816624 +0100
++++ mm/mmap.c-mod	2021-12-08 20:34:41.051718190 +0100
+@@ -1788,58 +1788,89 @@
+ }
+ 
+ EXPORT_SYMBOL(get_unmapped_area);
+-
+-/* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
+-struct vm_area_struct *__find_vma(struct mm_struct *mm, unsigned long addr)
+++/**
++ * find_vma_intersection() - Look up the first VMA which intersects the interval
++ * @mm: The process address space.
++ * @start_addr: The inclusive start user address.
++ * @end_addr: The exclusive end user address.
++ *
++ * Returns: The first VMA within the provided range, %NULL otherwise.  Assumes
++ * start_addr < end_addr.
++ */
++struct vm_area_struct *find_vma_intersection(struct mm_struct *mm,
++                                            unsigned long start_addr,
++                                            unsigned long end_addr)
+ {
+-	struct rb_node *rb_node;
+-	struct vm_area_struct *vma;
++       struct rb_node *rb_node;
++       struct vm_area_struct *vma;
++       unsigned long index = start_addr;
++
++       mmap_assert_locked(mm);
++       /* Check the cache first. */
++       vma = vmacache_find(mm, addr);
++       if (likely(vma))
++               return vma;
+ 
+-	/* Check the cache first. */
+-	vma = vmacache_find(mm, addr);
+-	if (likely(vma))
+-		return vma;
+-
+-	rb_node = mm->mm_rb.rb_node;
+-
+-	while (rb_node) {
+-		struct vm_area_struct *tmp;
+-
+-		tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
+-
+-		if (tmp->vm_end > addr) {
+-			vma = tmp;
+-			if (tmp->vm_start <= addr)
+-				break;
+-			rb_node = rb_node->rb_left;
+-		} else
+-			rb_node = rb_node->rb_right;
+-	}
++       rb_node = mm->mm_rb.rb_node;
+ 
+-	if (vma)
+-		vmacache_update(addr, vma);
+-	return vma;
++       while (rb_node) {
++               struct vm_area_struct *tmp;
++
++               tmp = rb_entry(rb_node, struct vm_area_struct, vm_rb);
++       return mt_find(&mm->mm_mt, &index, end_addr - 1);
++}
++EXPORT_SYMBOL(find_vma_intersection);
++
++               if (tmp->vm_end > addr) {
++                       vma = tmp;
++                       if (tmp->vm_start <= addr)
++                               break;
++                      rb_node = rb_node->rb_left;
++               } else
++                       rb_node = rb_node->rb_right;
++       }
++/**
++ * find_vma() - Find the VMA for a given address, or the next vma.
++ * @mm:  The mm_struct to check
++ * @addr: The address
++ *
++ * Returns: The VMA associated with addr, or the next vma.
++ * May return NULL in the case of no vma at addr or above.
++ */
++inline struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
++{
++       unsigned long index = addr;
++ 
++       if (vma)
++               vmacache_update(addr, vma);
++       return vma;
++       mmap_assert_locked(mm);
++       return mt_find(&mm->mm_mt, &index, ULONG_MAX); 
+ }
+ 
+ EXPORT_SYMBOL(__find_vma);
+ 
+-/*
+- * Same as find_vma, but also return a pointer to the previous VMA in *pprev.
++/**
++ * find_vma_prev() - Find the VMA for a given address, or the next vma and
++ * set %pprev to the previous VMA, if any.
++ * @mm: The mm_struct to check
++ * @addr: The address
++ * @pprev: The pointer to set to the previous VMA
++ *
++ * Returns: The VMA associated with @addr, or the next vma.
++ * May return %NULL in the case of no vma at addr or above.
+  */
+ struct vm_area_struct *
+ find_vma_prev(struct mm_struct *mm, unsigned long addr,
+ 			struct vm_area_struct **pprev)
+ {
+ 	struct vm_area_struct *vma;
++	MA_STATE(mas, &mm->mm_mt, addr, addr);
+ 
+-	vma = find_vma(mm, addr);
+-	if (vma) {
+-		*pprev = vma->vm_prev;
+-	} else {
+-		struct rb_node *rb_node = rb_last(&mm->mm_rb);
+-
+-		*pprev = rb_node ? rb_entry(rb_node, struct vm_area_struct, vm_rb) : NULL;
+-	}
++	vma = mas_walk(&mas);
++        *pprev = mas_prev(&mas, 0);
++        if (!vma)
++                vma = mas_next(&mas, ULONG_MAX);
+ 	return vma;
+ }
+ 

@@ -1,0 +1,21 @@
+--- include/linux/mm_types.h	2021-12-08 19:25:44.597483314 +0100
++++ include/linux/mm_types.h-mod	2021-12-08 20:07:35.252544730 +0100
+@@ -338,18 +338,6 @@
+ #endif
+ 	};
+ 
+-	struct rb_node vm_rb;
+-
+-	/*
+-	 * Largest free memory gap in bytes to the left of this VMA.
+-	 * Either between this VMA and vma->vm_prev, or between one of the
+-	 * VMAs below us in the VMA rbtree and its ->vm_prev. This helps
+-	 * get_unmapped_area find a free area of the right size.
+-	 */
+-	unsigned long rb_subtree_gap;
+-
+-	/* Second cache line starts here. */
+-
+ 	struct mm_struct *vm_mm;	/* The address space we belong to. */
+ 
+ 	/*
