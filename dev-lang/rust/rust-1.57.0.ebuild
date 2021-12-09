@@ -437,7 +437,7 @@ src_configure() {
 		# only deny warnings if doc+wasm are NOT requested, documenting stage0 wasm std fails without it
 		# https://github.com/rust-lang/rust/issues/74976
 		# https://github.com/rust-lang/rust/issues/76526
-		deny-warnings = $(usex wasm $(usex doc false true) true)
+		deny-warnings = false
 		backtrace-on-ice = true
 		jemalloc = false
 		llvm-libunwind = "$(usex system-llvm system)"
