@@ -25,7 +25,6 @@ Signed-off-by: P. Jung <ptr1337@cachyos.org>
  fs/dcache.c                                   |    2 +-
  fs/file.c                                     |    1 +
  include/linux/pagemap.h                       |    2 +-
- kernel/Kconfig.hz                             |   16 +
  kernel/fork.c                                 |    1 +
  kernel/sched/core.c                           |    3 +-
  kernel/sched/fair.c                           |  133 +-
@@ -329,40 +328,6 @@ index 62db6b0176b9..75ec2b83cc61 100644
  
  void page_cache_ra_unbounded(struct readahead_control *,
  		unsigned long nr_to_read, unsigned long lookahead_count);
-diff --git a/kernel/Kconfig.hz b/kernel/Kconfig.hz
-index 38ef6d06888e..eb1ccd2481a9 100644
---- a/kernel/Kconfig.hz
-+++ b/kernel/Kconfig.hz
-@@ -40,6 +40,20 @@ choice
- 	 on SMP and NUMA systems and exactly dividing by both PAL and
- 	 NTSC frame rates for video and multimedia work.
- 
-+	config HZ_600
-+		bool "600 HZ"
-+	help
-+	 600 Hz is a balanced timer frequency. Provides fast interactivity
-+	 on desktops with good smoothness without increasing CPU power
-+	 consumption and sacrificing the battery life on laptops.
-+
-+	config HZ_750
-+ 		bool "750 HZ"
-+ 	help
-+ 	 750 Hz is a balanced timer frequency. Provides fast interactivity
-+ 	 on desktops with good smoothness without increasing CPU power
-+ 	 consumption and sacrificing the battery life on laptops.
-+
- 	config HZ_1000
- 		bool "1000 HZ"
- 	help
-@@ -53,6 +67,8 @@ config HZ
- 	default 100 if HZ_100
- 	default 250 if HZ_250
- 	default 300 if HZ_300
-+	default 600 if HZ_600
-+	default 750 if HZ_750
- 	default 1000 if HZ_1000
- 
- config SCHED_HRTICK
 diff --git a/kernel/fork.c b/kernel/fork.c
 index 10885c649ca4..0fb1d884af77 100644
 --- a/kernel/fork.c
