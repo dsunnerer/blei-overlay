@@ -1,29 +1,32 @@
 diff -uprN a/include/linux/sched/sysctl.h b/include/linux/sched/sysctl.h
 --- a/include/linux/sched/sysctl.h	2021-12-03 02:32:51.000000000 +0900
-+++ b/include/linux/sched/sysctl.h	2021-12-07 23:36:54.889323000 +0900
-@@ -28,6 +28,15 @@ enum { sysctl_hung_task_timeout_secs = 0
-
++++ b/include/linux/sched/sysctl.h	2021-12-11 16:41:46.157042014 +0900
+@@ -28,6 +28,18 @@ enum { sysctl_hung_task_timeout_secs = 0
+ 
  extern unsigned int sysctl_sched_child_runs_first;
-
-+extern unsigned int sysctl_sched_granularity_ns;
+ 
++#ifdef CONFIG_BS_SCHED
++extern unsigned int sysctl_sched_tick_preempt_threshold_ns;
++extern unsigned int sysctl_sched_wakeup_preempt_threshold_ns;
 +extern unsigned int sysctl_sched_burst_convergence_us;
-+extern unsigned int sysctl_sched_max_punish_ratio_pct;
-+extern unsigned int sysctl_sched_greed_smooth_pct;
++extern unsigned int sysctl_sched_max_punish_ratio;
++extern unsigned int sysctl_sched_greed_response_pct;
 +
 +int sched_proc_update_handler(struct ctl_table *table, int write,
 +		void __user *buffer, size_t *length,
 +		loff_t *ppos);
++#endif
 +
  enum sched_tunable_scaling {
  	SCHED_TUNABLESCALING_NONE,
  	SCHED_TUNABLESCALING_LOG,
 diff -uprN a/include/linux/sched.h b/include/linux/sched.h
 --- a/include/linux/sched.h	2021-12-03 02:32:51.000000000 +0900
-+++ b/include/linux/sched.h	2021-12-07 23:36:54.889323000 +0900
-@@ -551,6 +551,17 @@ struct sched_statistics {
++++ b/include/linux/sched.h	2021-12-11 11:27:31.528477285 +0900
+@@ -551,6 +551,18 @@ struct sched_statistics {
  #endif
  };
-
+ 
 +#ifdef CONFIG_BS_SCHED
 +struct bs_node {
 +	struct bs_node*                 next;
@@ -31,6 +34,7 @@ diff -uprN a/include/linux/sched.h b/include/linux/sched.h
 +	u8				greed_score;
 +	u64				burst_time;
 +	u64				waiting_since;
++	bool      preempt_postponed;
 +	bool			yield_flag;
 +};
 +#endif
@@ -38,10 +42,10 @@ diff -uprN a/include/linux/sched.h b/include/linux/sched.h
  struct sched_entity {
  	/* For load-balancing: */
  	struct load_weight		load;
-@@ -558,6 +569,10 @@ struct sched_entity {
+@@ -558,6 +570,10 @@ struct sched_entity {
  	struct list_head		group_node;
  	unsigned int			on_rq;
-
+ 
 +#ifdef CONFIG_BS_SCHED
 +	struct bs_node                  bs_node;
 +#endif
@@ -51,11 +55,11 @@ diff -uprN a/include/linux/sched.h b/include/linux/sched.h
  	u64				vruntime;
 diff -uprN a/init/Kconfig b/init/Kconfig
 --- a/init/Kconfig	2021-12-03 02:32:51.000000000 +0900
-+++ b/init/Kconfig	2021-12-07 23:36:54.891323000 +0900
++++ b/init/Kconfig	2021-12-11 16:18:20.710880677 +0900
 @@ -105,6 +105,15 @@ config THREAD_INFO_IN_TASK
  	  One subtle change that will be needed is to use try_get_task_stack()
  	  and put_task_stack() in save_thread_stack_tsk() and get_wchan().
-
+ 
 +config BS_SCHED
 +	bool "BORE Scheduler"
 +	default y
@@ -66,7 +70,7 @@ diff -uprN a/init/Kconfig b/init/Kconfig
 +
 +
  menu "General setup"
-
+ 
  config BROKEN
 @@ -817,6 +826,7 @@ menu "Scheduler features"
  config UCLAMP_TASK
@@ -77,7 +81,7 @@ diff -uprN a/init/Kconfig b/init/Kconfig
  	  This feature enables the scheduler to track the clamped utilization
  	  of each CPU based on RUNNABLE tasks scheduled on that CPU.
 @@ -982,6 +992,7 @@ config CGROUP_WRITEBACK
-
+ 
  menuconfig CGROUP_SCHED
  	bool "CPU controller"
 +	depends on !BS_SCHED
@@ -85,7 +89,7 @@ diff -uprN a/init/Kconfig b/init/Kconfig
  	help
  	  This feature lets CPU scheduler recognize task groups and control CPU
 @@ -1259,6 +1270,8 @@ config CHECKPOINT_RESTORE
-
+ 
  config SCHED_AUTOGROUP
  	bool "Automatic process group scheduling"
 +	default n
@@ -101,12 +105,9 @@ diff -uprN a/init/Kconfig b/init/Kconfig
  	select DEBUG_KERNEL
  	help
  	  This option allows certain base kernel options and settings
-diff -uprN a/kernel/Kconfig.hz b/kernel/Kconfig.hz
---- a/kernel/Kconfig.hz	2021-12-03 02:32:51.000000000 +0900
-+++ b/kernel/Kconfig.hz	2021-12-07 23:36:54.891323000 +0900
 diff -uprN a/kernel/Kconfig.preempt b/kernel/Kconfig.preempt
 --- a/kernel/Kconfig.preempt	2021-12-03 02:32:51.000000000 +0900
-+++ b/kernel/Kconfig.preempt	2021-12-07 23:36:54.891323000 +0900
++++ b/kernel/Kconfig.preempt	2021-12-09 20:58:24.259809601 +0900
 @@ -103,6 +103,7 @@ config PREEMPT_DYNAMIC
  config SCHED_CORE
  	bool "Core Scheduling for SMT"
@@ -117,20 +118,20 @@ diff -uprN a/kernel/Kconfig.preempt b/kernel/Kconfig.preempt
  	  selection across SMT siblings. When enabled -- see
 diff -uprN a/kernel/sched/Makefile b/kernel/sched/Makefile
 --- a/kernel/sched/Makefile	2021-12-03 02:32:51.000000000 +0900
-+++ b/kernel/sched/Makefile	2021-12-07 23:36:54.891323000 +0900
++++ b/kernel/sched/Makefile	2021-12-09 20:58:24.259809601 +0900
 @@ -23,7 +23,7 @@ CFLAGS_core.o := $(PROFILING) -fno-omit-
  endif
-
+ 
  obj-y += core.o loadavg.o clock.o cputime.o
 -obj-y += idle.o fair.o rt.o deadline.o
 +obj-y += idle.o bs.o rt.o deadline.o
  obj-y += wait.o wait_bit.o swait.o completion.o
-
+ 
  obj-$(CONFIG_SMP) += cpupri.o cpudeadline.o topology.o stop_task.o pelt.o
 diff -uprN a/kernel/sched/bs.c b/kernel/sched/bs.c
 --- a/kernel/sched/bs.c	1970-01-01 09:00:00.000000000 +0900
-+++ b/kernel/sched/bs.c	2021-12-08 03:26:21.514458000 +0900
-@@ -0,0 +1,788 @@
++++ b/kernel/sched/bs.c	2021-12-11 21:43:59.337040150 +0900
+@@ -0,0 +1,798 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Burst-Oriented Response Enhancer (BORE) CPU Scheduler
@@ -141,17 +142,18 @@ diff -uprN a/kernel/sched/bs.c b/kernel/sched/bs.c
 +#include "fair_numa.h"
 +#include "bs.h"
 +
-+unsigned int __read_mostly sysctl_sched_granularity_ns       =  600000;
-+unsigned int __read_mostly sysctl_sched_burst_convergence_us = 1000000;
-+unsigned int __read_mostly sysctl_sched_max_punish_ratio_pct = 2000000;
-+unsigned int __read_mostly sysctl_sched_greed_smooth_pct     =      35;
++unsigned int __read_mostly sysctl_sched_tick_preempt_threshold_ns   =  100000;
++unsigned int __read_mostly sysctl_sched_wakeup_preempt_threshold_ns =   10000;
++unsigned int __read_mostly sysctl_sched_burst_convergence_us        =  700000;
++unsigned int __read_mostly sysctl_sched_max_punish_ratio            =   30000;
++unsigned int __read_mostly sysctl_sched_greed_response_pct          =      35;
 +unsigned long long __read_mostly sched_burst_convergence_ns;
-+unsigned long long __read_mostly sched_max_punish_ratio_pct_range;
++unsigned int       __read_mostly sched_greed_response_pct_rest;
 +
 +void bs_sched_update_internals(void)
 +{
 +	sched_burst_convergence_ns = sysctl_sched_burst_convergence_us * 1000;
-+	sched_max_punish_ratio_pct_range = sysctl_sched_max_punish_ratio_pct - 100;
++	sched_greed_response_pct_rest = 100 - sysctl_sched_greed_response_pct;
 +}
 +
 +void __init sched_init_bs_sched(void)
@@ -167,7 +169,7 @@ diff -uprN a/kernel/sched/bs.c b/kernel/sched/bs.c
 +
 +	if (ret || !write)
 +		return ret;
-+
++	
 +	bs_sched_update_internals();
 +
 +	return 0;
@@ -199,23 +201,25 @@ diff -uprN a/kernel/sched/bs.c b/kernel/sched/bs.c
 +}
 +
 +static inline u64
-+calc_score(u64 now, struct bs_node *bsn)
++calc_score(u64 now, struct bs_node *bsn, bool wakeup)
 +{
 +	struct sched_entity *se = se_of(bsn);
 +	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 +	u64 wait_factor, burst_factor, power, resist;
-+
++	
 +	if(se == cfs_rq->curr) {
 +		if(bsn->yield_flag) return 0;
-+		wait_factor = sysctl_sched_granularity_ns;
-+		power = wait_factor << 16;
++		if(wakeup)
++			wait_factor = sysctl_sched_wakeup_preempt_threshold_ns;
++		else
++			wait_factor = sysctl_sched_tick_preempt_threshold_ns;
 +	} else {
 +		wait_factor = (now - bsn->waiting_since);
-+		power = wait_factor * se->load.weight << 6;
 +	}
-+
++	power = wait_factor * scale_load_down(se->load.weight) << 5;
++	
 +	burst_factor = min(bsn->burst_time, sched_burst_convergence_ns);
-+	resist = sched_max_punish_ratio_pct_range * burst_factor / sched_burst_convergence_ns + 100;
++	resist = sysctl_sched_max_punish_ratio * burst_factor / sched_burst_convergence_ns + 1;
 +
 +	return power / resist + 1;
 +}
@@ -224,11 +228,11 @@ diff -uprN a/kernel/sched/bs.c b/kernel/sched/bs.c
 + * Does a have higher score than b?
 + */
 +static inline bool
-+entity_before(u64 now, struct bs_node *a, struct bs_node *b)
++entity_before(u64 now, struct bs_node *a, struct bs_node *b, bool wakeup)
 +{
-+	u64 score_a = calc_score(now, a);
-+	u64 score_b = calc_score(now, b);
-+
++	u64 score_a = calc_score(now, a, wakeup);
++	u64 score_b = calc_score(now, b, wakeup);
++	
 +	return score_a > score_b;
 +}
 +
@@ -236,10 +240,11 @@ diff -uprN a/kernel/sched/bs.c b/kernel/sched/bs.c
 +{
 +	u64 burst_factor = min(bsn->burst_time, sched_burst_convergence_ns);
 +	u8  greed_score = bsn->greed_score;
-+	bsn->burst_time = burst_factor * greed_score           /* / 100 == */ * 20972 >> 21;
-+	bsn->greed_score =
-+		(100 - sysctl_sched_greed_smooth_pct) * burst_factor / sched_burst_convergence_ns +
-+		(      sysctl_sched_greed_smooth_pct  * greed_score  /* / 100 == */ * 20972 >> 21);
++	greed_score = 
++		sysctl_sched_greed_response_pct * burst_factor / sched_burst_convergence_ns +
++		(sched_greed_response_pct_rest * greed_score /* / 100 == */ * 20972 >> 21);
++	bsn->greed_score = greed_score;
++	bsn->burst_time = burst_factor * greed_score /* / 100 == */ * 20972 >> 21;
 +}
 +
 +static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
@@ -303,7 +308,7 @@ diff -uprN a/kernel/sched/bs.c b/kernel/sched/bs.c
 +dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 +{
 +	update_curr(cfs_rq);
-+
++	
 +	reduce_burst_time(&se->bs_node);
 +
 +	if (se != cfs_rq->curr)
@@ -350,7 +355,7 @@ diff -uprN a/kernel/sched/bs.c b/kernel/sched/bs.c
 +
 +	curr->se.bs_node.yield_flag = true;
 +	reduce_burst_time(&curr->se.bs_node);
-+
++	
 +	/*
 +	 * Are we the only task in the tree?
 +	 */
@@ -396,15 +401,18 @@ diff -uprN a/kernel/sched/bs.c b/kernel/sched/bs.c
 +	struct bs_node *next;
 +	u64 now = sched_clock();
 +	u64 highest_score, score;
++	bool preempt_postponed;
 +
 +	if (!bsn)
 +		return curr;
 +
-+	highest_score = calc_score(now, bsn);
++	preempt_postponed = bsn->preempt_postponed;
++	highest_score = calc_score(now, bsn, preempt_postponed);
 +	next = bsn->next;
 +	while (next) {
-+		//if (entity_before(now, next, bsn))
-+		score = calc_score(now, next);
++		preempt_postponed |= next->preempt_postponed;
++		//if (entity_before(now, next, bsn, preempt_postponed))
++		score = calc_score(now, next, preempt_postponed);
 +		if (score > highest_score) {
 +			highest_score = score;
 +			bsn = next;
@@ -413,10 +421,11 @@ diff -uprN a/kernel/sched/bs.c b/kernel/sched/bs.c
 +		next = next->next;
 +	}
 +
-+	//if (curr && !entity_before(now, bsn, &curr->bs_node))
-+	if (curr && (highest_score <= calc_score(now, &curr->bs_node)))
++	//if (curr && !entity_before(now, bsn, &curr->bs_node, preempt_postponed))
++	if (curr && (highest_score <= calc_score(now, &curr->bs_node, preempt_postponed)))
 +		return curr;
 +
++	bsn->preempt_postponed = false;
 +	return se_of(bsn);
 +}
 +
@@ -597,8 +606,10 @@ diff -uprN a/kernel/sched/bs.c b/kernel/sched/bs.c
 +
 +	update_curr(cfs_rq_of(se));
 +
-+	if (!entity_before(sched_clock(), &se->bs_node, &wse->bs_node))
++	if (!entity_before(sched_clock(), &se->bs_node, &wse->bs_node, true))
 +		goto preempt;
++	
++	wse->bs_node.preempt_postponed = true;
 +
 +	return;
 +
@@ -866,7 +877,7 @@ diff -uprN a/kernel/sched/bs.c b/kernel/sched/bs.c
 +	struct rq *rq = this_rq();
 +	struct rq_flags rf;
 +
-+	p->se.bs_node.greed_score = 50;
++	p->se.bs_node.greed_score = 100;
 +
 +	rq_lock(rq, &rf);
 +	update_rq_clock(rq);
@@ -921,8 +932,8 @@ diff -uprN a/kernel/sched/bs.c b/kernel/sched/bs.c
 +};
 diff -uprN a/kernel/sched/bs.h b/kernel/sched/bs.h
 --- a/kernel/sched/bs.h	1970-01-01 09:00:00.000000000 +0900
-+++ b/kernel/sched/bs.h	2021-12-07 23:36:54.891323000 +0900
-@@ -0,0 +1,153 @@
++++ b/kernel/sched/bs.h	2021-12-10 19:15:26.605278628 +0900
+@@ -0,0 +1,150 @@
 +
 +/*
 + * After fork, child runs first. If set to 0 (default) then
@@ -934,9 +945,6 @@ diff -uprN a/kernel/sched/bs.h b/kernel/sched/bs.h
 +
 +void __init sched_init_granularity(void) {}
 +void __init sched_init_bs_sched(void);
-+
-+unsigned long long __read_mostly sched_burst_convergence_ns;
-+unsigned long long __read_mostly sched_max_punish_ratio_pct_range;
 +
 +#ifdef CONFIG_SMP
 +/* Give new sched_entity start runnable values to heavy its load in infant time */
@@ -1078,14 +1086,14 @@ diff -uprN a/kernel/sched/bs.h b/kernel/sched/bs.h
 +}
 diff -uprN a/kernel/sched/core.c b/kernel/sched/core.c
 --- a/kernel/sched/core.c	2021-12-03 02:32:51.000000000 +0900
-+++ b/kernel/sched/core.c	2021-12-08 01:49:23.560211000 +0900
++++ b/kernel/sched/core.c	2021-12-11 11:11:51.479623662 +0900
 @@ -9299,6 +9299,11 @@ void __init sched_init(void)
-
+ 
  	wait_bit_init();
-
+ 
 +#ifdef CONFIG_BS_SCHED
++	printk(KERN_INFO "BORE (Burst-Oriented Response Enhancer) Scheduler Beta 12 by Masahito Suzuki, based on Baby scheduler by Hamad Al Marri.");
 +	sched_init_bs_sched();
-+	printk(KERN_INFO "BORE (Burst-Oriented Response Enhancer) Scheduler Alpha 9 by Masahito Suzuki, based on Baby scheduler by Hamad Al Marri.");
 +#endif
 +
  #ifdef CONFIG_FAIR_GROUP_SCHED
@@ -1093,7 +1101,7 @@ diff -uprN a/kernel/sched/core.c b/kernel/sched/core.c
  #endif
 diff -uprN a/kernel/sched/fair_numa.h b/kernel/sched/fair_numa.h
 --- a/kernel/sched/fair_numa.h	1970-01-01 09:00:00.000000000 +0900
-+++ b/kernel/sched/fair_numa.h	2021-12-07 23:36:54.893323000 +0900
++++ b/kernel/sched/fair_numa.h	2021-12-09 20:58:24.261809602 +0900
 @@ -0,0 +1,1968 @@
 +
 +#ifdef CONFIG_NUMA_BALANCING
@@ -3065,7 +3073,7 @@ diff -uprN a/kernel/sched/fair_numa.h b/kernel/sched/fair_numa.h
 +
 diff -uprN a/kernel/sched/sched.h b/kernel/sched/sched.h
 --- a/kernel/sched/sched.h	2021-12-03 02:32:51.000000000 +0900
-+++ b/kernel/sched/sched.h	2021-12-07 23:36:54.893323000 +0900
++++ b/kernel/sched/sched.h	2021-12-11 16:41:45.099072106 +0900
 @@ -551,9 +551,13 @@ struct cfs_rq {
  	 * It is set to NULL otherwise (i.e when none are currently running).
  	 */
@@ -3077,36 +3085,39 @@ diff -uprN a/kernel/sched/sched.h b/kernel/sched/sched.h
  	struct sched_entity	*last;
  	struct sched_entity	*skip;
 +#endif /** CONFIG_BS_SCHED */
-
+ 
  #ifdef	CONFIG_SCHED_DEBUG
  	unsigned int		nr_spread_over;
-@@ -2307,6 +2311,7 @@ extern void schedule_idle(void);
-
+@@ -2307,6 +2311,9 @@ extern void schedule_idle(void);
+ 
  extern void sysrq_sched_debug_show(void);
  extern void sched_init_granularity(void);
++#ifdef CONFIG_BS_SCHED
 +extern void sched_init_bs_sched(void);
++#endif
  extern void update_max_interval(void);
-
+ 
  extern void init_sched_dl_class(void);
 diff -uprN a/kernel/sysctl.c b/kernel/sysctl.c
 --- a/kernel/sysctl.c	2021-12-03 02:32:51.000000000 +0900
-+++ b/kernel/sysctl.c	2021-12-07 23:36:54.893323000 +0900
-@@ -119,6 +119,7 @@ static int __maybe_unused four = 4;
- static unsigned long zero_ul;
- static unsigned long one_ul = 1;
- static unsigned long long_max = LONG_MAX;
-+static int ninety_nine = 99;
- static int one_hundred = 100;
- static int two_hundred = 200;
- static int one_thousand = 1000;
-@@ -1800,6 +1801,44 @@ static struct ctl_table kern_table[] = {
++++ b/kernel/sysctl.c	2021-12-11 11:43:42.686963734 +0900
+@@ -1800,6 +1800,53 @@ static struct ctl_table kern_table[] = {
  		.mode		= 0644,
  		.proc_handler	= proc_dointvec,
  	},
 +#ifdef CONFIG_BS_SCHED
 +	{
-+		.procname	= "sched_granularity_ns",
-+		.data		= &sysctl_sched_granularity_ns,
++		.procname	= "sched_tick_preempt_threshold_ns",
++		.data		= &sysctl_sched_tick_preempt_threshold_ns,
++		.maxlen		= sizeof(unsigned int),
++		.mode		= 0644,
++		.proc_handler	= &proc_dointvec_minmax,
++		.extra1		= SYSCTL_ZERO,
++		.extra2		= SYSCTL_INT_MAX,
++	},
++	{
++		.procname	= "sched_wakeup_preempt_threshold_ns",
++		.data		= &sysctl_sched_wakeup_preempt_threshold_ns,
 +		.maxlen		= sizeof(unsigned int),
 +		.mode		= 0644,
 +		.proc_handler	= &proc_dointvec_minmax,
@@ -3123,22 +3134,22 @@ diff -uprN a/kernel/sysctl.c b/kernel/sysctl.c
 +		.extra2		= SYSCTL_INT_MAX,
 +	},
 +	{
-+		.procname	= "sched_max_punish_ratio_pct",
-+		.data		= &sysctl_sched_max_punish_ratio_pct,
-+		.maxlen		= sizeof(unsigned int),
-+		.mode		= 0644,
-+		.proc_handler	= &sched_proc_update_handler,
-+		.extra1		= &one_hundred,
-+		.extra2		= SYSCTL_INT_MAX,
-+	},
-+	{
-+		.procname	= "sched_greed_smooth_pct",
-+		.data		= &sysctl_sched_greed_smooth_pct,
++		.procname	= "sched_max_punish_ratio",
++		.data		= &sysctl_sched_max_punish_ratio,
 +		.maxlen		= sizeof(unsigned int),
 +		.mode		= 0644,
 +		.proc_handler	= &proc_dointvec_minmax,
-+		.extra1		= SYSCTL_ZERO,
-+		.extra2		= &ninety_nine,
++		.extra1		= SYSCTL_ONE,
++		.extra2		= SYSCTL_INT_MAX,
++	},
++	{
++		.procname	= "sched_greed_response_pct",
++		.data		= &sysctl_sched_greed_response_pct,
++		.maxlen		= sizeof(unsigned int),
++		.mode		= 0644,
++		.proc_handler	= &sched_proc_update_handler,
++		.extra1		= SYSCTL_ONE,
++		.extra2		= &one_hundred,
 +	},
 +#endif
  #ifdef CONFIG_SCHEDSTATS
@@ -3146,18 +3157,18 @@ diff -uprN a/kernel/sysctl.c b/kernel/sysctl.c
  		.procname	= "sched_schedstats",
 diff -uprN a/kernel/time/Kconfig b/kernel/time/Kconfig
 --- a/kernel/time/Kconfig	2021-12-03 02:32:51.000000000 +0900
-+++ b/kernel/time/Kconfig	2021-12-07 23:36:54.893323000 +0900
++++ b/kernel/time/Kconfig	2021-12-09 20:58:24.363809651 +0900
 @@ -88,7 +88,7 @@ config NO_HZ_COMMON
-
+ 
  choice
  	prompt "Timer tick handling"
 -	default NO_HZ_IDLE if NO_HZ
 +	default HZ_PERIODIC if BS_SCHED
-
+ 
  config HZ_PERIODIC
  	bool "Periodic timer ticks (constant rate, no dynticks)"
 @@ -98,6 +98,7 @@ config HZ_PERIODIC
-
+ 
  config NO_HZ_IDLE
  	bool "Idle dynticks system (tickless idle)"
 +	depends on !BS_SCHED
@@ -3173,7 +3184,7 @@ diff -uprN a/kernel/time/Kconfig b/kernel/time/Kconfig
  	depends on HAVE_VIRT_CPU_ACCOUNTING_GEN
  	select NO_HZ_COMMON
 @@ -168,6 +170,8 @@ config CONTEXT_TRACKING_FORCE
-
+ 
  config NO_HZ
  	bool "Old Idle dynticks config"
 +	default n
@@ -3183,9 +3194,9 @@ diff -uprN a/kernel/time/Kconfig b/kernel/time/Kconfig
  	  We keep it around for a little while to enforce backward
 diff -uprN a/lib/Kconfig.debug b/lib/Kconfig.debug
 --- a/lib/Kconfig.debug	2021-12-03 02:32:51.000000000 +0900
-+++ b/lib/Kconfig.debug	2021-12-07 23:36:54.893323000 +0900
++++ b/lib/Kconfig.debug	2021-12-11 16:18:19.748870232 +0900
 @@ -585,6 +585,7 @@ endmenu
-
+ 
  config DEBUG_KERNEL
  	bool "Kernel debugging"
 +	depends on !BS_SCHED
