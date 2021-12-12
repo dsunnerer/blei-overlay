@@ -501,6 +501,7 @@ src_prepare() {
 
 	# fix build errors
 	eapply "${FILESDIR}/build-fixes/pquotarequest.patch"
+	eapply "${FILESDIR}/build-fixes/wl_proxy_marshal.patch"
 
 	eapply "${WORKDIR}/firefox-patches"
 
@@ -512,6 +513,13 @@ src_prepare() {
 		-e "s/multiprocessing.cpu_count()/$(makeopts_jobs)/" \
 		"${S}"/build/moz.configure/lto-pgo.configure \
 		|| die "sed failed to set num_cores"
+
+	# Let LTO use native cpu architecture
+	native_mcpu_arch="$(gcc -march=native -Q --help=target | grep -e 'march=\s*[a-z0-9]*$' | sed 's|\s||g' | cut -d '=' -f2)"
+    sed -i \
+        -e "s|mcpu=x86-64|mcpu=${native_mcpu_arch}|" \
+        "${S}"/build/moz.configure/lto-pgo.configure \
+        || die "sed failed to change mcpu to native arch"
 
 	# Make ICU respect MAKEOPTS
 	sed -i \

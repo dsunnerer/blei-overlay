@@ -1,0 +1,11 @@
+--- a/widget/gtk/mozwayland/mozwayland.c	2021-11-29 15:01:29.000000000 +0100
++++ b/widget/gtk/mozwayland/mozwayland.c	2021-12-12 01:13:45.434493866 +0100
+@@ -200,3 +200,8 @@
+ 
+ MOZ_EXPORT void wl_list_insert_list(struct wl_list* list,
+                                     struct wl_list* other) {}
++
++MOZ_EXPORT struct wl_proxy *
++wl_proxy_marshal_flags(struct wl_proxy *proxy, uint32_t opcode,
++		       const struct wl_interface *interface, uint32_t version,
++++		       uint32_t flags, ...) { return NULL; }
