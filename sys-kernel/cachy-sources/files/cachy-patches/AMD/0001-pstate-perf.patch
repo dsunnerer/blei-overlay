@@ -449,6 +449,18 @@ index f40994c422dc..5d2757e2de65 100644
     cpufreq_drivers
     intel_epb
     intel-speed-select
+diff --git a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h
+index 74fd7ab7d74d..7f9af6a4175f 100644
+--- a/arch/x86/include/asm/cpufeatures.h
++++ b/arch/x86/include/asm/cpufeatures.h
+@@ -313,6 +313,7 @@
+ #define X86_FEATURE_AMD_SSBD		(13*32+24) /* "" Speculative Store Bypass Disable */
+ #define X86_FEATURE_VIRT_SSBD		(13*32+25) /* Virtualized Speculative Store Bypass Disable */
+ #define X86_FEATURE_AMD_SSB_NO		(13*32+26) /* "" Speculative Store Bypass is fixed in hardware. */
++#define X86_FEATURE_CPPC		(13*32+27) /* Collaborative Processor Performance Control */
+ #define X86_FEATURE_AMD_BRS		(13*32+31) /* Branch Sampling available */
+ 
+ /* Thermal and Power Management Leaf, CPUID level 0x00000006 (EAX), word 14 */
 diff --git a/arch/x86/include/asm/msr-index.h b/arch/x86/include/asm/msr-index.h
 index ed73325a8499..c6abd5d1820c 100644
 --- a/arch/x86/include/asm/msr-index.h
