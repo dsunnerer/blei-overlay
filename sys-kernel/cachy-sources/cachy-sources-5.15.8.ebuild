@@ -89,7 +89,7 @@ UNIPATCH_LIST_DEFAULT=""
 
 src_prepare() {
 	kernel-2-src-prepare-overlay_src_prepare
-	sed -i 's/SUBLEVEL\s*=\s*0/SUBLEVEL = 7/' "${S}"/Makefile
+	sed -i 's/SUBLEVEL\s*=\s*0/SUBLEVEL = 8/' "${S}"/Makefile
 }
 
 pkg_postinst() {
