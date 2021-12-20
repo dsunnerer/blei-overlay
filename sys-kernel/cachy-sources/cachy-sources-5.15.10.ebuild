@@ -60,7 +60,6 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/cachy-patches/0001-cpu-patches.patch
 						${FILESDIR}/cachy-patches/AMD/0001-amd-perf-v3.patch
 						${FILESDIR}/cachy-patches-integration/0001-AMD-fix-pstate-perf.patch
-						${FILESDIR}/cachy-patches/0001-core-sched-latency-fix.patch
 						${FILESDIR}/cachy-patches/0001-lqx-patches.patch
 						${FILESDIR}/cachy-patches/0001-lrng-patches.patch
 						${FILESDIR}/cachy-patches-integration/0001-string.patch
