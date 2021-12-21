@@ -3,7 +3,7 @@
 
 EAPI="7"
 
-FIREFOX_PATCHSET="firefox-95-patches-01.tar.xz"
+FIREFOX_PATCHSET="firefox-95-patches-02.tar.xz"
 
 LLVM_MAX_SLOT=13
 
@@ -64,7 +64,7 @@ LICENSE="MPL-2.0 GPL-2 LGPL-2.1"
 
 IUSE="+clang cpu_flags_arm_neon dbus debug eme-free hardened hwaccel"
 IUSE+=" jack lto +openh264 pgo pulseaudio sndio selinux"
-IUSE+=" +system-av1 +system-harfbuzz +system-icu +system-jpeg +system-libevent +system-libvpx +system-webp"
+IUSE+=" +system-av1 +system-harfbuzz +system-icu +system-jpeg +system-libevent +system-libvpx system-png +system-webp"
 IUSE+=" wayland wifi"
 IUSE+=" kde +privacy"
 
@@ -74,6 +74,8 @@ IUSE+=" +gmp-autoupdate"
 IUSE+=" screencast"
 
 REQUIRED_USE="debug? ( !system-av1 )
+	pgo? ( lto )
+	wayland? ( dbus )
 	wifi? ( dbus )"
 
 # Firefox-only REQUIRED_USE flags
@@ -85,7 +87,7 @@ BDEPEND="${PYTHON_DEPS}
 	>=dev-util/cbindgen-0.19.0
 	>=net-libs/nodejs-10.23.1
 	virtual/pkgconfig
-	>=virtual/rust-1.51.0
+	>=virtual/rust-1.53.0
 	|| (
 		(
 			sys-devel/clang:13
@@ -108,7 +110,7 @@ BDEPEND="${PYTHON_DEPS}
 	x86? ( >=dev-lang/nasm-2.13 )"
 
 CDEPEND="
-	>=dev-libs/nss-3.72
+	>=dev-libs/nss-3.72.1
 	>=dev-libs/nspr-4.32
 	dev-libs/atk
 	dev-libs/expat
@@ -116,7 +118,6 @@ CDEPEND="
 	>=x11-libs/gtk+-3.4.0:3[X]
 	x11-libs/gdk-pixbuf
 	>=x11-libs/pango-1.22.0
-	>=media-libs/libpng-1.6.35:0=[apng]
 	>=media-libs/mesa-10.2:*
 	media-libs/fontconfig
 	>=media-libs/freetype-2.4.10
@@ -137,7 +138,7 @@ CDEPEND="
 		sys-apps/dbus
 		dev-libs/dbus-glib
 	)
-	screencast? ( media-video/pipewire:0/0.3 )
+	screencast? ( media-video/pipewire:= )
 	system-av1? (
 		>=media-libs/dav1d-0.9.3:=
 		>=media-libs/libaom-1.0.0:=
@@ -150,6 +151,7 @@ CDEPEND="
 	system-jpeg? ( >=media-libs/libjpeg-turbo-1.2.1 )
 	system-libevent? ( >=dev-libs/libevent-2.0:0=[threads] )
 	system-libvpx? ( >=media-libs/libvpx-1.8.2:0=[postproc] )
+	system-png? (  >=media-libs/libpng-1.6.35:0=[apng] )
 	system-webp? ( >=media-libs/libwebp-1.1.0:0= )
 	wifi? (
 		kernel_linux? (
@@ -446,6 +448,35 @@ pkg_setup() {
 		# Build system is using /proc/self/oom_score_adj, bug #604394
 		addpredict /proc/self/oom_score_adj
 
+		               if use pgo ; then
+                        # Allow access to GPU during PGO run
+                        local ati_cards mesa_cards nvidia_cards render_cards
+                        shopt -s nullglob
+
+                        ati_cards=$(echo -n /dev/ati/card* | sed 's/ /:/g')
+                        if [[ -n "${ati_cards}" ]] ; then
+                                addpredict "${ati_cards}"
+                        fi
+
+                        mesa_cards=$(echo -n /dev/dri/card* | sed 's/ /:/g')
+                        if [[ -n "${mesa_cards}" ]] ; then
+                                addpredict "${mesa_cards}"
+                        fi
+
+                        nvidia_cards=$(echo -n /dev/nvidia* | sed 's/ /:/g')
+                        if [[ -n "${nvidia_cards}" ]] ; then
+                                addpredict "${nvidia_cards}"
+                        fi
+
+                        render_cards=$(echo -n /dev/dri/renderD128* | sed 's/ /:/g')
+                        if [[ -n "${render_cards}" ]] ; then
+                                addpredict "${render_cards}"
+                        fi
+
+                        shopt -u nullglob
+                fi
+
+
 		if ! mountpoint -q /dev/shm ; then
 			# If /dev/shm is not available, configure is known to fail with
 			# a traceback report referencing /usr/lib/pythonN.N/multiprocessing/synchronize.py
@@ -501,7 +532,9 @@ src_prepare() {
 
 	# fix build errors
 	eapply "${FILESDIR}/build-fixes/pquotarequest.patch"
-	eapply "${FILESDIR}/build-fixes/wl_proxy_marshal.patch"
+
+    # Temporary fix to fatal pip check run, #828999
+    eapply "${FILESDIR}"/firefox-95-fix-fatal-pip-invocation.patch
 
 	eapply "${WORKDIR}/firefox-patches"
 

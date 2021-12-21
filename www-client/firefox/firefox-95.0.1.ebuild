@@ -3,7 +3,7 @@
 
 EAPI="7"
 
-FIREFOX_PATCHSET="firefox-94-patches-01.tar.xz"
+FIREFOX_PATCHSET="firefox-95-patches-02.tar.xz"
 
 LLVM_MAX_SLOT=13
 
@@ -64,9 +64,9 @@ LICENSE="MPL-2.0 GPL-2 LGPL-2.1"
 
 IUSE="+clang cpu_flags_arm_neon dbus debug eme-free hardened hwaccel"
 IUSE+=" jack lto +openh264 pgo pulseaudio sndio selinux"
-IUSE+=" +system-av1 +system-harfbuzz +system-icu +system-jpeg +system-libevent +system-libvpx +system-webp"
+IUSE+=" +system-av1 +system-harfbuzz +system-icu +system-jpeg +system-libevent +system-libvpx system-png +system-webp"
 IUSE+=" wayland wifi"
-IUSE+=" +kde +privacy"
+IUSE+=" kde +privacy"
 
 # Firefox-only IUSE
 IUSE+=" geckodriver"
@@ -74,6 +74,8 @@ IUSE+=" +gmp-autoupdate"
 IUSE+=" screencast"
 
 REQUIRED_USE="debug? ( !system-av1 )
+	pgo? ( lto )
+	wayland? ( dbus )
 	wifi? ( dbus )"
 
 # Firefox-only REQUIRED_USE flags
@@ -85,7 +87,7 @@ BDEPEND="${PYTHON_DEPS}
 	>=dev-util/cbindgen-0.19.0
 	>=net-libs/nodejs-10.23.1
 	virtual/pkgconfig
-	>=virtual/rust-1.51.0
+	>=virtual/rust-1.53.0
 	|| (
 		(
 			sys-devel/clang:13
@@ -108,7 +110,7 @@ BDEPEND="${PYTHON_DEPS}
 	x86? ( >=dev-lang/nasm-2.13 )"
 
 CDEPEND="
-	>=dev-libs/nss-3.71
+	>=dev-libs/nss-3.72.1
 	>=dev-libs/nspr-4.32
 	dev-libs/atk
 	dev-libs/expat
@@ -116,7 +118,6 @@ CDEPEND="
 	>=x11-libs/gtk+-3.4.0:3[X]
 	x11-libs/gdk-pixbuf
 	>=x11-libs/pango-1.22.0
-	>=media-libs/libpng-1.6.35:0=[apng]
 	>=media-libs/mesa-10.2:*
 	media-libs/fontconfig
 	>=media-libs/freetype-2.4.10
@@ -137,9 +138,9 @@ CDEPEND="
 		sys-apps/dbus
 		dev-libs/dbus-glib
 	)
-	screencast? ( media-video/pipewire:0/0.3 )
+	screencast? ( media-video/pipewire:= )
 	system-av1? (
-		>=media-libs/dav1d-0.8.1:=
+		>=media-libs/dav1d-0.9.3:=
 		>=media-libs/libaom-1.0.0:=
 	)
 	system-harfbuzz? (
@@ -150,6 +151,7 @@ CDEPEND="
 	system-jpeg? ( >=media-libs/libjpeg-turbo-1.2.1 )
 	system-libevent? ( >=dev-libs/libevent-2.0:0=[threads] )
 	system-libvpx? ( >=media-libs/libvpx-1.8.2:0=[postproc] )
+	system-png? (  >=media-libs/libpng-1.6.35:0=[apng] )
 	system-webp? ( >=media-libs/libwebp-1.1.0:0= )
 	wifi? (
 		kernel_linux? (
@@ -446,6 +448,35 @@ pkg_setup() {
 		# Build system is using /proc/self/oom_score_adj, bug #604394
 		addpredict /proc/self/oom_score_adj
 
+		               if use pgo ; then
+                        # Allow access to GPU during PGO run
+                        local ati_cards mesa_cards nvidia_cards render_cards
+                        shopt -s nullglob
+
+                        ati_cards=$(echo -n /dev/ati/card* | sed 's/ /:/g')
+                        if [[ -n "${ati_cards}" ]] ; then
+                                addpredict "${ati_cards}"
+                        fi
+
+                        mesa_cards=$(echo -n /dev/dri/card* | sed 's/ /:/g')
+                        if [[ -n "${mesa_cards}" ]] ; then
+                                addpredict "${mesa_cards}"
+                        fi
+
+                        nvidia_cards=$(echo -n /dev/nvidia* | sed 's/ /:/g')
+                        if [[ -n "${nvidia_cards}" ]] ; then
+                                addpredict "${nvidia_cards}"
+                        fi
+
+                        render_cards=$(echo -n /dev/dri/renderD128* | sed 's/ /:/g')
+                        if [[ -n "${render_cards}" ]] ; then
+                                addpredict "${render_cards}"
+                        fi
+
+                        shopt -u nullglob
+                fi
+
+
 		if ! mountpoint -q /dev/shm ; then
 			# If /dev/shm is not available, configure is known to fail with
 			# a traceback report referencing /usr/lib/pythonN.N/multiprocessing/synchronize.py
@@ -499,6 +530,12 @@ src_unpack() {
 src_prepare() {
 	use lto && rm -v "${WORKDIR}"/firefox-patches/*-LTO-Only-enable-LTO-*.patch
 
+	# fix build errors
+	eapply "${FILESDIR}/build-fixes/pquotarequest.patch"
+
+    # Temporary fix to fatal pip check run, #828999
+    eapply "${FILESDIR}"/firefox-95-fix-fatal-pip-invocation.patch
+
 	eapply "${WORKDIR}/firefox-patches"
 
 	# Allow user to apply any additional patches without modifing ebuild
@@ -509,6 +546,13 @@ src_prepare() {
 		-e "s/multiprocessing.cpu_count()/$(makeopts_jobs)/" \
 		"${S}"/build/moz.configure/lto-pgo.configure \
 		|| die "sed failed to set num_cores"
+
+	# Let LTO use native cpu architecture
+	native_mcpu_arch="$(gcc -march=native -Q --help=target | grep -e 'march=\s*[a-z0-9]*$' | sed 's|\s||g' | cut -d '=' -f2)"
+    sed -i \
+        -e "s|mcpu=x86-64|mcpu=${native_mcpu_arch}|" \
+        "${S}"/build/moz.configure/lto-pgo.configure \
+        || die "sed failed to change mcpu to native arch"
 
 	# Make ICU respect MAKEOPTS
 	sed -i \
@@ -558,7 +602,8 @@ src_prepare() {
 	### Privacy-esr patches
 	einfo Applying privacy patches
 	for i in $(cat "${FILESDIR}/privacy-patchset/series"); do eapply "${FILESDIR}/privacy-patchset/$i"; done
-	rm -rv browser/extensions/{doh-rollout,webcompat,report-site-issue}
+	rm -rv browser/extensions/{doh-rollout,screenshots,webcompat,report-site-issue}
+	cp -f "${FILESDIR}/privacy-patchset/common/source_files/search-config.json" services/settings/dumps/main/search-config.json
 	### Debian patches
 	einfo "Applying Debian's patches"
 	for p in $(cat "${FILESDIR}/debian-patchset-$(ver_cut 1)"/series);do
@@ -624,14 +669,6 @@ src_prepare() {
 			einfo -------------------------
 		fi
 	done
-	# Use native CPU arch optimizations
-	_CPU_ARCH=$(llc --version | grep "Host CPU" | sed 's/\s*Host CPU:\s*//')
-	sed -i \
-    	-e "s|_NATIVE_ARCH_|${_CPU_ARCH}|" \
-	    "${S}"/build/moz.configure/lto-pgo.configure \
-	        || die "sed failed to set cpu arch"
-
-
 	#######
 	eapply "${FILESDIR}/fix-wayland.patch"
 
@@ -716,12 +753,12 @@ src_configure() {
 		--libdir="${EPREFIX}/usr/$(get_libdir)" \
 		--prefix="${EPREFIX}/usr" \
 		--target="${CHOST}" \
+		--without-wasm-sandboxed-libraries \
 		--without-ccache \
 		--with-intl-api \
 		--with-libclang-path="$(llvm-config --libdir)" \
 		--with-system-nspr \
 		--with-system-nss \
-		--with-system-png \
 		--with-system-zlib \
 		--with-toolchain-prefix="${CHOST}-" \
 		--with-unsigned-addon-scopes=app,system \
@@ -780,6 +817,7 @@ src_configure() {
 	mozconfig_use_with system-jpeg
 	mozconfig_use_with system-libevent system-libevent "${SYSROOT}${EPREFIX}/usr"
 	mozconfig_use_with system-libvpx
+	mozconfig_use_with system-png
 	mozconfig_use_with system-webp
 
 	mozconfig_use_enable dbus
@@ -958,6 +996,7 @@ src_configure() {
 
 	# Use system's Python environment
 	export MACH_USE_SYSTEM_PYTHON=1
+	export PIP_NO_CACHE_DIR=off
 
 	# Disable notification when build system has finished
 	export MOZ_NOSPAM=1
@@ -1075,7 +1114,7 @@ src_configure() {
 	### And a few more good features (Blei)
     mozconfig_add_options_ac '' --enable-replace-malloc
     mozconfig_add_options_ac '' --enable-jemalloc
-    mozconfig_add_options_ac '' --enable-wasm-simd
+    #mozconfig_add_options_ac '' --enable-wasm-simd
 
 	echo "export MOZ_DATA_REPORTING=0" >> "${S}"/.mozconfig
 	echo "export MOZ_DEVICES=0" >> "${S}"/.mozconfig
@@ -1115,7 +1154,6 @@ src_compile() {
 	fi
 
 	local -x GDK_BACKEND=x11
-	#local -x DISPLAY=":0"
 
 	${virtx_cmd} ./mach build --verbose \
 		|| die
@@ -1187,9 +1225,11 @@ src_install() {
 	fi
 
 	#######
-	cat "${FILESDIR}"/opensuse-kde-$(ver_cut 1)/kde.js >> \
-	"${GENTOO_PREFS}" \
-	|| die
+	if use kde; then
+		cat "${FILESDIR}"/opensuse-kde-$(ver_cut 1)/kde.js >> \
+		"${GENTOO_PREFS}" \
+		|| die
+	fi
 
 	cat "${FILESDIR}"/privacy-patchset/privacy.js >> \
 	"${GENTOO_PREFS}" \
@@ -1198,7 +1238,8 @@ src_install() {
 	rm -rv "${BUILD_DIR}"/browser/extensions/* || die
 	rm -rv "${BUILD_DIR}"/dist/bin/browser/features/* || die
 	rm -rv "${BUILD_DIR}"/instrumented/browser/extensions/* || die
-	use pgo && rm -rv "${BUILD_DIR}"/instrumented/dist/bin/browser/features/* || die
+	use pgo && rm -frv "${BUILD_DIR}"/instrumented/browser/extensions/*
+	use pgo && rm -rv "${BUILD_DIR}"/instrumented/dist/bin/browser/features/*
 	#######
 
 	# Install language packs
