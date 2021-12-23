@@ -1,6 +1,6 @@
-From 7641c46be357b846eaa266c1e01569d61841016e Mon Sep 17 00:00:00 2001
+From 119fdb8f41dba1ecd763f1eb5ff2475e014dca72 Mon Sep 17 00:00:00 2001
 From: "P. Jung" <ptr1337@cachyos.org>
-Date: Thu, 9 Dec 2021 10:37:00 +0000
+Date: Tue, 21 Dec 2021 03:50:22 +0100
 Subject: [PATCH] page-table-check
 
 Signed-off-by: P. Jung <ptr1337@cachyos.org>
@@ -154,7 +154,7 @@ index d1e69d6e8498..19e91a9e3c3e 100644
  	bool
  	help
 diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 6ce906815bb2..4e1ed76ffd3a 100644
+index 1f96809606ac..a50407ac8310 100644
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
 @@ -103,6 +103,7 @@ config X86

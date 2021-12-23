@@ -61,19 +61,18 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/cachy-patches/AMD/0001-amd-perf-v3.patch
 						${FILESDIR}/cachy-patches-integration/0001-AMD-fix-pstate-perf.patch
 						${FILESDIR}/cachy-patches/0001-lqx-patches.patch
+						${FILESDIR}/cachy-patches/TT/0001-tt-r3.patch
 						${FILESDIR}/cachy-patches/0001-lrng-patches.patch
 						${FILESDIR}/cachy-patches-integration/0001-string.patch
-						${FILESDIR}/cachy-patches/0001-xanmod-patches.patch
+						${FILESDIR}/cachy-patches-integration/0001-xanmod-patches.patch
 						${FILESDIR}/cachy-patches/0001-xfs-backport.patch
 						${FILESDIR}/cachy-patches/0001-zen-patches.patch
 						${FILESDIR}/cachy-patches/0001-zstd-patches-v2.patch
-						${FILESDIR}/cachy-patches/TT/0001-tt-r3-cpu-fixes.patch
-						${FILESDIR}/cachy-patches/TT/0001-tt-high-hz.patch
 						${FILESDIR}/cachy-patches/arch-patches-v2/0001-arch-patches.patch
 						${FILESDIR}/cachy-patches-integration/0001-misc.patch
 						${FILESDIR}/cachy-patches/0001-pf-patches.patch
 						${FILESDIR}/cachy-patches-integration/0001-fix-string.patch
-						${FILESDIR}/cachy-patches/0001-fixes-miscellaneous.patch
+						${FILESDIR}/cachy-patches-integration/0001-fixes-miscellaneous.patch
 						${FILESDIR}/cachy-patches/0001-umcg-backport-futex.patch
 						${FILESDIR}/maple-tree-v2.patch
 						${FILESDIR}/cachy-patches/0004-tcp-optimizations.patch
