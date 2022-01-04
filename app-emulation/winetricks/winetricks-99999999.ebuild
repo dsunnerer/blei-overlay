@@ -40,7 +40,7 @@ DEPEND="test? (
 RDEPEND="
 	|| ( net-misc/aria2 net-misc/curl net-misc/wget www-client/fetch )
 	app-arch/cabextract
-	(
+	|| (
 		app-arch/p7zip
 		app-arch/7-zip
 	)
