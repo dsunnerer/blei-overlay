@@ -41,7 +41,6 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/cachy-patches/5.16/0001-misc.patch
 						${FILESDIR}/cachy-patches/5.16/sched/0001-tt.patch
 						${FILESDIR}/cachy-patches/5.16/next/0004-rcu-next.patch
-						${FILESDIR}/5.16-nvidia-drivers-fix.patch
 						${FILESDIR}/maple-tree-v2.patch"
 	kernel-2-src-prepare-overlay_src_unpack
 
