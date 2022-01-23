@@ -1621,5 +1621,4 @@ index eb971151e7e45..de53be9057390 100644
  }
 
  static inline unsigned long cpu_util_rt(struct rq *rq)
---
-cgit 1.2.3-1.el7
+
