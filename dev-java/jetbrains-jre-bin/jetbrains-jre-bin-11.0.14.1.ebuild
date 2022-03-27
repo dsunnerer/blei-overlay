@@ -3,7 +3,7 @@
 
 EAPI=7
 
-_jdk_build="1649.1"
+_jdk_build="2043.17"
 MY_PV="${PV//_.*/}"
 MY_PV="${MY_PV//\./_}"
 
