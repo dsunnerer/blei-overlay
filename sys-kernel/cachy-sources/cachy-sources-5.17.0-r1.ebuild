@@ -22,22 +22,18 @@ SRC_URI="
 
 src_unpack() {
 UNIPATCH_LIST_DEFAULT=""
-		CACHY_PATCHES="${FILESDIR}/cachy-patches/5.16/0001-boot.patch
-						${FILESDIR}/cachy-patches/5.16/0001-cachy.patch
-						${FILESDIR}/cachy-patches/5.16/0001-amdpstate.patch
-						${FILESDIR}/cachy-patches/5.16/0001-blk-patches.patch
-						${FILESDIR}/cachy-patches/5.16/0001-fs-patches.patch
-						${FILESDIR}/cachy-patches/5.16//0001-misc-new.patch
-						${FILESDIR}/cachy-patches/5.16/0001-bitmap.patch
-						${FILESDIR}/cachy-patches/5.16/0001-amd64-patches.patch
-						${FILESDIR}/cachy-patches/5.16/0001-zstd-patches.patch
-						${FILESDIR}/cachy-patches/5.16/0001-cpu.patch
-						${FILESDIR}/cachy-patches/5.16/0001-sched-perf-fix.patch
-						${FILESDIR}/cachy-patches/5.16/0001-bbr2-patches.patch
-						${FILESDIR}/cachy-patches/5.16/0001-lrng.patch
-						${FILESDIR}/cachy-patches/5.16/sched/0001-tt.patch
-						${FILESDIR}/cachy-patches/5.16/0001-numa-pan.patch
-						${FILESDIR}/cachy-patches/5.16/0001-numa-balanc.patch
+		CACHY_PATCHES="${FILESDIR}/cachy-patches/5.17/0001-amd-perf.patch
+						${FILESDIR}/cachy-patches/5.17/0001-cachy.patch
+						${FILESDIR}/cachy-patches/5.17/0001-btrfs-patches.patch
+						${FILESDIR}/cachy-patches/5.17/0001-block-patches.patch
+						${FILESDIR}/cachy-patches/5.17/0001-cpu.patch
+						${FILESDIR}/cachy-patches/5.17/0001-zen-patches.patch
+						${FILESDIR}/cachy-patches/5.17/0001-lrng.patch
+						${FILESDIR}/cachy-patches/5.17/0001-zstd-patches.patch
+						${FILESDIR}/cachy-patches/5.17/0001-ksm.patch
+						${FILESDIR}/cachy-patches/5.17/0001-pf-patches.patch
+						${FILESDIR}/cachy-patches/5.17/0001-numa-balanc.patch
+						${FILESDIR}/cachy-patches/5.17/sched/0001-tt.patch
 						${FILESDIR}/maple-tree-v2-5.16.4.patch"
 
 	kernel-2-src-prepare-overlay_src_unpack
