@@ -23,16 +23,14 @@ SRC_URI="
 src_unpack() {
 UNIPATCH_LIST_DEFAULT=""
 						#${FILESDIR}/cachy-patches/5.17/0001-numa-balanc.patch
-		CACHY_PATCHES="${FILESDIR}/cachy-patches/5.17/0001-zstd-patches.patch
-						${FILESDIR}/cachy-patches/5.17/0004-fs-patches.patch
-						${FILESDIR}/cachy-patches/5.17/0005-cachy.patch
-						${FILESDIR}/cachy-patches/5.17/0007-cpu-patches.patch
-						${FILESDIR}/cachy-patches/5.17/0008-fixes-miscellaneous.patch
-						${FILESDIR}/cachy-patches/5.17/0009-fixes.patch
-						${FILESDIR}/cachy-patches/5.17/0012-spf-lru.patch
-						${FILESDIR}/cachy-patches/5.17/0013-uksm.patch
-						${FILESDIR}/cachy-patches/5.17/0015-xanmod.patch
-						${FILESDIR}/cachy-patches/5.17/0016-lrng.patch
+		CACHY_PATCHES="${FILESDIR}/cachy-patches/5.17/0004-cachy.patch
+						${FILESDIR}/cachy-patches/5.17/0006-cpu.patch
+						${FILESDIR}/cachy-patches/5.17/0007-fixes-miscellaneous.patch
+						${FILESDIR}/cachy-patches/5.17/0008-fs-patches.patch
+						${FILESDIR}/cachy-patches/5.17/0011-spf-lru.patch
+						${FILESDIR}/cachy-patches/5.17/0012-v4l2loopback.patch
+						${FILESDIR}/cachy-patches/5.17/0013-xanmod.patch
+						${FILESDIR}/cachy-patches/5.17/0014-lrng.patch
 						${FILESDIR}/cachy-patches/5.17/sched/0001-tt.patch
 						${FILESDIR}/maple-tree-v2-5.16.4.patch"
 
