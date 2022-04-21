@@ -1,6 +1,6 @@
-From b02d4ccb5dc854c38e740e5d18b70de0899eb1bf Mon Sep 17 00:00:00 2001
+From 9e0edea8befaa5e4d04dd99a1bf612c9049682b6 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Tue, 19 Apr 2022 11:00:24 +0000
+Date: Wed, 20 Apr 2022 18:46:36 +0000
 Subject: [PATCH] prjc
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
@@ -10,7 +10,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  Documentation/scheduler/sched-BMQ.txt         |  110 +
  fs/proc/base.c                                |    2 +-
  include/asm-generic/resource.h                |    2 +-
- include/linux/sched.h                         |   29 +
+ include/linux/sched.h                         |   33 +-
  include/linux/sched/deadline.h                |   20 +
  include/linux/sched/prio.h                    |   26 +
  include/linux/sched/rt.h                      |    2 +
@@ -25,7 +25,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  kernel/sched/Makefile                         |   19 +-
  kernel/sched/alt_core.c                       | 7704 +++++++++++++++++
  kernel/sched/alt_debug.c                      |   31 +
- kernel/sched/alt_sched.h                      |  681 ++
+ kernel/sched/alt_sched.h                      |  667 ++
  kernel/sched/bmq.h                            |  111 +
  kernel/sched/cpufreq_schedutil.c              |   10 +
  kernel/sched/cputime.c                        |   10 +-
@@ -42,7 +42,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  kernel/time/hrtimer.c                         |    2 +
  kernel/time/posix-cpu-timers.c                |   10 +-
  kernel/trace/trace_selftest.c                 |    5 +
- 37 files changed, 9064 insertions(+), 26 deletions(-)
+ 37 files changed, 9053 insertions(+), 27 deletions(-)
  create mode 100644 Documentation/scheduler/sched-BMQ.txt
  create mode 100644 kernel/sched/alt_core.c
  create mode 100644 kernel/sched/alt_debug.c
@@ -228,23 +228,34 @@ index 8874f681b056..59eb72bf7d5f 100644
  	[RLIMIT_RTTIME]		= {  RLIM_INFINITY,  RLIM_INFINITY },	\
  }
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index e806326eca72..24609eef3dc7 100644
+index e806326eca72..a3439a5df9f7 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -753,7 +753,12 @@ struct task_struct {
+@@ -753,8 +753,14 @@ struct task_struct {
  	unsigned int			ptrace;
  
  #ifdef CONFIG_SMP
-+	struct __call_single_node	wake_entry;
+-	int				on_cpu;
+ 	struct __call_single_node	wake_entry;
 +#endif
 +#if defined(CONFIG_SMP) || defined(CONFIG_SCHED_ALT)
- 	int				on_cpu;
++	int				on_cpu;
 +#endif
-+#if defined(CONFIG_SMP) && !defined(CONFIG_SCHED_ALT)
- 	struct __call_single_node	wake_entry;
++
++#ifdef CONFIG_SMP
++#ifndef CONFIG_SCHED_ALT
  	unsigned int			wakee_flips;
  	unsigned long			wakee_flip_decay_ts;
-@@ -776,6 +781,20 @@ struct task_struct {
+ 	struct task_struct		*last_wakee;
+@@ -768,6 +774,7 @@ struct task_struct {
+ 	 */
+ 	int				recent_used_cpu;
+ 	int				wake_cpu;
++#endif /* !CONFIG_SCHED_ALT */
+ #endif
+ 	int				on_rq;
+ 
+@@ -776,6 +783,20 @@ struct task_struct {
  	int				normal_prio;
  	unsigned int			rt_priority;
  
@@ -265,7 +276,7 @@ index e806326eca72..24609eef3dc7 100644
  	struct sched_entity		se;
  	struct sched_rt_entity		rt;
  	struct sched_dl_entity		dl;
-@@ -786,6 +805,7 @@ struct task_struct {
+@@ -786,6 +807,7 @@ struct task_struct {
  	unsigned long			core_cookie;
  	unsigned int			core_occupation;
  #endif
@@ -273,7 +284,7 @@ index e806326eca72..24609eef3dc7 100644
  
  #ifdef CONFIG_CGROUP_SCHED
  	struct task_group		*sched_task_group;
-@@ -1509,6 +1529,15 @@ struct task_struct {
+@@ -1509,6 +1531,15 @@ struct task_struct {
  	 */
  };
  
@@ -688,7 +699,7 @@ index c83b37af155b..c88e9aab0cb3 100644
  obj-$(CONFIG_CPU_FREQ_GOV_SCHEDUTIL) += cpufreq_schedutil.o
 diff --git a/kernel/sched/alt_core.c b/kernel/sched/alt_core.c
 new file mode 100644
-index 000000000000..6338a97b429e
+index 000000000000..abd0f2bc531e
 --- /dev/null
 +++ b/kernel/sched/alt_core.c
 @@ -0,0 +1,7704 @@
@@ -760,7 +771,7 @@ index 000000000000..6338a97b429e
 +#define sched_feat(x)	(0)
 +#endif /* CONFIG_SCHED_DEBUG */
 +
-+#define ALT_SCHED_VERSION "v5.17-r0"
++#define ALT_SCHED_VERSION "v5.17-r1"
 +
 +/* rt_prio(prio) defined in include/linux/sched/rt.h */
 +#define rt_task(p)		rt_prio((p)->prio)
@@ -8435,10 +8446,10 @@ index 000000000000..1212a031700e
 +{}
 diff --git a/kernel/sched/alt_sched.h b/kernel/sched/alt_sched.h
 new file mode 100644
-index 000000000000..55c2a4c0cb84
+index 000000000000..f2b9e686d6a6
 --- /dev/null
 +++ b/kernel/sched/alt_sched.h
-@@ -0,0 +1,681 @@
+@@ -0,0 +1,667 @@
 +#ifndef ALT_SCHED_H
 +#define ALT_SCHED_H
 +
@@ -9094,20 +9105,6 @@ index 000000000000..55c2a4c0cb84
 +	return nr_cpu_ids;
 +}
 +#endif
-+
-+static inline
-+unsigned long uclamp_rq_util_with(struct rq *rq, unsigned long boost,
-+				  struct task_struct *p)
-+{
-+	return boost;
-+}
-+
-+static inline bool uclamp_rq_is_capped(struct rq *rq) { return false; }
-+
-+static inline bool uclamp_is_used(void)
-+{
-+	return false;
-+}
 +
 +extern void swake_up_all_locked(struct swait_queue_head *q);
 +extern void __prepare_to_swait(struct swait_queue_head *q, struct swait_queue *wait);
@@ -9922,5 +9919,5 @@ index abcadbe933bb..d4c778b0ab0e 100644
  	struct wakeup_test_data *x = data;
  
 -- 
-2.36.0.rc2.10.g1ac7422e39
+2.36.0
 

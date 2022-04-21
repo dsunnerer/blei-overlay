@@ -1,7 +1,7 @@
-From d96068c241bfb7ba1d71ec699a6ac4df7b766007 Mon Sep 17 00:00:00 2001
+From cd9e61d22783dd9fcf3b27a346c4f1d45545270d Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Wed, 20 Apr 2022 12:23:20 +0000
-Subject: [PATCH 04/16] cachy
+Date: Thu, 21 Apr 2022 02:41:31 +0000
+Subject: [PATCH] cachy
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -408,7 +408,7 @@ index bf8e341e75b4..746a668bf81d 100644
  	bool "Tasks Trace RCU readers use memory barriers in user and idle"
  	depends on RCU_EXPERT
 diff --git a/kernel/rcu/tree_nocb.h b/kernel/rcu/tree_nocb.h
-index eeafb546a7a0..f648f773600a 100644
+index eeafb546a7a0..29d81a5a8af4 100644
 --- a/kernel/rcu/tree_nocb.h
 +++ b/kernel/rcu/tree_nocb.h
 @@ -1166,11 +1166,21 @@ void __init rcu_init_nohz(void)
@@ -419,15 +419,15 @@ index eeafb546a7a0..f648f773600a 100644
  	struct rcu_data *rdp;
  
 +#if defined(CONFIG_RCU_NOCB_CPU_DEFAULT_ALL)
-+	if (!rcu_nocb_is_setup) {
++	if (!rcu_state.nocb_is_setup) {
 +		need_rcu_nocb_mask = true;
 +		offload_all = true;
 +	}
-+#endif
++#endif /* #if defined(CONFIG_RCU_NOCB_CPU_DEFAULT_ALL) */
 +
  #if defined(CONFIG_NO_HZ_FULL)
 -	if (tick_nohz_full_running && cpumask_weight(tick_nohz_full_mask))
-+	if (tick_nohz_full_running && cpumask_weight(tick_nohz_full_mask)) {
++	if (tick_nohz_full_running && !cpumask_weight(tick_nohz_full_mask)) {
  		need_rcu_nocb_mask = true;
 +		offload_all = false; /* NO_HZ_FULL has its own mask. */
 +	}
