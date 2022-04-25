@@ -4,7 +4,7 @@
 EAPI=7
 
 CMAKE_ECLASS=cmake
-PYTHON_COMPAT=( python3_{9..10} )
+PYTHON_COMPAT=( python3_{9,10} )
 inherit cmake linux-info llvm llvm.org multilib-minimal python-any-r1
 
 DESCRIPTION="Polyhedral optimizations for LLVM"
@@ -12,7 +12,7 @@ HOMEPAGE="https://llvm.org/"
 
 LICENSE="Apache-2.0-with-LLVM-exceptions UoI-NCSA"
 SLOT="$(ver_cut 1)"
-KEYWORDS="amd64 x86"
+KEYWORDS="~amd64 ~arm ~arm64 ~ppc64 ~riscv ~x86 ~amd64-linux ~x64-macos"
 IUSE="test"
 RESTRICT="!test? ( test )"
 
@@ -40,14 +40,15 @@ pkg_setup() {
 multilib_src_configure() {
 	local mycmakeargs=(
 		-DBUILD_SHARED_LIBS=OFF
+		-DLLVM_LINK_LLVM_DYLIB=ON
 		-DLLVM_POLLY_LINK_INTO_TOOLS=ON
 		-DLLVM_INCLUDE_TESTS=$(usex test)
 		-DCMAKE_PREFIX_PATH="${EPREFIX}/usr/lib/llvm/${SLOT}/$(get_libdir)/cmake/llvm"
 		-DLLVM_CMAKE_PATH="${EPREFIX}/usr/lib/llvm/${SLOT}/$(get_libdir)/cmake/llvm"
-		-DCMAKE_INSTALL_PREFIX="${EPREFIX}/usr/lib/llvm/${SLOT}"
 	)
 	use test && mycmakeargs+=(
 		-DLLVM_BUILD_TESTS=ON
+		-DLLVM_MAIN_SRC_DIR="${WORKDIR}/llvm"
 		-DLLVM_EXTERNAL_LIT="${EPREFIX}/usr/bin/lit"
 		-DLLVM_LIT_ARGS="$(get_lit_flags)"
 		-DPython3_EXECUTABLE="${PYTHON}"
@@ -57,13 +58,14 @@ multilib_src_configure() {
 }
 
 multilib_src_compile() {
-    cmake_build Polly
+	cmake_build Polly
 }
 
 src_test() {
 	local -x LIT_PRESERVES_TMP=1
 	cmake_build check-polly
 }
+
 
 multilib_src_install() {
 	cmake_src_install
