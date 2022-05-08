@@ -1,7 +1,7 @@
-From f433a21c74eb705c2c284e50eb67f75a632edcdd Mon Sep 17 00:00:00 2001
+From 0b1da8861e93ab9dcf1d1cf7bb04fdfc6d3eabf4 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Tue, 19 Apr 2022 10:48:51 +0000
-Subject: [PATCH 14/16] lrng
+Date: Thu, 5 May 2022 20:22:29 +0200
+Subject: [PATCH 13/17] lrng
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -67,7 +67,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  create mode 100644 include/linux/lrng.h
 
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 2361f4bd2f74..c79ea7056d47 100644
+index 38f3b65fea8d..febbbd60e91f 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
 @@ -11119,6 +11119,13 @@ F:	Documentation/litmus-tests/
@@ -7671,5 +7671,5 @@ index 000000000000..3e8f93b53c84
 +
 +#endif /* _LRNG_H */
 -- 
-2.36.0.rc2.10.g1ac7422e39
+2.36.0
 
