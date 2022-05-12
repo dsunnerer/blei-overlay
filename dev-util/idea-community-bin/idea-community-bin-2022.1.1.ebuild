@@ -51,7 +51,7 @@ src_install() {
 
 	insinto "${dir}"
 	doins -r *
-	fperms 755 "${dir}"/bin/{format.sh,idea.sh,inspect.sh,printenv.py,restart.py,fsnotifier}
+	fperms 755 "${dir}"/bin/{format.sh,idea.sh,inspect.sh,restart.py,fsnotifier}
 
 	dosym "${dir}/bin/idea.sh" "/usr/bin/${PN}"
 	dosym "${dir}/bin/idea.png" "/usr/share/pixmaps/${PN}.png"
