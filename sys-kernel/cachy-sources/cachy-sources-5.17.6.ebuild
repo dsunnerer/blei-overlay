@@ -32,7 +32,6 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/cachy-patches/5.17/dev/0013-lrng.patch
 						${FILESDIR}/cachy-patches/5.17/dev/0015-futex-winesync.patch
 						${FILESDIR}/cachy-patches/5.17/dev/0016-thinlto-cachedir.patch
-						${FILESDIR}/cachy-patches/5.17/0018-zstd-dev.patch
 						${FILESDIR}/cachy-patches/5.17/sched/0001-tt.patch
 						${FILESDIR}/maple-tree-v2-5.16.4.patch"
 
