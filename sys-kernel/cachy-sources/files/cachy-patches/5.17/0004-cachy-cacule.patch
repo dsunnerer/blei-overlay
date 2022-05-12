@@ -1,43 +1,38 @@
-From 04ac47d0fbec56876b0e46ad5cdb53c05d2f792c Mon Sep 17 00:00:00 2001
+From 8032bc3e788f10f5294257bb254b39d6192974aa Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Tue, 10 May 2022 14:10:35 +0200
-Subject: [PATCH] cachy
+Date: Mon, 9 May 2022 22:25:33 +0200
+Subject: [PATCH] 0004-cachy-cacule
 
-Signed-off-by: Peter Jung <admin@ptr1337.dev>
-
-(cherry picked from commit b2eb864e0c5cc7862a1cf2f4c267421a48126ea0)
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
  .../admin-guide/kernel-parameters.txt         |  6 ++
- Documentation/admin-guide/pm/cpuidle.rst      | 15 +++--
- Makefile                                      |  5 +-
- arch/Kconfig                                  | 10 ++++
+ arch/Kconfig                                  |  5 +-
+ arch/arm64/include/asm/compiler.h             | 16 -----
  arch/x86/include/asm/cpufeatures.h            |  2 +-
  arch/x86/include/asm/mwait.h                  |  1 +
- arch/x86/kernel/process.c                     | 39 +++++++++----
+ arch/x86/kernel/process.c                     | 39 ++++++++----
  drivers/cpufreq/Kconfig                       |  2 +-
  drivers/cpufreq/cpufreq_ondemand.c            |  6 +-
  drivers/hid/usbhid/hid-core.c                 |  8 +++
  drivers/input/evdev.c                         | 19 +++---
+ include/linux/compiler-clang.h                | 10 ++++
  include/linux/pageblock-flags.h               |  2 +-
  include/linux/pagemap.h                       |  2 +-
  include/linux/sched.h                         |  1 +
  init/Kconfig                                  |  4 ++
  kernel/Kconfig.hz                             | 24 ++++++++
- kernel/rcu/Kconfig                            | 13 +++++
+ kernel/rcu/Kconfig                            | 13 ++++
  kernel/rcu/tree_nocb.h                        | 15 ++++-
  kernel/sched/core.c                           |  5 +-
- kernel/sched/fair.c                           | 58 +++++++++++++++++--
+ kernel/sched/fair.c                           | 60 ++++++++++++++++---
  kernel/sched/features.h                       |  2 +
  mm/compaction.c                               |  6 +-
  mm/internal.h                                 |  1 +
  mm/page-writeback.c                           |  8 +++
- mm/page_alloc.c                               | 42 +++++++++++---
+ mm/page_alloc.c                               | 42 ++++++++++---
  mm/vmpressure.c                               |  4 ++
  mm/vmscan.c                                   | 24 ++++++--
- scripts/Makefile.lib                          |  4 ++
- scripts/Makefile.modfinal                     |  4 ++
- 29 files changed, 275 insertions(+), 57 deletions(-)
+ 27 files changed, 257 insertions(+), 70 deletions(-)
 
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
 index 59f881f36779..3bd6a7f809ff 100644
@@ -63,85 +58,49 @@ index 59f881f36779..3bd6a7f809ff 100644
  	rcu_nocb_poll	[KNL]
  			Rather than requiring that offloaded CPUs
  			(specified by rcu_nocbs= above) explicitly
-diff --git a/Documentation/admin-guide/pm/cpuidle.rst b/Documentation/admin-guide/pm/cpuidle.rst
-index aec2cd2aaea7..19754beb5a4e 100644
---- a/Documentation/admin-guide/pm/cpuidle.rst
-+++ b/Documentation/admin-guide/pm/cpuidle.rst
-@@ -612,8 +612,8 @@ the ``menu`` governor to be used on the systems that use the ``ladder`` governor
- by default this way, for example.
- 
- The other kernel command line parameters controlling CPU idle time management
--described below are only relevant for the *x86* architecture and some of
--them affect Intel processors only.
-+described below are only relevant for the *x86* architecture and references
-+to ``intel_idle`` affect Intel processors only.
- 
- The *x86* architecture support code recognizes three kernel command line
- options related to CPU idle time management: ``idle=poll``, ``idle=halt``,
-@@ -635,10 +635,13 @@ idle, so it very well may hurt single-thread computations performance as well as
- energy-efficiency.  Thus using it for performance reasons may not be a good idea
- at all.]
- 
--The ``idle=nomwait`` option disables the ``intel_idle`` driver and causes
--``acpi_idle`` to be used (as long as all of the information needed by it is
--there in the system's ACPI tables), but it is not allowed to use the
--``MWAIT`` instruction of the CPUs to ask the hardware to enter idle states.
-+The ``idle=nomwait`` option prevents the use of ``MWAIT`` instruction of
-+the CPU to enter idle states. When this option is used, the ``acpi_idle``
-+driver will use the ``HLT`` instruction instead of ``MWAIT``. On systems
-+running Intel processors, this option disables the ``intel_idle`` driver
-+and forces the use of the ``acpi_idle`` driver instead. Note that in either
-+case, ``acpi_idle`` driver will function only if all the information needed
-+by it is in the system's ACPI tables.
- 
- In addition to the architecture-level kernel command line options affecting CPU
- idle time management, there are parameters affecting individual ``CPUIdle``
-diff --git a/Makefile b/Makefile
-index 7ef8dd5ab6f2..f6c9669801a0 100644
---- a/Makefile
-+++ b/Makefile
-@@ -885,7 +885,8 @@ endif
- ifdef CONFIG_LTO_CLANG
- ifdef CONFIG_LTO_CLANG_THIN
- CC_FLAGS_LTO	:= -flto=thin -fsplit-lto-unit
--KBUILD_LDFLAGS	+= --thinlto-cache-dir=$(extmod_prefix).thinlto-cache
-+export thinlto-dir = $(if $(CONFIG_LTO_CLANG_THIN_CACHEDIR),$(CONFIG_LTO_CLANG_THIN_CACHEDIR)/)
-+KBUILD_LDFLAGS	+= --thinlto-cache-dir=$(thinlto-dir)$(extmod_prefix).thinlto-cache
- else
- CC_FLAGS_LTO	:= -flto
- endif
-@@ -1708,7 +1709,7 @@ PHONY += compile_commands.json
- 
- clean-dirs := $(KBUILD_EXTMOD)
- clean: rm-files := $(KBUILD_EXTMOD)/Module.symvers $(KBUILD_EXTMOD)/modules.nsdeps \
--	$(KBUILD_EXTMOD)/compile_commands.json $(KBUILD_EXTMOD)/.thinlto-cache
-+	$(KBUILD_EXTMOD)/compile_commands.json $(thinlto-dir)$(KBUILD_EXTMOD)/.thinlto-cache
- 
- PHONY += prepare
- # now expand this into a simple variable to reduce the cost of shell evaluations
 diff --git a/arch/Kconfig b/arch/Kconfig
-index 5e88237f84d2..032df1abcc10 100644
+index 5e88237f84d2..a3ad6dbcf1a0 100644
 --- a/arch/Kconfig
 +++ b/arch/Kconfig
-@@ -706,6 +706,16 @@ config LTO_CLANG_THIN
- 	    https://clang.llvm.org/docs/ThinLTO.html
+@@ -717,10 +717,7 @@ config ARCH_SUPPORTS_CFI_CLANG
+ config CFI_CLANG
+ 	bool "Use Clang's Control Flow Integrity (CFI)"
+ 	depends on LTO_CLANG && ARCH_SUPPORTS_CFI_CLANG
+-	# Clang >= 12:
+-	# - https://bugs.llvm.org/show_bug.cgi?id=46258
+-	# - https://bugs.llvm.org/show_bug.cgi?id=47479
+-	depends on CLANG_VERSION >= 120000
++	depends on CLANG_VERSION >= 140000
+ 	select KALLSYMS
+ 	help
+ 	  This option enables Clang’s forward-edge Control Flow Integrity
+diff --git a/arch/arm64/include/asm/compiler.h b/arch/arm64/include/asm/compiler.h
+index dc3ea4080e2e..6fb2e6bcc392 100644
+--- a/arch/arm64/include/asm/compiler.h
++++ b/arch/arm64/include/asm/compiler.h
+@@ -23,20 +23,4 @@
+ #define __builtin_return_address(val)					\
+ 	(void *)(ptrauth_clear_pac((unsigned long)__builtin_return_address(val)))
  
- 	  If unsure, say Y.
-+
-+config LTO_CLANG_THIN_CACHEDIR
-+	string "Clang ThinLTO cache directory"
-+	depends on LTO_CLANG_THIN
-+	default "/tmp"
-+	help
-+	  This option allows users to choose a directory that stores
-+	  Clang's ThinLTO cache.
-+	  Leave empty for default.
-+
- endchoice
- 
- config ARCH_SUPPORTS_CFI_CLANG
+-#ifdef CONFIG_CFI_CLANG
+-/*
+- * With CONFIG_CFI_CLANG, the compiler replaces function address
+- * references with the address of the function's CFI jump table
+- * entry. The function_nocfi macro always returns the address of the
+- * actual function instead.
+- */
+-#define function_nocfi(x) ({						\
+-	void *addr;							\
+-	asm("adrp %0, " __stringify(x) "\n\t"				\
+-	    "add  %0, %0, :lo12:" __stringify(x)			\
+-	    : "=r" (addr));						\
+-	addr;								\
+-})
+-#endif
+-
+ #endif /* __ASM_COMPILER_H */
 diff --git a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h
-index 65d147974f8d..691cd4e250d3 100644
+index 65d147974f8d..1c7e2dd61c3b 100644
 --- a/arch/x86/include/asm/cpufeatures.h
 +++ b/arch/x86/include/asm/cpufeatures.h
 @@ -219,7 +219,7 @@
@@ -149,7 +108,7 @@ index 65d147974f8d..691cd4e250d3 100644
  #define X86_FEATURE_IBPB		( 7*32+26) /* Indirect Branch Prediction Barrier */
  #define X86_FEATURE_STIBP		( 7*32+27) /* Single Thread Indirect Branch Predictors */
 -#define X86_FEATURE_ZEN			( 7*32+28) /* "" CPU is AMD family 0x17 or above (Zen) */
-+#define X86_FEATURE_ZEN			(7*32+28) /* "" CPU based on Zen microarchitecture */
++#define X86_FEATURE_ZEN			(7*32+28) /* "" CPU supports Zen microarchitecture */
  #define X86_FEATURE_L1TF_PTEINV		( 7*32+29) /* "" L1TF workaround PTE inversion */
  #define X86_FEATURE_IBRS_ENHANCED	( 7*32+30) /* Enhanced IBRS */
  #define X86_FEATURE_MSR_IA32_FEAT_CTL	( 7*32+31) /* "" MSR IA32_FEAT_CTL configured */
@@ -166,7 +125,7 @@ index 29dd27b5a339..3a8fdf881313 100644
  #define CPUID_MWAIT_LEAF		5
  #define CPUID5_ECX_EXTENSIONS_SUPPORTED 0x1
 diff --git a/arch/x86/kernel/process.c b/arch/x86/kernel/process.c
-index 81d8ef036637..c50208b9a2a3 100644
+index 81d8ef036637..62f8be78dcc2 100644
 --- a/arch/x86/kernel/process.c
 +++ b/arch/x86/kernel/process.c
 @@ -810,24 +810,43 @@ static void amd_e400_idle(void)
@@ -178,7 +137,7 @@ index 81d8ef036637..c50208b9a2a3 100644
 - * on systems that support only C1 -- so the boot default must be MWAIT.
 + * Prefer MWAIT over HALT if MWAIT is supported, MWAIT_CPUID leaf
 + * exists and whenever MONITOR/MWAIT extensions are present there is at
-+ * least one C1 substate.
++ * least 1 C1 substate.
   *
 - * Some AMD machines are the opposite, they depend on using HALT.
 - *
@@ -194,31 +153,31 @@ index 81d8ef036637..c50208b9a2a3 100644
 +
 +	/* User has disallowed the use of MWAIT. Fallback to HALT */
 +	if (boot_option_idle_override == IDLE_NOMWAIT)
++		return 0;
++
++	/* MWAIT is not supported on this platform. Fallback to HALT */
++	if (!cpu_has(c, X86_FEATURE_MWAIT))
++		return 0;
++
++	/* Monitor has a bug. Fallback to HALT */
++	if (boot_cpu_has_bug(X86_BUG_MONITOR))
  		return 0;
  
 -	if (!cpu_has(c, X86_FEATURE_MWAIT) || boot_cpu_has_bug(X86_BUG_MONITOR))
-+	/* MWAIT is not supported on this platform. Fallback to HALT */
-+	if (!cpu_has(c, X86_FEATURE_MWAIT))
++	if (c->cpuid_level < CPUID_MWAIT_LEAF)
  		return 0;
  
 -	return 1;
-+	/* Monitor has a bug. Fallback to HALT */
-+	if (boot_cpu_has_bug(X86_BUG_MONITOR))
-+		return 0;
-+
 +	cpuid(CPUID_MWAIT_LEAF, &eax, &ebx, &ecx, &edx);
 +
 +	/*
-+	 * If MWAIT extensions are not available, it is safe to use MWAIT
-+	 * with EAX=0, ECX=0.
++	 * If ECX doesn't have extended info about MWAIT,
++	 * don't need to check substates.
 +	 */
 +	if (!(ecx & CPUID5_ECX_EXTENSIONS_SUPPORTED))
 +		return 1;
 +
-+	/*
-+	 * If MWAIT extensions are available, there should be least one
-+	 * MWAIT C1 substate present.
-+	 */
++	/* Check, whether at least 1 MWAIT C1 substate is present */
 +	return (edx & MWAIT_C1_SUBSTATE_MASK);
  }
  
@@ -344,6 +303,27 @@ index 95f90699d2b1..2b10fe29d2c8 100644
  	return error;
  }
  
+diff --git a/include/linux/compiler-clang.h b/include/linux/compiler-clang.h
+index 3c4de9b6c6e3..df35c8882fe6 100644
+--- a/include/linux/compiler-clang.h
++++ b/include/linux/compiler-clang.h
+@@ -51,6 +51,16 @@
+ #define __no_sanitize_undefined
+ #endif
+ 
++#if defined(CONFIG_CFI_CLANG)
++/*
++ * With CONFIG_CFI_CLANG, the compiler replaces function address
++ * references with the address of the function's CFI jump table
++ * entry. The function_nocfi macro always returns the address of the
++ * actual function instead.
++ */
++#define function_nocfi(x)	__builtin_function_start(x)
++#endif
++
+ /*
+  * Support for __has_feature(coverage_sanitizer) was added in Clang 13 together
+  * with no_sanitize("coverage"). Prior versions of Clang support coverage
 diff --git a/include/linux/pageblock-flags.h b/include/linux/pageblock-flags.h
 index 973fd731a520..4fd8f258972a 100644
 --- a/include/linux/pageblock-flags.h
@@ -371,11 +351,11 @@ index 270bf5136c34..13207a15b326 100644
  void page_cache_ra_unbounded(struct readahead_control *,
  		unsigned long nr_to_read, unsigned long lookahead_count);
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 4b4cc633b266..e50a70f450d5 100644
+index 24ec96e9723d..38c068a0d062 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -541,6 +541,7 @@ struct sched_entity {
- 	struct rb_node			run_node;
+@@ -554,6 +554,7 @@ struct sched_entity {
+ #endif
  	struct list_head		group_node;
  	unsigned int			on_rq;
 +	unsigned int			migrated;
@@ -383,7 +363,7 @@ index 4b4cc633b266..e50a70f450d5 100644
  	u64				exec_start;
  	u64				sum_exec_runtime;
 diff --git a/init/Kconfig b/init/Kconfig
-index e9119bf54b1f..fd593d6221b9 100644
+index fc080f6797fa..4bc3c5ea2548 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
 @@ -107,6 +107,10 @@ config THREAD_INFO_IN_TASK
@@ -398,7 +378,7 @@ index e9119bf54b1f..fd593d6221b9 100644
  	bool
  
 diff --git a/kernel/Kconfig.hz b/kernel/Kconfig.hz
-index 38ef6d06888e..0575979188c9 100644
+index 865f8dbddca8..70eead1aee7c 100644
 --- a/kernel/Kconfig.hz
 +++ b/kernel/Kconfig.hz
 @@ -40,6 +40,27 @@ choice
@@ -429,7 +409,7 @@ index 38ef6d06888e..0575979188c9 100644
  	config HZ_1000
  		bool "1000 HZ"
  	help
-@@ -53,6 +74,9 @@ config HZ
+@@ -56,6 +77,9 @@ config HZ
  	default 100 if HZ_100
  	default 250 if HZ_250
  	default 300 if HZ_300
@@ -437,8 +417,8 @@ index 38ef6d06888e..0575979188c9 100644
 +	default 600 if HZ_600
 +	default 750 if HZ_750
  	default 1000 if HZ_1000
+ 	default 2000 if HZ_2000
  
- config SCHED_HRTICK
 diff --git a/kernel/rcu/Kconfig b/kernel/rcu/Kconfig
 index bf8e341e75b4..746a668bf81d 100644
 --- a/kernel/rcu/Kconfig
@@ -501,7 +481,7 @@ index eeafb546a7a0..f648f773600a 100644
  		pr_info("\tNote: kernel parameter 'rcu_nocbs=', 'nohz_full', or 'isolcpus=' contains nonexistent CPUs.\n");
  		cpumask_and(rcu_nocb_mask, cpu_possible_mask,
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 1eec4925b8c6..e12777a3ed4e 100644
+index 844c7c160aef..b5cb0fe25d30 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
 @@ -384,8 +384,11 @@ sched_core_dequeue(struct rq *rq, struct task_struct *p, int flags) { }
@@ -518,10 +498,10 @@ index 1eec4925b8c6..e12777a3ed4e 100644
  /*
   * Serialization rules:
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 2f461f059278..ca48e8b59fd1 100644
+index b8f6a68fad94..7c84cc58b06a 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -35,9 +35,13 @@
+@@ -54,9 +54,13 @@ unsigned int __read_mostly starve_divisor		= 3000000; // 3ms
   *
   * (default: 6ms * (1 + ilog(ncpus)), units: nanoseconds)
   */
@@ -536,7 +516,7 @@ index 2f461f059278..ca48e8b59fd1 100644
  /*
   * The initial- and re-scaling of tunables is configurable
   *
-@@ -56,8 +60,13 @@ unsigned int sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_LOG;
+@@ -75,8 +79,13 @@ unsigned int sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_LOG;
   *
   * (default: 0.75 msec * (1 + ilog(ncpus)), units: nanoseconds)
   */
@@ -550,7 +530,7 @@ index 2f461f059278..ca48e8b59fd1 100644
  
  /*
   * Minimal preemption granularity for CPU-bound SCHED_IDLE tasks.
-@@ -87,8 +96,13 @@ unsigned int sysctl_sched_child_runs_first __read_mostly;
+@@ -106,8 +115,13 @@ unsigned int sysctl_sched_child_runs_first __read_mostly;
   *
   * (default: 1 msec * (1 + ilog(ncpus)), units: nanoseconds)
   */
@@ -562,9 +542,9 @@ index 2f461f059278..ca48e8b59fd1 100644
  static unsigned int normalized_sysctl_sched_wakeup_granularity	= 1000000UL;
 +#endif
  
- const_debug unsigned int sysctl_sched_migration_cost	= 500000UL;
- 
-@@ -141,8 +155,12 @@ int __weak arch_asym_cpu_priority(int cpu)
+ #ifdef CONFIG_CACULE_SCHED
+ const_debug unsigned int sysctl_sched_migration_cost	= 200000UL;
+@@ -164,8 +178,12 @@ int __weak arch_asym_cpu_priority(int cpu)
   *
   * (default: 5 msec, units: microseconds)
   */
@@ -577,17 +557,17 @@ index 2f461f059278..ca48e8b59fd1 100644
  
  static inline void update_load_add(struct load_weight *lw, unsigned long inc)
  {
-@@ -1004,6 +1022,7 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
- 	/*
+@@ -1306,6 +1324,7 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
  	 * We are starting a new run period:
  	 */
+ #ifdef CONFIG_CACULE_SCHED
 +	se->migrated = 0;
- 	se->exec_start = rq_clock_task(rq_of(cfs_rq));
+ 	se->exec_start = sched_clock();
+ 	se->cacule_node.last_run = sched_clock();
+ #else
+@@ -4530,6 +4549,27 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
  }
- 
-@@ -4222,6 +4241,27 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
- 	se->vruntime = max_vruntime(se->vruntime, vruntime);
- }
+ #endif /* CONFIG_CACULE_SCHED */
  
 +static void place_entity_migrate(struct cfs_rq *cfs_rq, struct sched_entity *se)
 +{
@@ -613,24 +593,24 @@ index 2f461f059278..ca48e8b59fd1 100644
  static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
  
  static inline bool cfs_bandwidth_used(void);
-@@ -4295,6 +4335,8 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
- 
+@@ -4610,6 +4650,8 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
+ #if !defined(CONFIG_CACULE_SCHED)
  	if (flags & ENQUEUE_WAKEUP)
  		place_entity(cfs_rq, se, 0);
 +	else if (se->migrated)
 +		place_entity_migrate(cfs_rq, se);
+ #endif
  
  	check_schedstat_required();
- 	update_stats_enqueue_fair(cfs_rq, se, flags);
-@@ -6929,6 +6971,7 @@ static void detach_entity_cfs_rq(struct sched_entity *se);
-  */
- static void migrate_task_rq_fair(struct task_struct *p, int new_cpu)
+@@ -6301,6 +6343,7 @@ static int wake_wide(struct task_struct *p)
+ static int
+ wake_affine_idle(int this_cpu, int prev_cpu, int sync)
  {
 +	struct sched_entity *se = &p->se;
  	/*
- 	 * As blocked tasks retain absolute vruntime the migration needs to
- 	 * deal with this by subtracting the old and adding the new
-@@ -6936,7 +6979,6 @@ static void migrate_task_rq_fair(struct task_struct *p, int new_cpu)
+ 	 * If this_cpu is idle, it implies the wakeup is from interrupt
+ 	 * context. Only allow the move if cache is shared. Otherwise an
+@@ -7323,7 +7366,6 @@ static void migrate_task_rq_fair(struct task_struct *p, int new_cpu)
  	 * the task on the new runqueue.
  	 */
  	if (READ_ONCE(p->__state) == TASK_WAKING) {
@@ -638,7 +618,7 @@ index 2f461f059278..ca48e8b59fd1 100644
  		struct cfs_rq *cfs_rq = cfs_rq_of(se);
  		u64 min_vruntime;
  
-@@ -6961,7 +7003,7 @@ static void migrate_task_rq_fair(struct task_struct *p, int new_cpu)
+@@ -7349,7 +7391,7 @@ static void migrate_task_rq_fair(struct task_struct *p, int new_cpu)
  		 * rq->lock and can modify state directly.
  		 */
  		lockdep_assert_rq_held(task_rq(p));
@@ -647,7 +627,7 @@ index 2f461f059278..ca48e8b59fd1 100644
  
  	} else {
  		/*
-@@ -6972,14 +7014,15 @@ static void migrate_task_rq_fair(struct task_struct *p, int new_cpu)
+@@ -7360,14 +7402,15 @@ static void migrate_task_rq_fair(struct task_struct *p, int new_cpu)
  		 * wakee task is less decayed, but giving the wakee more load
  		 * sounds not bad.
  		 */
@@ -666,7 +646,7 @@ index 2f461f059278..ca48e8b59fd1 100644
  
  	update_scan_period(p, new_cpu);
  }
-@@ -7665,6 +7708,9 @@ static int task_hot(struct task_struct *p, struct lb_env *env)
+@@ -8113,6 +8156,9 @@ static int task_hot(struct task_struct *p, struct lb_env *env)
  	if (sysctl_sched_migration_cost == 0)
  		return 0;
  
@@ -676,6 +656,13 @@ index 2f461f059278..ca48e8b59fd1 100644
  	delta = rq_clock_task(env->src_rq) - p->se.exec_start;
  
  	return delta < (s64)sysctl_sched_migration_cost;
+@@ -12901,4 +12947,4 @@ int sched_trace_rq_nr_running(struct rq *rq)
+ {
+         return rq ? rq->nr_running : -1;
+ }
+-EXPORT_SYMBOL_GPL(sched_trace_rq_nr_running);
+\ No newline at end of file
++EXPORT_SYMBOL_GPL(sched_trace_rq_nr_running);
 diff --git a/kernel/sched/features.h b/kernel/sched/features.h
 index 1cf435bbcd9c..681c84fd062c 100644
 --- a/kernel/sched/features.h
@@ -956,36 +943,6 @@ index 59b14e0d696c..a2c4f025cab1 100644
  			break;
  
  		/*
-diff --git a/scripts/Makefile.lib b/scripts/Makefile.lib
-index 79be57fdd32a..291845c6d1c4 100644
---- a/scripts/Makefile.lib
-+++ b/scripts/Makefile.lib
-@@ -202,6 +202,10 @@ endif
- part-of-module = $(if $(filter $(basename $@).o, $(real-obj-m)),y)
- quiet_modtag = $(if $(part-of-module),[M],   )
- 
-+ifdef CONFIG_LTO_CLANG_THIN
-+KBUILD_LDFLAGS	+= --thinlto-cache-dir=$(thinlto-dir)$(extmod-prefix).thinlto-cache
-+endif
-+
- modkern_cflags =                                          \
- 	$(if $(part-of-module),                           \
- 		$(KBUILD_CFLAGS_MODULE) $(CFLAGS_MODULE), \
-diff --git a/scripts/Makefile.modfinal b/scripts/Makefile.modfinal
-index 7f39599e9fae..c7c407993966 100644
---- a/scripts/Makefile.modfinal
-+++ b/scripts/Makefile.modfinal
-@@ -54,6 +54,10 @@ if_changed_except = $(if $(call newer_prereqs_except,$(2))$(cmd-check),      \
- 	$(cmd);                                                              \
- 	printf '%s\n' 'cmd_$@ := $(make-cmd)' > $(dot-target).cmd, @:)
- 
-+ifdef CONFIG_LTO_CLANG_THIN
-+KBUILD_LDFLAGS	+= --thinlto-cache-dir=$(thinlto-dir)$(extmod-prefix).thinlto-cache
-+endif # CONFIG_LTO_CLANG_THIN
-+
- 
- # Re-generate module BTFs if either module's .ko or vmlinux changed
- $(modules): %.ko: %$(mod-prelink-ext).o %.mod.o scripts/module.lds $(if $(KBUILD_BUILTIN),vmlinux) FORCE
 -- 
 2.36.1
 
