@@ -3,7 +3,7 @@
 
 EAPI="6"
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="9"
+K_GENPATCHES_VER="1"
 UNIPATCH_STRICTORDER="1"
 K_SECURITY_UNSUPPORTED="1"
 K_NOSETEXTRAVERSION="1"
@@ -22,19 +22,20 @@ SRC_URI="
 
 src_unpack() {
 UNIPATCH_LIST_DEFAULT=""
-						#${FILESDIR}/cachy-patches/5.17/0001-numa-balanc.patch
-		CACHY_PATCHES="${FILESDIR}/cachy-patches/5.17/dev/0004-cachy.patch
-						${FILESDIR}/cachy-patches/5.17/dev/0006-cpu.patch
-						${FILESDIR}/cachy-patches/5.17/dev/0007-fixes-miscellaneous.patch
-						${FILESDIR}/cachy-patches/5.17/dev/0008-fs-patches.patch
-						${FILESDIR}/cachy-patches/5.17/dev/0011-spf-lru.patch
-						${FILESDIR}/cachy-patches/5.17/dev/0012-xanmod.patch
-						${FILESDIR}/cachy-patches/5.17/dev/0013-lrng.patch
-						${FILESDIR}/cachy-patches/5.17/dev/0015-futex-winesync.patch
-						${FILESDIR}/cachy-patches/5.17/dev/0016-thinlto-cachedir.patch
-						${FILESDIR}/cachy-patches/5.17/0018-zstd-dev.patch
-						${FILESDIR}/cachy-patches/5.17/sched/0001-tt.patch
-						${FILESDIR}/maple-tree-v2-5.16.4.patch"
+		CACHY_PATCHES="${FILESDIR}/cachy-patches/5.18/dev/0001-amd-perf.patch
+						${FILESDIR}/cachy-patches/5.18/0001-cachy.patch
+						${FILESDIR}/cachy-patches/5.18/dev/0001-cpu.patch
+						${FILESDIR}/cachy-patches/5.18/dev/0001-fixes.patch
+						${FILESDIR}/cachy-patches/5.18/dev/0001-fs-patches.patch
+						${FILESDIR}/cachy-patches/5.18/dev/0001-futex-winesync.patch
+						${FILESDIR}/cachy-patches/5.18/dev/0001-ksm.patch
+						${FILESDIR}/cachy-patches/5.18/dev/0001-latency_nice.patch
+						${FILESDIR}/cachy-patches/5.18/dev/0001-lrng.patch
+						${FILESDIR}/cachy-patches/5.18/dev/0001-lru-le9-spf.patch
+						${FILESDIR}/cachy-patches/5.18/dev/0001-migrate.patch
+						${FILESDIR}/cachy-patches/5.18/dev/0001-zram-entropy-calculation.patch
+						${FILESDIR}/cachy-patches/5.18/sched/0001-tt-5.18.patch
+						${FILESDIR}/maple-tree-v2-5.18.patch"
 
 	kernel-2-src-prepare-overlay_src_unpack
 
