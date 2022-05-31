@@ -30,7 +30,6 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/cachy-patches/5.18/dev/0001-futex-winesync.patch
 						${FILESDIR}/cachy-patches/5.18/dev/0001-ksm.patch
 						${FILESDIR}/cachy-patches/5.18/dev/0001-latency_nice.patch
-						${FILESDIR}/cachy-patches/5.18/dev/0001-lrng.patch
 						${FILESDIR}/cachy-patches/5.18/dev/0001-lru-le9-spf.patch
 						${FILESDIR}/cachy-patches/5.18/dev/0001-migrate.patch
 						${FILESDIR}/cachy-patches/5.18/dev/0001-zram-entropy-calculation.patch
