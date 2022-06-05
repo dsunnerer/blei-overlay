@@ -1,7 +1,7 @@
-From 90c611fd6052aa48d45efb4ca4c658d09021a0e4 Mon Sep 17 00:00:00 2001
+From 483f7af69cdce2fc7b2aa7d571c5329e9ecd5607 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Sat, 21 May 2022 15:57:20 +0200
-Subject: [PATCH] cachy
+Subject: [PATCH 1/4] cachy
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -114,7 +114,7 @@ index aec2cd2aaea7..19754beb5a4e 100644
  In addition to the architecture-level kernel command line options affecting CPU
  idle time management, there are parameters affecting individual ``CPUIdle``
 diff --git a/Makefile b/Makefile
-index 5033c0577c6d..284169d5bbcd 100644
+index e027df7e0313..fc5ea8001341 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -890,7 +890,8 @@ endif
@@ -953,6 +953,108 @@ index 7f39599e9fae..c7c407993966 100644
  
  # Re-generate module BTFs if either module's .ko or vmlinux changed
  $(modules): %.ko: %$(mod-prelink-ext).o %.mod.o scripts/module.lds $(if $(KBUILD_BUILTIN),vmlinux) FORCE
+-- 
+2.36.1
+
+From fc47fdacd26e42dc1a702cc50cb38db080cd8ef1 Mon Sep 17 00:00:00 2001
+From: Masahito S <firelzrd@gmail.com>
+Date: Sat, 4 Jun 2022 04:55:36 +0900
+Subject: [PATCH 2/4] Tianchen Ding wakeup patches
+
+---
+ kernel/sched/core.c  | 27 ++++++++++++++++-----------
+ kernel/sched/sched.h |  1 -
+ 2 files changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index ed53e51688c5..d4731019802a 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -3814,7 +3814,7 @@ bool cpus_share_cache(int this_cpu, int that_cpu)
+ 	return per_cpu(sd_llc_id, this_cpu) == per_cpu(sd_llc_id, that_cpu);
+ }
+ 
+-static inline bool ttwu_queue_cond(int cpu, int wake_flags)
++static inline bool ttwu_queue_cond(int cpu)
+ {
+ 	/*
+ 	 * Do not complicate things with the async wake_list while the CPU is
+@@ -3830,13 +3830,21 @@ static inline bool ttwu_queue_cond(int cpu, int wake_flags)
+ 	if (!cpus_share_cache(smp_processor_id(), cpu))
+ 		return true;
+ 
++	if (cpu == smp_processor_id())
++		return false;
++
+ 	/*
+-	 * If the task is descheduling and the only running task on the
+-	 * CPU then use the wakelist to offload the task activation to
+-	 * the soon-to-be-idle CPU as the current CPU is likely busy.
+-	 * nr_running is checked to avoid unnecessary task stacking.
++	 * If the wakee cpu is idle, or the task is descheduling and the
++	 * only running task on the CPU, then use the wakelist to offload
++	 * the task activation to the idle (or soon-to-be-idle) CPU as
++	 * the current CPU is likely busy. nr_running is checked to
++	 * avoid unnecessary task stacking.
++	 *
++	 * Note that we can only get here with (wakee) p->on_rq=0,
++	 * p->on_cpu can be whatever, we've done the dequeue, so
++	 * the wakee has been accounted out of ->nr_running.
+ 	 */
+-	if ((wake_flags & WF_ON_CPU) && cpu_rq(cpu)->nr_running <= 1)
++	if (!cpu_rq(cpu)->nr_running)
+ 		return true;
+ 
+ 	return false;
+@@ -3844,10 +3852,7 @@ static inline bool ttwu_queue_cond(int cpu, int wake_flags)
+ 
+ static bool ttwu_queue_wakelist(struct task_struct *p, int cpu, int wake_flags)
+ {
+-	if (sched_feat(TTWU_QUEUE) && ttwu_queue_cond(cpu, wake_flags)) {
+-		if (WARN_ON_ONCE(cpu == smp_processor_id()))
+-			return false;
+-
++	if (sched_feat(TTWU_QUEUE) && ttwu_queue_cond(cpu)) {
+ 		sched_clock_cpu(cpu); /* Sync clocks across CPUs */
+ 		__ttwu_queue_wakelist(p, cpu, wake_flags);
+ 		return true;
+@@ -4169,7 +4174,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
+ 	 * scheduling.
+ 	 */
+ 	if (smp_load_acquire(&p->on_cpu) &&
+-	    ttwu_queue_wakelist(p, task_cpu(p), wake_flags | WF_ON_CPU))
++	    ttwu_queue_wakelist(p, task_cpu(p), wake_flags))
+ 		goto unlock;
+ 
+ 	/*
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 8dccb34eb190..43557c1ac6b2 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -2037,7 +2037,6 @@ static inline int task_on_rq_migrating(struct task_struct *p)
+ 
+ #define WF_SYNC     0x10 /* Waker goes to sleep after wakeup */
+ #define WF_MIGRATED 0x20 /* Internal use, task got migrated */
+-#define WF_ON_CPU   0x40 /* Wakee is on_cpu */
+ 
+ #ifdef CONFIG_SMP
+ static_assert(WF_EXEC == SD_BALANCE_EXEC);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index a090514f2..1b64a4582 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -58,7 +58,11 @@ unsigned long transparent_hugepage_flags __read_mostly =
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE_MADVISE
+ 	(1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG)|
+ #endif
++#ifdef CONFIG_CACHY
++	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG)|
++#else
+ 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG)|
++#endif
+ 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG)|
+ 	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
+
 -- 
 2.36.1
 
