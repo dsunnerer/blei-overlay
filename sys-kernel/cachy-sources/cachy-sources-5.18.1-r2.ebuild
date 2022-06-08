@@ -22,17 +22,17 @@ SRC_URI="
 
 src_unpack() {
 UNIPATCH_LIST_DEFAULT=""
-		CACHY_PATCHES="${FILESDIR}/cachy-patches/5.18/dev/0001-amd-perf.patch
+		CACHY_PATCHES="${FILESDIR}/cachy-patches/5.18/0001-amd-perf.patch
 						${FILESDIR}/cachy-patches/5.18/0001-cachy.patch
-						${FILESDIR}/cachy-patches/5.18/dev/0001-cpu.patch
-						${FILESDIR}/cachy-patches/5.18/dev/0001-fixes.patch
-						${FILESDIR}/cachy-patches/5.18/dev/0001-fs-patches.patch
-						${FILESDIR}/cachy-patches/5.18/dev/0001-futex-winesync.patch
-						${FILESDIR}/cachy-patches/5.18/dev/0001-ksm.patch
+						${FILESDIR}/cachy-patches/5.18/0001-cpu.patch
+						${FILESDIR}/cachy-patches/5.18/0001-fixes.patch
+						${FILESDIR}/cachy-patches/5.18/0001-fs-patches.patch
+						${FILESDIR}/cachy-patches/5.18/0001-futex-winesync.patch
+						${FILESDIR}/cachy-patches/5.18/0001-ksm.patch
 						${FILESDIR}/cachy-patches/5.18/0001-latency_nice.patch
-						${FILESDIR}/cachy-patches/5.18/dev/0001-lru-le9-spf.patch
-						${FILESDIR}/cachy-patches/5.18/dev/0001-migrate.patch
-						${FILESDIR}/cachy-patches/5.18/dev/0001-zram-entropy-calculation.patch
+						${FILESDIR}/cachy-patches/5.18/0001-lru-le9-spf.patch
+						${FILESDIR}/cachy-patches/5.18/0001-migrate.patch
+						${FILESDIR}/cachy-patches/5.18/0001-zram-entropy-calculation.patch
 						${FILESDIR}/cachy-patches/5.18/sched/0001-tt-5.18.patch
 						${FILESDIR}/maple-tree-v2-5.18.patch"
 
