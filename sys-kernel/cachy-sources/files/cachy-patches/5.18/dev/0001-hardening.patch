@@ -1,7 +1,7 @@
-From b2924512528b6f6522b1a892c95f34726ed258a9 Mon Sep 17 00:00:00 2001
+From d5bc19b10edfe5c146ee139544c001af2ae7aed5 Mon Sep 17 00:00:00 2001
 From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
 Date: Mon, 10 Jan 2022 23:15:27 +0000
-Subject: [PATCH 01/46] mm/usercopy: Check kmap addresses properly
+Subject: [PATCH 01/44] mm/usercopy: Check kmap addresses properly
 
 If you are copying to an address in the kmap region, you may not copy
 across a page boundary, no matter what the size of the underlying
@@ -88,10 +88,10 @@ index 2c235d5c2364..ff13e7708faa 100644
 -- 
 2.36.1
 
-From c69468eeae56c10426beb533bc38d815369ae5cd Mon Sep 17 00:00:00 2001
+From c6c060384c37b3f06c70ddc2948c38e0ed47cd35 Mon Sep 17 00:00:00 2001
 From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
 Date: Mon, 10 Jan 2022 23:15:28 +0000
-Subject: [PATCH 02/46] mm/usercopy: Detect vmalloc overruns
+Subject: [PATCH 02/44] mm/usercopy: Detect vmalloc overruns
 
 If you have a vmalloc() allocation, or an address from calling vmap(),
 you cannot overrun the vm_area which describes it, regardless of the
@@ -144,10 +144,10 @@ index ff13e7708faa..e1e856dca124 100644
 -- 
 2.36.1
 
-From 9016ac735295af0ca99f001f81373e1a736a5782 Mon Sep 17 00:00:00 2001
+From 02b8613f9af8f3520d30b7efdc388021808eab43 Mon Sep 17 00:00:00 2001
 From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
 Date: Mon, 10 Jan 2022 23:15:29 +0000
-Subject: [PATCH 03/46] mm/usercopy: Detect large folio overruns
+Subject: [PATCH 03/44] mm/usercopy: Detect large folio overruns
 
 Move the compound page overrun detection out of
 CONFIG_HARDENED_USERCOPY_PAGESPAN and convert it to use folios so it's
@@ -200,10 +200,10 @@ index e1e856dca124..9458c2b24b02 100644
 -- 
 2.36.1
 
-From f2323616a40346c846a14c044823c556847ecaf5 Mon Sep 17 00:00:00 2001
+From 6fab371d1b7b2e98c5b7d374ed5d1da5f8f309fe Mon Sep 17 00:00:00 2001
 From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
 Date: Mon, 10 Jan 2022 23:15:30 +0000
-Subject: [PATCH 04/46] usercopy: Remove HARDENED_USERCOPY_PAGESPAN
+Subject: [PATCH 04/44] usercopy: Remove HARDENED_USERCOPY_PAGESPAN
 
 There isn't enough information to make this a useful check any more;
 the useful parts of it were moved in earlier patches, so remove this
@@ -299,10 +299,10 @@ index 9458c2b24b02..ac8a093e90c1 100644
  }
  
 diff --git a/security/Kconfig b/security/Kconfig
-index 9b2c4925585a..f29e4c656983 100644
+index 537d686a4db2..48171e4d7cb4 100644
 --- a/security/Kconfig
 +++ b/security/Kconfig
-@@ -160,20 +160,9 @@ config HARDENED_USERCOPY
+@@ -186,20 +186,9 @@ config HARDENED_USERCOPY
  	  copy_from_user() functions) by rejecting memory ranges that
  	  are larger than the specified heap object, span multiple
  	  separately allocated pages, are not on the process stack,
@@ -327,10 +327,10 @@ index 9b2c4925585a..f29e4c656983 100644
 -- 
 2.36.1
 
-From 1e5ca184e2d5eb5f41ed7456ca4d15f2d4b2d3b8 Mon Sep 17 00:00:00 2001
+From 3bfc9390868e82cbc686b5c419cb4c56ac63d6f2 Mon Sep 17 00:00:00 2001
 From: Bill Wendling <morbo@google.com>
 Date: Thu, 7 Apr 2022 10:59:30 -0700
-Subject: [PATCH 05/46] security: don't treat structure as an array of struct
+Subject: [PATCH 05/44] security: don't treat structure as an array of struct
  hlist_head
 
 The initialization of "security_hook_heads" is done by casting it to
@@ -390,10 +390,10 @@ index aaf6566deb9f..08420c6ff52d 100644
 -- 
 2.36.1
 
-From f344430f606bd9f2ef708d5106fffd79dfdb825c Mon Sep 17 00:00:00 2001
+From 88e6fb87474fd5cb008c543ac94ef2534e9a53b3 Mon Sep 17 00:00:00 2001
 From: Sami Tolvanen <samitolvanen@google.com>
 Date: Tue, 5 Apr 2022 15:16:18 -0700
-Subject: [PATCH 06/46] cfi: Use __builtin_function_start
+Subject: [PATCH 06/44] cfi: Use __builtin_function_start
 
 Clang 14 added support for the __builtin_function_start function,
 which allows us to implement the function_nocfi macro without
@@ -421,7 +421,7 @@ Link: https://lore.kernel.org/r/20220405221618.633743-1-samitolvanen@google.com
  3 files changed, 11 insertions(+), 20 deletions(-)
 
 diff --git a/arch/Kconfig b/arch/Kconfig
-index 31c4fdc4a4ba..4b64e718c27d 100644
+index 9112af46d1a8..fe922d62a5ca 100644
 --- a/arch/Kconfig
 +++ b/arch/Kconfig
 @@ -723,10 +723,7 @@ config ARCH_SUPPORTS_CFI_CLANG
@@ -485,10 +485,10 @@ index babb1347148c..c84fec767445 100644
 -- 
 2.36.1
 
-From a3b0f7ad9fdaa0d37d1a37b661cf632ea043faa2 Mon Sep 17 00:00:00 2001
+From 6ce7c0091276e357a6af7214a4993fd67e29ee75 Mon Sep 17 00:00:00 2001
 From: Kees Cook <keescook@chromium.org>
 Date: Tue, 3 May 2022 13:54:58 -0700
-Subject: [PATCH 07/46] netfs: Eliminate Clang randstruct warning
+Subject: [PATCH 07/44] netfs: Eliminate Clang randstruct warning
 
 Clang's structure layout randomization feature gets upset when it sees
 struct inode (which is randomized) cast to struct netfs_i_context. This
@@ -544,10 +544,10 @@ index c7bf1eaf51d5..0c33b715cbfd 100644
 -- 
 2.36.1
 
-From 2a81d0bdec953baa8335fbb1c1e1979407c164a1 Mon Sep 17 00:00:00 2001
+From 149dc3e99811710cf1efb43d141e0a6d77ad2f80 Mon Sep 17 00:00:00 2001
 From: Kees Cook <keescook@chromium.org>
 Date: Tue, 3 May 2022 13:54:59 -0700
-Subject: [PATCH 08/46] sancov: Split plugin build from plugin CFLAGS
+Subject: [PATCH 08/44] sancov: Split plugin build from plugin CFLAGS
 
 When the sancov_plugin is enabled, it gets added to gcc-plugin-y which
 is used to populate both GCC_PLUGIN (for building the plugin) and
@@ -604,10 +604,10 @@ index f67153b260c0..927c3dd57f84 100644
 -- 
 2.36.1
 
-From 2edae985043aaa5af250084abfedb0ba6b78f4ea Mon Sep 17 00:00:00 2001
+From 094b4747a0e78cadcd636d8e8f33b8294d94b68b Mon Sep 17 00:00:00 2001
 From: Kees Cook <keescook@chromium.org>
 Date: Tue, 3 May 2022 13:55:00 -0700
-Subject: [PATCH 09/46] randstruct: Reorganize Kconfigs and attribute macros
+Subject: [PATCH 09/44] randstruct: Reorganize Kconfigs and attribute macros
 
 In preparation for Clang supporting randstruct, reorganize the Kconfigs,
 move the attribute macros, and generalize the feature to be named
@@ -777,10 +777,10 @@ index 927c3dd57f84..827c47ce5c73 100644
  
  gcc-plugin-$(CONFIG_GCC_PLUGIN_STACKLEAK)	+= stackleak_plugin.so
 diff --git a/scripts/gcc-plugins/Kconfig b/scripts/gcc-plugins/Kconfig
-index 51d81c3f03d6..e383cda05367 100644
+index 521bfe279abd..929997fb5e45 100644
 --- a/scripts/gcc-plugins/Kconfig
 +++ b/scripts/gcc-plugins/Kconfig
-@@ -46,44 +46,6 @@ config GCC_PLUGIN_LATENT_ENTROPY
+@@ -51,44 +51,6 @@ config GCC_PLUGIN_LATENT_ENTROPY
  	   * https://grsecurity.net/
  	   * https://pax.grsecurity.net/
  
@@ -826,10 +826,10 @@ index 51d81c3f03d6..e383cda05367 100644
  	bool
  	depends on GCC_PLUGINS && ARM
 diff --git a/security/Kconfig.hardening b/security/Kconfig.hardening
-index ded4d7c0d132..364e3f8c6eea 100644
+index 48924888a0f4..feba519dcc7b 100644
 --- a/security/Kconfig.hardening
 +++ b/security/Kconfig.hardening
-@@ -266,4 +266,66 @@ config ZERO_CALL_USED_REGS
+@@ -283,4 +283,66 @@ config SLAB_SANITIZE_VERIFY
  
  endmenu
  
@@ -899,10 +899,10 @@ index ded4d7c0d132..364e3f8c6eea 100644
 -- 
 2.36.1
 
-From 5a61c28428fc24a7e45a419bf0951025a1ef6a75 Mon Sep 17 00:00:00 2001
+From 6a0becb79760192711a4013df0867e800f35cf71 Mon Sep 17 00:00:00 2001
 From: Kees Cook <keescook@chromium.org>
 Date: Tue, 3 May 2022 13:55:01 -0700
-Subject: [PATCH 10/46] randstruct: Split randstruct Makefile and CFLAGS
+Subject: [PATCH 10/44] randstruct: Split randstruct Makefile and CFLAGS
 
 To enable the new Clang randstruct implementation[1], move
 randstruct into its own Makefile and split the CFLAGS from
@@ -925,7 +925,7 @@ Link: https://lore.kernel.org/r/20220503205503.3054173-5-keescook@chromium.org
  create mode 100644 scripts/Makefile.randstruct
 
 diff --git a/Makefile b/Makefile
-index e1c20a1a3be1..3fbb26782c7f 100644
+index d586cb42c378..db32970d336a 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1011,6 +1011,7 @@ include-$(CONFIG_KASAN)		+= scripts/Makefile.kasan
@@ -1054,10 +1054,10 @@ index 000000000000..4d741e6db554
 -- 
 2.36.1
 
-From e44bd8a73b5b4c4c4bba0192d1169e071a3d4a12 Mon Sep 17 00:00:00 2001
+From 54e3a227b945d4b4d1b3c5f4ccd7190f4adc708b Mon Sep 17 00:00:00 2001
 From: Kees Cook <keescook@chromium.org>
 Date: Tue, 3 May 2022 13:55:02 -0700
-Subject: [PATCH 11/46] randstruct: Move seed generation into scripts/basic/
+Subject: [PATCH 11/44] randstruct: Move seed generation into scripts/basic/
 
 To enable Clang randstruct support, move the structure layout
 randomization seed generation out of scripts/gcc-plugins/ into
@@ -1072,13 +1072,12 @@ Link: https://lore.kernel.org/r/20220503205503.3054173-6-keescook@chromium.org
  Documentation/dontdiff                       |  1 +
  Documentation/kbuild/reproducible-builds.rst |  5 +++--
  include/linux/vermagic.h                     |  2 +-
- scripts/basic/.gitignore                     |  1 +
  scripts/basic/Makefile                       | 11 +++++++++++
  scripts/gcc-plugins/Makefile                 | 15 ++++++++++-----
  scripts/gcc-plugins/gen-random-seed.sh       |  9 ---------
  scripts/gen-randstruct-seed.sh               |  7 +++++++
  security/Kconfig.hardening                   |  9 +++++----
- 9 files changed, 39 insertions(+), 21 deletions(-)
+ 8 files changed, 38 insertions(+), 21 deletions(-)
  delete mode 100755 scripts/gcc-plugins/gen-random-seed.sh
  create mode 100755 scripts/gen-randstruct-seed.sh
 
@@ -1123,14 +1122,6 @@ index efb51a2da599..a54046bf37e5 100644
  #define MODULE_RANDSTRUCT "RANDSTRUCT_" RANDSTRUCT_HASHED_SEED
  #else
  #define MODULE_RANDSTRUCT
-diff --git a/scripts/basic/.gitignore b/scripts/basic/.gitignore
-index 961c91c8a884..07c195f605a1 100644
---- a/scripts/basic/.gitignore
-+++ b/scripts/basic/.gitignore
-@@ -1,2 +1,3 @@
- # SPDX-License-Identifier: GPL-2.0-only
- /fixdep
-+/randstruct.seed
 diff --git a/scripts/basic/Makefile b/scripts/basic/Makefile
 index eeb6a38c5551..dd289a6725ac 100644
 --- a/scripts/basic/Makefile
@@ -1206,10 +1197,10 @@ index 000000000000..61017b36c464
 +HASH=$(echo -n "$SEED" | sha256sum | cut -d" " -f1)
 +echo "#define RANDSTRUCT_HASHED_SEED \"$HASH\"" > "$2"
 diff --git a/security/Kconfig.hardening b/security/Kconfig.hardening
-index 364e3f8c6eea..0277ba578779 100644
+index feba519dcc7b..a8c244f6cec4 100644
 --- a/security/Kconfig.hardening
 +++ b/security/Kconfig.hardening
-@@ -284,10 +284,11 @@ choice
+@@ -301,10 +301,11 @@ choice
  	  tools like Volatility against the system (unless the kernel
  	  source tree isn't cleaned after kernel installation).
  
@@ -1228,10 +1219,10 @@ index 364e3f8c6eea..0277ba578779 100644
 -- 
 2.36.1
 
-From ef2a39e2f2f38a375cc3bb0b79de01ce2ebbaf0f Mon Sep 17 00:00:00 2001
+From 5f47331d7f1e7df928b8801de715355b97322905 Mon Sep 17 00:00:00 2001
 From: Kees Cook <keescook@chromium.org>
 Date: Tue, 3 May 2022 13:55:03 -0700
-Subject: [PATCH 12/46] randstruct: Enable Clang support
+Subject: [PATCH 12/44] randstruct: Enable Clang support
 
 Clang 15 will support randstruct via the -frandomize-layout-seed-file=...
 option. Update the Kconfig and Makefile to recognize this feature.
@@ -1260,10 +1251,10 @@ index 4d741e6db554..24e283e89893 100644
  
  export RANDSTRUCT_CFLAGS := $(randstruct-cflags-y)
 diff --git a/security/Kconfig.hardening b/security/Kconfig.hardening
-index 0277ba578779..bd2aabb2c60f 100644
+index a8c244f6cec4..1971faaef151 100644
 --- a/security/Kconfig.hardening
 +++ b/security/Kconfig.hardening
-@@ -266,9 +266,12 @@ config ZERO_CALL_USED_REGS
+@@ -283,9 +283,12 @@ config SLAB_SANITIZE_VERIFY
  
  endmenu
  
@@ -1277,7 +1268,7 @@ index 0277ba578779..bd2aabb2c60f 100644
  	default RANDSTRUCT_NONE
  	help
  	  If you enable this, the layouts of structures that are entirely
-@@ -297,13 +300,20 @@ choice
+@@ -314,13 +317,20 @@ choice
  
  	config RANDSTRUCT_FULL
  		bool "Fully randomize structure layout"
@@ -1302,111 +1293,10 @@ index 0277ba578779..bd2aabb2c60f 100644
 -- 
 2.36.1
 
-From 091d7c2a327767a6600662481103bdc001f9c097 Mon Sep 17 00:00:00 2001
-From: Mark Rutland <mark.rutland@arm.com>
-Date: Wed, 27 Apr 2022 18:31:16 +0100
-Subject: [PATCH 13/46] arm64: stackleak: fix current_top_of_stack()
-
-Due to some historical confusion, arm64's current_top_of_stack() isn't
-what the stackleak code expects. This could in theory result in a number
-of problems, and practically results in an unnecessary performance hit.
-We can avoid this by aligning the arm64 implementation with the x86
-implementation.
-
-The arm64 implementation of current_top_of_stack() was added
-specifically for stackleak in commit:
-
-  0b3e336601b82c6a ("arm64: Add support for STACKLEAK gcc plugin")
-
-This was intended to be equivalent to the x86 implementation, but the
-implementation, semantics, and performance characteristics differ
-wildly:
-
-* On x86, current_top_of_stack() returns the top of the current task's
-  task stack, regardless of which stack is in active use.
-
-  The implementation accesses a percpu variable which the x86 entry code
-  maintains, and returns the location immediately above the pt_regs on
-  the task stack (above which x86 has some padding).
-
-* On arm64 current_top_of_stack() returns the top of the stack in active
-  use (i.e. the one which is currently being used).
-
-  The implementation checks the SP against a number of
-  potentially-accessible stacks, and will BUG() if no stack is found.
-
-The core stackleak_erase() code determines the upper bound of stack to
-erase with:
-
-| if (on_thread_stack())
-|         boundary = current_stack_pointer;
-| else
-|         boundary = current_top_of_stack();
-
-On arm64 stackleak_erase() is always called on a task stack, and
-on_thread_stack() should always be true. On x86, stackleak_erase() is
-mostly called on a trampoline stack, and is sometimes called on a task
-stack.
-
-Currently, this results in a lot of unnecessary code being generated for
-arm64 for the impossible !on_thread_stack() case. Some of this is
-inlined, bloating stackleak_erase(), while portions of this are left
-out-of-line and permitted to be instrumented (which would be a
-functional problem if that code were reachable).
-
-As a first step towards improving this, this patch aligns arm64's
-implementation of current_top_of_stack() with x86's, always returning
-the top of the current task's stack. With GCC 11.1.0 this results in the
-bulk of the unnecessary code being removed, including all of the
-out-of-line instrumentable code.
-
-While I don't believe there's a functional problem in practice I've
-marked this as a fix since the semantic was clearly wrong, the fix
-itself is simple, and other code might rely upon this in future.
-
-Fixes: 0b3e336601b82c6a ("arm64: Add support for STACKLEAK gcc plugin")
-Signed-off-by: Mark Rutland <mark.rutland@arm.com>
-Cc: Alexander Popov <alex.popov@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Will Deacon <will@kernel.org>
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-Signed-off-by: Kees Cook <keescook@chromium.org>
-Link: https://lore.kernel.org/r/20220427173128.2603085-2-mark.rutland@arm.com
----
- arch/arm64/include/asm/processor.h | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
-
-diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
-index 73e38d9a540c..6b1a12c23fe7 100644
---- a/arch/arm64/include/asm/processor.h
-+++ b/arch/arm64/include/asm/processor.h
-@@ -381,12 +381,10 @@ long get_tagged_addr_ctrl(struct task_struct *task);
-  * of header definitions for the use of task_stack_page.
-  */
- 
--#define current_top_of_stack()								\
--({											\
--	struct stack_info _info;							\
--	BUG_ON(!on_accessible_stack(current, current_stack_pointer, 1, &_info));	\
--	_info.high;									\
--})
-+/*
-+ * The top of the current task's task stack
-+ */
-+#define current_top_of_stack()	((unsigned long)current->stack + THREAD_SIZE)
- #define on_thread_stack()	(on_task_stack(current, current_stack_pointer, 1, NULL))
- 
- #endif /* __ASSEMBLY__ */
--- 
-2.36.1
-
-From 84ecc2ca5654e8a7b9eea0c5c4c878fafd734849 Mon Sep 17 00:00:00 2001
+From 6b8882f7dcdaac6accc4df2f94718ca795dbcb1a Mon Sep 17 00:00:00 2001
 From: Mark Rutland <mark.rutland@arm.com>
 Date: Wed, 27 Apr 2022 18:31:17 +0100
-Subject: [PATCH 14/46] stackleak: move skip_erasing() check earlier
+Subject: [PATCH 13/44] stackleak: move skip_erasing() check earlier
 
 In stackleak_erase() we check skip_erasing() after accessing some fields
 from current. As generating the address of current uses asm which
@@ -1529,10 +1419,10 @@ index ddb5a7f48d69..753eab797a04 100644
 -- 
 2.36.1
 
-From 1cf5bd74f1a5db2465724079979c0834cae8a0a2 Mon Sep 17 00:00:00 2001
+From dc88fa7b4b4e57125e6c362def10b8846213ef24 Mon Sep 17 00:00:00 2001
 From: Mark Rutland <mark.rutland@arm.com>
 Date: Wed, 27 Apr 2022 18:31:18 +0100
-Subject: [PATCH 15/46] stackleak: remove redundant check
+Subject: [PATCH 14/44] stackleak: remove redundant check
 
 In __stackleak_erase() we check that the `erase_low` value derived from
 `current->lowest_stack` is above the lowest legitimate stack pointer
@@ -1572,10 +1462,10 @@ index 753eab797a04..f7a0f8cf73c3 100644
 -- 
 2.36.1
 
-From e1beec27a0083fdce8c73c382dbe4e8530b5d81e Mon Sep 17 00:00:00 2001
+From 465b62347463b36866f74986960fdb2778b82ef2 Mon Sep 17 00:00:00 2001
 From: Mark Rutland <mark.rutland@arm.com>
 Date: Wed, 27 Apr 2022 18:31:19 +0100
-Subject: [PATCH 16/46] stackleak: rework stack low bound handling
+Subject: [PATCH 15/44] stackleak: rework stack low bound handling
 
 In stackleak_task_init(), stackleak_track_stack(), and
 __stackleak_erase(), we open-code skipping the STACK_END_MAGIC at the
@@ -1689,10 +1579,10 @@ index f7a0f8cf73c3..24b7cf01b297 100644
 -- 
 2.36.1
 
-From ee40920d7037ef862bb44bd65b1974a007d9e14e Mon Sep 17 00:00:00 2001
+From 5a59aed9900abd99d804b406339df5667a809c1f Mon Sep 17 00:00:00 2001
 From: Mark Rutland <mark.rutland@arm.com>
 Date: Wed, 27 Apr 2022 18:31:20 +0100
-Subject: [PATCH 17/46] stackleak: clarify variable names
+Subject: [PATCH 16/44] stackleak: clarify variable names
 
 The logic within __stackleak_erase() can be a little hard to follow, as
 `boundary` switches from being the low bound to the high bound mid way
@@ -1784,10 +1674,10 @@ index 24b7cf01b297..d5f684dc0a2d 100644
 -- 
 2.36.1
 
-From 0ca93d77701901c8d7331dc1d837bcee6875564a Mon Sep 17 00:00:00 2001
+From d18ba5b654b5338b90ec663cceb7aedb303273a9 Mon Sep 17 00:00:00 2001
 From: Mark Rutland <mark.rutland@arm.com>
 Date: Wed, 27 Apr 2022 18:31:21 +0100
-Subject: [PATCH 18/46] stackleak: rework stack high bound handling
+Subject: [PATCH 17/44] stackleak: rework stack high bound handling
 
 Prior to returning to userspace, we reset current->lowest_stack to a
 reasonable high bound. Currently we do this by subtracting the arbitrary
@@ -1930,10 +1820,10 @@ index d5f684dc0a2d..ba346d46218f 100644
 -- 
 2.36.1
 
-From 6c55dff77648473d6e63a496d1c91e6c5a3964c1 Mon Sep 17 00:00:00 2001
+From d5ae4c907eb4f15ecf517097dc40ee833bc5e56b Mon Sep 17 00:00:00 2001
 From: Mark Rutland <mark.rutland@arm.com>
 Date: Wed, 27 Apr 2022 18:31:22 +0100
-Subject: [PATCH 19/46] stackleak: rework poison scanning
+Subject: [PATCH 18/44] stackleak: rework poison scanning
 
 Currently we over-estimate the region of stack which must be erased.
 
@@ -2057,10 +1947,10 @@ index ba346d46218f..afd54b8e10b8 100644
 -- 
 2.36.1
 
-From 0904dc5cd399b44b1bd829639d14c4ed79258225 Mon Sep 17 00:00:00 2001
+From 8908f84b66428acc385ae7626eb04f58bedfe921 Mon Sep 17 00:00:00 2001
 From: Mark Rutland <mark.rutland@arm.com>
 Date: Wed, 27 Apr 2022 18:31:23 +0100
-Subject: [PATCH 20/46] lkdtm/stackleak: avoid spurious failure
+Subject: [PATCH 19/44] lkdtm/stackleak: avoid spurious failure
 
 The lkdtm_STACKLEAK_ERASING() test scans for a contiguous block of
 poison values between the low stack bound and the stack pointer, and
@@ -2110,10 +2000,10 @@ index 00db21ff115e..707d530d509b 100644
 -- 
 2.36.1
 
-From e40f779d2401f268651ee13f36e57f82403e7880 Mon Sep 17 00:00:00 2001
+From 0f2c3f784b94a2012c62b23e38f3ea58d3fba7ab Mon Sep 17 00:00:00 2001
 From: Mark Rutland <mark.rutland@arm.com>
 Date: Wed, 27 Apr 2022 18:31:24 +0100
-Subject: [PATCH 21/46] lkdtm/stackleak: rework boundary management
+Subject: [PATCH 20/44] lkdtm/stackleak: rework boundary management
 
 There are a few problems with the way the LKDTM STACKLEAK_ERASING test
 manipulates the stack pointer and boundary values:
@@ -2337,10 +2227,10 @@ index 707d530d509b..0aafa46ced7d 100644
 -- 
 2.36.1
 
-From 369b5fbb82a27ca2b6aa6e96318a80c73cf3e425 Mon Sep 17 00:00:00 2001
+From f4acf3fdb2a7a107573678ea761ee99c5cb53ded Mon Sep 17 00:00:00 2001
 From: Mark Rutland <mark.rutland@arm.com>
 Date: Wed, 27 Apr 2022 18:31:25 +0100
-Subject: [PATCH 22/46] lkdtm/stackleak: prevent unexpected stack usage
+Subject: [PATCH 21/44] lkdtm/stackleak: prevent unexpected stack usage
 
 The lkdtm_STACKLEAK_ERASING() test is instrumentable and runs with IRQs
 unmasked, so it's possible for unrelated code to clobber the task stack
@@ -2408,10 +2298,10 @@ index 0aafa46ced7d..46c60761a05e 100644
 -- 
 2.36.1
 
-From 1c7bc1f2027b0ec8078a44608b8b440b2477c67b Mon Sep 17 00:00:00 2001
+From 122839b785c2b4eb0dfc1333d9dfca100f4f7897 Mon Sep 17 00:00:00 2001
 From: Mark Rutland <mark.rutland@arm.com>
 Date: Wed, 27 Apr 2022 18:31:26 +0100
-Subject: [PATCH 23/46] lkdtm/stackleak: check stack boundaries
+Subject: [PATCH 22/44] lkdtm/stackleak: check stack boundaries
 
 The stackleak code relies upon the current SP and lowest recorded SP
 falling within expected task stack boundaries.
@@ -2472,10 +2362,10 @@ index 46c60761a05e..52800583fd05 100644
 -- 
 2.36.1
 
-From f6a6bed8e9935534eff2dbe850026bd14fa7458e Mon Sep 17 00:00:00 2001
+From 7ef4c885b5dd906a22266e55f468206ee7b870c3 Mon Sep 17 00:00:00 2001
 From: Mark Rutland <mark.rutland@arm.com>
 Date: Wed, 27 Apr 2022 18:31:27 +0100
-Subject: [PATCH 24/46] stackleak: add on/off stack variants
+Subject: [PATCH 23/44] stackleak: add on/off stack variants
 
 The stackleak_erase() code dynamically handles being on a task stack or
 another stack. In most cases, this is a fixed property of the caller,
@@ -2569,10 +2459,10 @@ index afd54b8e10b8..c2c33d2202e9 100644
 -- 
 2.36.1
 
-From 6c1d0d42d42fc75115a8ed338afe8bf581863704 Mon Sep 17 00:00:00 2001
+From b21ba8bf463e6bb5a6f9dfeb23d738d83c042af7 Mon Sep 17 00:00:00 2001
 From: Mark Rutland <mark.rutland@arm.com>
 Date: Wed, 27 Apr 2022 18:31:28 +0100
-Subject: [PATCH 25/46] arm64: entry: use stackleak_erase_on_task_stack()
+Subject: [PATCH 24/44] arm64: entry: use stackleak_erase_on_task_stack()
 
 On arm64 we always call stackleak_erase() on a task stack, and never
 call it on another stack. We can avoid some redundant work by using
@@ -2609,10 +2499,10 @@ index ede028dee81b..5b82b9292400 100644
 -- 
 2.36.1
 
-From 5cd20b78e7a582c8484eeef5204c1193ff67f015 Mon Sep 17 00:00:00 2001
+From ce806c7b518588ce41f8bb25d464d1b661379a29 Mon Sep 17 00:00:00 2001
 From: Mark Rutland <mark.rutland@arm.com>
 Date: Fri, 6 May 2022 13:11:45 +0100
-Subject: [PATCH 26/46] lkdtm/stackleak: fix CONFIG_GCC_PLUGIN_STACKLEAK=n
+Subject: [PATCH 25/44] lkdtm/stackleak: fix CONFIG_GCC_PLUGIN_STACKLEAK=n
 
 Recent rework broke building LKDTM when CONFIG_GCC_PLUGIN_STACKLEAK=n.
 This patch fixes that breakage.
@@ -2728,10 +2618,10 @@ index 52800583fd05..82369c6f889e 100644
 -- 
 2.36.1
 
-From 0d1c49c62cc1803d9dfe65ee7c85adf7b3e17311 Mon Sep 17 00:00:00 2001
+From 2af40f493825ea1f4ed07fbce630767a801d6c85 Mon Sep 17 00:00:00 2001
 From: Kees Cook <keescook@chromium.org>
 Date: Tue, 10 May 2022 10:29:36 -0700
-Subject: [PATCH 27/46] randomize_kstack: Improve docs on
+Subject: [PATCH 26/44] randomize_kstack: Improve docs on
  requirements/rationale
 
 There were some recent questions about where and why to use the
@@ -2797,10 +2687,10 @@ index 1468caf001c0..5d868505a94e 100644
 -- 
 2.36.1
 
-From b2361de759ef6f9a8a176571263438035a6c7e82 Mon Sep 17 00:00:00 2001
+From ae9c6254d1ff061be4c68356bb988c3b11e2b477 Mon Sep 17 00:00:00 2001
 From: Kees Cook <keescook@chromium.org>
 Date: Tue, 10 May 2022 16:25:54 -0700
-Subject: [PATCH 28/46] gcc-plugins: Change all version strings match kernel
+Subject: [PATCH 27/44] gcc-plugins: Change all version strings match kernel
 
 It's not meaningful for the GCC plugins to track their versions separately
 from the rest of the kernel. Switch all versions to the kernel version.
@@ -2906,10 +2796,10 @@ index 74e319288389..86b608a24ec0 100644
 -- 
 2.36.1
 
-From 1cd9ea96d878a2bdec3f7a252598c7a62622b0ec Mon Sep 17 00:00:00 2001
+From 881464ae2e834a51e3964885fcf624e2e93d9a04 Mon Sep 17 00:00:00 2001
 From: Kees Cook <keescook@chromium.org>
 Date: Sun, 8 May 2022 09:15:53 -0700
-Subject: [PATCH 29/46] big_keys: Use struct for internal payload
+Subject: [PATCH 28/44] big_keys: Use struct for internal payload
 
 The randstruct GCC plugin gets upset when it sees struct path (which is
 randomized) being assigned from a "void *" (which it cannot type-check).
@@ -3139,10 +3029,10 @@ index d17e5f09eeb8..c3367622c683 100644
 -- 
 2.36.1
 
-From 3000c75d15f41906eff154bc18928d8e97d292b0 Mon Sep 17 00:00:00 2001
+From 9aefa3ab3cbace45605e7c603510fbad8c711018 Mon Sep 17 00:00:00 2001
 From: Kees Cook <keescook@chromium.org>
 Date: Mon, 9 May 2022 15:11:54 -0700
-Subject: [PATCH 30/46] niu: Silence randstruct warnings
+Subject: [PATCH 29/44] niu: Silence randstruct warnings
 
 Clang randstruct gets upset when it sees struct addresspace (which is
 randomized) being assigned to a struct page (which is not randomized):
@@ -3314,10 +3204,10 @@ index 5836a7fc7532..c9d345a91c41 100644
 -- 
 2.36.1
 
-From f17d52467cd2a80d072daf5efb78046e1d0363c8 Mon Sep 17 00:00:00 2001
+From 034c4b2688ab2a3c626fde4a8e037d64b101e7d6 Mon Sep 17 00:00:00 2001
 From: Kees Cook <keescook@chromium.org>
 Date: Tue, 10 May 2022 15:46:26 -0700
-Subject: [PATCH 31/46] af_unix: Silence randstruct GCC plugin warning
+Subject: [PATCH 30/44] af_unix: Silence randstruct GCC plugin warning
 
 While preparing for Clang randstruct support (which duplicated many of
 the warnings the randstruct GCC plugin warned about), one strange one
@@ -3385,10 +3275,10 @@ index c9d345a91c41..2ca768d88a68 100644
 -- 
 2.36.1
 
-From 5623e0db79e0cfe68971a15d7dac2e1594c78654 Mon Sep 17 00:00:00 2001
+From 65a2395642509d1c1366df5e2ca3dac8bb3f5602 Mon Sep 17 00:00:00 2001
 From: Kees Cook <keescook@chromium.org>
 Date: Tue, 10 May 2022 16:22:45 -0700
-Subject: [PATCH 32/46] gcc-plugins: randstruct: Remove cast exception handling
+Subject: [PATCH 31/44] gcc-plugins: randstruct: Remove cast exception handling
 
 With all randstruct exceptions removed, remove all the exception
 handling code. Any future warnings are likely to be shared between
@@ -3523,10 +3413,10 @@ index 2ca768d88a68..ea2aea570404 100644
 -- 
 2.36.1
 
-From 33a04d252ed135b187e1a3008000075e23ecdeec Mon Sep 17 00:00:00 2001
+From 28a2f27b44fdd520ad11cda77e5799232b5a52f8 Mon Sep 17 00:00:00 2001
 From: Yuanzheng Song <songyuanzheng@huawei.com>
 Date: Thu, 5 May 2022 07:10:37 +0000
-Subject: [PATCH 33/46] mm: usercopy: move the virt_addr_valid() below the
+Subject: [PATCH 32/44] mm: usercopy: move the virt_addr_valid() below the
  is_vmalloc_addr()
 
 The is_kmap_addr() and the is_vmalloc_addr() in the check_heap_object()
@@ -3571,10 +3461,10 @@ index ac8a093e90c1..baeacc735b83 100644
 -- 
 2.36.1
 
-From faa5f8c4a05acb0cdc78fd83e89280c2414b2405 Mon Sep 17 00:00:00 2001
+From 7bbfce342fc4c3736457b7b42fb61e0948aba8f5 Mon Sep 17 00:00:00 2001
 From: Christoph Hellwig <hch@lst.de>
 Date: Thu, 12 May 2022 08:20:14 +0200
-Subject: [PATCH 34/46] loadpin: stop using bdevname
+Subject: [PATCH 33/44] loadpin: stop using bdevname
 
 Use the %pg format specifier to save on stack consuption and code size.
 
@@ -3605,10 +3495,10 @@ index b12f7d986b1e..ad4e6756c038 100644
 -- 
 2.36.1
 
-From 613ab66f5c9ff421cd0787edeffdadb12d38704a Mon Sep 17 00:00:00 2001
+From 05e4cb1a815a32d083e89dffbea9363a60678311 Mon Sep 17 00:00:00 2001
 From: Jann Horn <jannh@google.com>
 Date: Sat, 19 Mar 2022 02:08:38 +0100
-Subject: [PATCH 35/46] selftests/seccomp: Test PTRACE_O_SUSPEND_SECCOMP
+Subject: [PATCH 34/44] selftests/seccomp: Test PTRACE_O_SUSPEND_SECCOMP
  without CAP_SYS_ADMIN
 
 Add a test to check that PTRACE_O_SUSPEND_SECCOMP can't be set without
@@ -3718,10 +3608,10 @@ index 313bb0cbfb1e..4da905180f89 100644
 -- 
 2.36.1
 
-From 5beb1b72a37356be38d8f60cefcf534cc9d0cafa Mon Sep 17 00:00:00 2001
+From 9df869e871aa8f8e59d1a8d09bd6540b0bb2f88e Mon Sep 17 00:00:00 2001
 From: Yang Guang <yang.guang5@zte.com.cn>
 Date: Wed, 30 Mar 2022 08:22:10 +0800
-Subject: [PATCH 36/46] selftests/seccomp: Add SKIP for failed unshare()
+Subject: [PATCH 35/44] selftests/seccomp: Add SKIP for failed unshare()
 
 Running the seccomp tests under the kernel with "defconfig"
 shouldn't fail. Because the CONFIG_USER_NS is not supported
@@ -3756,10 +3646,10 @@ index 4da905180f89..38839ad939f8 100644
 -- 
 2.36.1
 
-From d591f32a60c2d9e00b362650fbb115b80a01be9e Mon Sep 17 00:00:00 2001
+From 49b610e4b69326986e8abc994334ae8f80ffb5f6 Mon Sep 17 00:00:00 2001
 From: Sargun Dhillon <sargun@sargun.me>
 Date: Wed, 27 Apr 2022 18:54:46 -0700
-Subject: [PATCH 37/46] seccomp: Use FIFO semantics to order notifications
+Subject: [PATCH 36/44] seccomp: Use FIFO semantics to order notifications
 
 Previously, the seccomp notifier used LIFO semantics, where each
 notification would be added on top of the stack, and notifications
@@ -3792,10 +3682,10 @@ index b5ac87f6dbd4..3caa0fe85235 100644
 -- 
 2.36.1
 
-From 66f063a60fd95f3f82c659fd9748a8988ee54b1b Mon Sep 17 00:00:00 2001
+From 2e8431ab768c6151a7e1b5c35f580911dbd8fd7f Mon Sep 17 00:00:00 2001
 From: Sargun Dhillon <sargun@sargun.me>
 Date: Wed, 27 Apr 2022 18:54:47 -0700
-Subject: [PATCH 38/46] selftests/seccomp: Ensure that notifications come in
+Subject: [PATCH 37/44] selftests/seccomp: Ensure that notifications come in
  FIFO order
 
 When multiple notifications are waiting, ensure they show up in order, as
@@ -3935,10 +3825,10 @@ index 38839ad939f8..6001e9ecfaf5 100644
 -- 
 2.36.1
 
-From fb74aae231f9c6e48c0c144a17ce326b689a77c3 Mon Sep 17 00:00:00 2001
+From 807ccb4eb5ebbe00f4ef5fb1589484aceadb8ab9 Mon Sep 17 00:00:00 2001
 From: Sargun Dhillon <sargun@sargun.me>
 Date: Tue, 3 May 2022 01:09:56 -0700
-Subject: [PATCH 39/46] seccomp: Add wait_killable semantic to seccomp user
+Subject: [PATCH 38/44] seccomp: Add wait_killable semantic to seccomp user
  notifier
 
 This introduces a per-filter flag (SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV)
@@ -4130,10 +4020,10 @@ index 3caa0fe85235..e9852d1b4a5e 100644
 -- 
 2.36.1
 
-From 78fc9232ca349035811fcf08dfdf85744bf1bb04 Mon Sep 17 00:00:00 2001
+From ff0b3df75b50a1dc1d7c641b758fad7cb738230d Mon Sep 17 00:00:00 2001
 From: Sargun Dhillon <sargun@sargun.me>
 Date: Tue, 3 May 2022 01:09:57 -0700
-Subject: [PATCH 40/46] selftests/seccomp: Refactor get_proc_stat to split out
+Subject: [PATCH 39/44] selftests/seccomp: Refactor get_proc_stat to split out
  file reading code
 
 This splits up the get_proc_stat function to make it so we can use it as a
@@ -4234,10 +4124,10 @@ index 6001e9ecfaf5..e282f521f8d7 100644
 -- 
 2.36.1
 
-From 17cc26c0fba3f814a787cb507ec8deb8396fa0bf Mon Sep 17 00:00:00 2001
+From c3aa5fba6d6b8cb2729d2780ed48dd2ea62cce1c Mon Sep 17 00:00:00 2001
 From: Sargun Dhillon <sargun@sargun.me>
 Date: Tue, 3 May 2022 01:09:58 -0700
-Subject: [PATCH 41/46] selftests/seccomp: Add test for wait killable notifier
+Subject: [PATCH 40/44] selftests/seccomp: Add test for wait killable notifier
 
 This verifies that if a filter is set up with the wait killable feature
 that it obeys the semantics that non-fatal signals are ignored during
@@ -4517,10 +4407,10 @@ index e282f521f8d7..29c973f606b2 100644
 -- 
 2.36.1
 
-From 9cda99c601a925e913bf5dbdd25382b130e35483 Mon Sep 17 00:00:00 2001
+From b7f8b5ff03cd1207d42967922f4e8e00a099a652 Mon Sep 17 00:00:00 2001
 From: Colin Ian King <colin.i.king@gmail.com>
 Date: Wed, 4 May 2022 16:55:35 +0100
-Subject: [PATCH 42/46] selftests/seccomp: Fix spelling mistake "Coud" ->
+Subject: [PATCH 41/44] selftests/seccomp: Fix spelling mistake "Coud" ->
  "Could"
 
 There is a spelling mistake in an error message. Fix it.
@@ -4548,119 +4438,10 @@ index 29c973f606b2..136df5b76319 100644
 -- 
 2.36.1
 
-From a04d91d461819e4edf25ae7b085b063850e8411a Mon Sep 17 00:00:00 2001
-From: Niklas Cassel <niklas.cassel@wdc.com>
-Date: Thu, 14 Apr 2022 11:10:18 +0200
-Subject: [PATCH 43/46] binfmt_flat: do not stop relocating GOT entries
- prematurely on riscv
-
-bFLT binaries are usually created using elf2flt.
-
-The linker script used by elf2flt has defined the .data section like the
-following for the last 19 years:
-
-.data : {
-	_sdata = . ;
-	__data_start = . ;
-	data_start = . ;
-	*(.got.plt)
-	*(.got)
-	FILL(0) ;
-	. = ALIGN(0x20) ;
-	LONG(-1)
-	. = ALIGN(0x20) ;
-	...
-}
-
-It places the .got.plt input section before the .got input section.
-The same is true for the default linker script (ld --verbose) on most
-architectures except x86/x86-64.
-
-The binfmt_flat loader should relocate all GOT entries until it encounters
-a -1 (the LONG(-1) in the linker script).
-
-The problem is that the .got.plt input section starts with a GOTPLT header
-(which has size 16 bytes on elf64-riscv and 8 bytes on elf32-riscv), where
-the first word is set to -1. See the binutils implementation for riscv [1].
-
-This causes the binfmt_flat loader to stop relocating GOT entries
-prematurely and thus causes the application to crash when running.
-
-Fix this by skipping the whole GOTPLT header, since the whole GOTPLT header
-is reserved for the dynamic linker.
-
-The GOTPLT header will only be skipped for bFLT binaries with flag
-FLAT_FLAG_GOTPIC set. This flag is unconditionally set by elf2flt if the
-supplied ELF binary has the symbol _GLOBAL_OFFSET_TABLE_ defined.
-ELF binaries without a .got input section should thus remain unaffected.
-
-Tested on RISC-V Canaan Kendryte K210 and RISC-V QEMU nommu_virt_defconfig.
-
-[1] https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=bfd/elfnn-riscv.c;hb=binutils-2_38#l3275
-
-Cc: <stable@vger.kernel.org>
-Signed-off-by: Niklas Cassel <niklas.cassel@wdc.com>
-Reviewed-by: Damien Le Moal <damien.lemoal@opensource.wdc.com>
-Link: https://lore.kernel.org/r/20220414091018.896737-1-niklas.cassel@wdc.com
-Fixed-by: kernel test robot <lkp@intel.com>
-Link: https://lore.kernel.org/lkml/202204182333.OIUOotK8-lkp@intel.com
-Signed-off-by: Kees Cook <keescook@chromium.org>
----
- fs/binfmt_flat.c | 27 ++++++++++++++++++++++++++-
- 1 file changed, 26 insertions(+), 1 deletion(-)
-
-diff --git a/fs/binfmt_flat.c b/fs/binfmt_flat.c
-index 626898150011..dca0b6875f9c 100644
---- a/fs/binfmt_flat.c
-+++ b/fs/binfmt_flat.c
-@@ -440,6 +440,30 @@ static void old_reloc(unsigned long rl)
- 
- /****************************************************************************/
- 
-+static inline u32 __user *skip_got_header(u32 __user *rp)
-+{
-+	if (IS_ENABLED(CONFIG_RISCV)) {
-+		/*
-+		 * RISC-V has a 16 byte GOT PLT header for elf64-riscv
-+		 * and 8 byte GOT PLT header for elf32-riscv.
-+		 * Skip the whole GOT PLT header, since it is reserved
-+		 * for the dynamic linker (ld.so).
-+		 */
-+		u32 rp_val0, rp_val1;
-+
-+		if (get_user(rp_val0, rp))
-+			return rp;
-+		if (get_user(rp_val1, rp + 1))
-+			return rp;
-+
-+		if (rp_val0 == 0xffffffff && rp_val1 == 0xffffffff)
-+			rp += 4;
-+		else if (rp_val0 == 0xffffffff)
-+			rp += 2;
-+	}
-+	return rp;
-+}
-+
- static int load_flat_file(struct linux_binprm *bprm,
- 		struct lib_info *libinfo, int id, unsigned long *extra_stack)
- {
-@@ -789,7 +813,8 @@ static int load_flat_file(struct linux_binprm *bprm,
- 	 * image.
- 	 */
- 	if (flags & FLAT_FLAG_GOTPIC) {
--		for (rp = (u32 __user *)datapos; ; rp++) {
-+		rp = skip_got_header((u32 __user *) datapos);
-+		for (; ; rp++) {
- 			u32 addr, rp_val;
- 			if (get_user(rp_val, rp))
- 				return -EFAULT;
--- 
-2.36.1
-
-From aae1993ae71987f8246d11786d1135cf7eb98e1e Mon Sep 17 00:00:00 2001
+From 2e6806066ae07e8464097d41b62f37c5027976a5 Mon Sep 17 00:00:00 2001
 From: "Eric W. Biederman" <ebiederm@xmission.com>
 Date: Tue, 19 Apr 2022 09:16:41 -0500
-Subject: [PATCH 44/46] binfmt_flat: Drop vestiges of coredump support
+Subject: [PATCH 42/44] binfmt_flat: Drop vestiges of coredump support
 
 There is the briefest start of coredump support in binfmt_flat. It
 is actually a pain to maintain as binfmt_flat is not built on most
@@ -4726,10 +4507,10 @@ index dca0b6875f9c..c03563e20e24 100644
 -- 
 2.36.1
 
-From f0d1c6031ce142b4d1fa11310366841a7b479109 Mon Sep 17 00:00:00 2001
+From 8e4a1594ff720c5b7bdc77e5e107feb6ece5f96f Mon Sep 17 00:00:00 2001
 From: "Eric W. Biederman" <ebiederm@xmission.com>
 Date: Wed, 20 Apr 2022 09:58:03 -0500
-Subject: [PATCH 45/46] binfmt_flat: Remove shared library support
+Subject: [PATCH 43/44] binfmt_flat: Remove shared library support
 
 In a recent discussion[1] it was reported that the binfmt_flat library
 support was only ever used on m68k and even on m68k has not been used
@@ -5178,10 +4959,10 @@ index c03563e20e24..c26545d71d39 100644
 -- 
 2.36.1
 
-From db27fa20256fc6eaa482c6b487963e8ec406baaa Mon Sep 17 00:00:00 2001
+From f070aae1e8c3cfe4873fa17fabfab35a2a2d33bd Mon Sep 17 00:00:00 2001
 From: Masahiro Yamada <masahiroy@kernel.org>
 Date: Tue, 24 May 2022 22:55:41 +0900
-Subject: [PATCH 46/46] gcc-plugins: use KERNELVERSION for plugin version
+Subject: [PATCH 44/44] gcc-plugins: use KERNELVERSION for plugin version
 
 Commit 61f60bac8c05 ("gcc-plugins: Change all version strings match
 kernel") broke parallel builds.

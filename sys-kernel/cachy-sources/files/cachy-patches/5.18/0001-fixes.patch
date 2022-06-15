@@ -1,73 +1,51 @@
-From d95e1042a3e31c228afca74972e6e152fdb40afd Mon Sep 17 00:00:00 2001
+From 5b56a373ac27f405282b3dc154904d497491688b Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Mon, 30 May 2022 12:30:42 +0200
-Subject: [PATCH 1/3] fixes
+Date: Tue, 14 Jun 2022 19:01:14 +0200
+Subject: [PATCH] fixes
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
- Makefile                                      |   5 -
- arch/x86/boot/boot.h                          |  36 +-
- arch/x86/boot/main.c                          |   2 +-
- arch/x86/kernel/cpu/mce/amd.c                 |  32 +-
- drivers/cpufreq/intel_pstate.c                |   1 +
- drivers/infiniband/core/addr.c                |   1 +
- drivers/misc/lkdtm/heap.c                     |   1 +
- .../net/ethernet/aquantia/atlantic/aq_nic.c   |  17 +-
- drivers/net/ethernet/intel/igb/igb_ethtool.c  |   4 +-
- .../wireless/intel/iwlwifi/fw/api/dbg-tlv.h   |   4 +-
- .../net/wireless/intel/iwlwifi/fw/api/debug.h |   4 +-
- .../wireless/intel/iwlwifi/fw/api/filter.h    |   2 +-
- .../net/wireless/intel/iwlwifi/fw/api/scan.h  |   4 +-
- .../net/wireless/intel/iwlwifi/fw/api/sta.h   |   2 +-
- .../net/wireless/intel/iwlwifi/fw/api/tdls.h  |   2 +-
- .../wireless/intel/iwlwifi/fw/error-dump.h    |   2 +-
- drivers/net/wireless/intel/iwlwifi/fw/file.h  |  10 +-
- drivers/net/wireless/intel/iwlwifi/mei/sap.h  |   2 +-
- drivers/scsi/sd.c                             |  43 +-
- drivers/scsi/sd.h                             |   1 +
- drivers/tty/Kconfig                           |  13 +
- drivers/virtio/virtio_pci_common.c            |   3 +-
- fs/btrfs/acl.c                                |  39 +-
- fs/btrfs/check-integrity.c                    |   8 +-
- fs/btrfs/compression.c                        |  36 +-
- fs/btrfs/ctree.c                              |  57 +-
- fs/btrfs/ctree.h                              |  37 +-
- fs/btrfs/disk-io.c                            |  29 +-
- fs/btrfs/disk-io.h                            |   4 +-
- fs/btrfs/extent_io.c                          | 211 ++--
- fs/btrfs/extent_io.h                          |   5 +-
- fs/btrfs/inode.c                              | 958 +++++++++---------
- fs/btrfs/ioctl.c                              | 164 +--
- fs/btrfs/props.c                              |  40 +-
- fs/btrfs/props.h                              |   4 -
- fs/btrfs/qgroup.c                             |   2 +-
- fs/btrfs/raid56.c                             |  29 +-
- fs/btrfs/send.c                               | 133 ++-
- fs/btrfs/sysfs.c                              |  64 ++
- fs/btrfs/tree-log.c                           |   9 +-
- fs/btrfs/zstd.c                               |  14 +-
- fs/fs-writeback.c                             |  50 +-
- fs/inode.c                                    |   2 +-
- fs/xfs/xfs_filestream.c                       |   7 +-
- fs/xfs/xfs_inode.c                            |   2 +-
- include/acpi/actbl2.h                         |   2 +-
- include/asm-generic/vmlinux.lds.h             |  12 +-
- include/linux/nodemask.h                      |  13 +-
- include/linux/sched.h                         |  41 +
- include/net/sch_generic.h                     |  36 +-
- include/uapi/linux/vt.h                       |  15 +-
- kernel/cpu.c                                  |   1 +
- kernel/kcsan/kcsan_test.c                     |   5 +-
- kernel/sched/core.c                           |  24 +-
- kernel/sched/sched.h                          |  15 +-
- kernel/trace/trace.c                          |  14 +-
- kernel/workqueue.c                            |   2 +-
- mm/page_alloc.c                               |   4 +-
- net/sched/Kconfig                             |   4 +
- 60 files changed, 1270 insertions(+), 1044 deletions(-)
+ Makefile                                      |  5 --
+ arch/x86/boot/boot.h                          | 36 +++++++----
+ arch/x86/boot/main.c                          |  2 +-
+ arch/x86/kvm/emulate.c                        |  9 ++-
+ drivers/cpufreq/intel_pstate.c                |  1 +
+ drivers/infiniband/core/addr.c                |  1 +
+ drivers/misc/lkdtm/heap.c                     |  1 +
+ .../net/ethernet/aquantia/atlantic/aq_nic.c   | 17 +++---
+ drivers/net/ethernet/intel/igb/igb_ethtool.c  |  4 +-
+ .../wireless/intel/iwlwifi/fw/api/dbg-tlv.h   |  4 +-
+ .../net/wireless/intel/iwlwifi/fw/api/debug.h |  4 +-
+ .../wireless/intel/iwlwifi/fw/api/filter.h    |  2 +-
+ .../net/wireless/intel/iwlwifi/fw/api/scan.h  |  4 +-
+ .../net/wireless/intel/iwlwifi/fw/api/sta.h   |  2 +-
+ .../net/wireless/intel/iwlwifi/fw/api/tdls.h  |  2 +-
+ .../wireless/intel/iwlwifi/fw/error-dump.h    |  2 +-
+ drivers/net/wireless/intel/iwlwifi/fw/file.h  | 10 ++--
+ drivers/net/wireless/intel/iwlwifi/mei/sap.h  |  2 +-
+ drivers/nvme/host/pci.c                       |  5 +-
+ drivers/scsi/sd.c                             | 43 +++++++++++--
+ drivers/scsi/sd.h                             |  1 +
+ drivers/tty/Kconfig                           | 13 ++++
+ drivers/virtio/virtio_pci_common.c            |  3 +-
+ fs/xfs/xfs_filestream.c                       |  7 ++-
+ fs/xfs/xfs_inode.c                            |  2 +-
+ include/acpi/actbl2.h                         |  2 +-
+ include/asm-generic/vmlinux.lds.h             | 12 ++--
+ include/linux/sched.h                         | 41 +++++++++++++
+ include/uapi/linux/vt.h                       | 15 ++++-
+ kernel/cpu.c                                  |  1 +
+ kernel/kcsan/kcsan_test.c                     |  5 +-
+ kernel/sched/core.c                           | 60 ++++++++++++++++---
+ kernel/sched/sched.h                          | 20 ++++---
+ kernel/trace/trace.c                          | 14 ++---
+ kernel/workqueue.c                            |  2 +-
+ mm/swap.c                                     |  2 +-
+ net/sched/Kconfig                             |  4 ++
+ 37 files changed, 264 insertions(+), 96 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index e027df7e0313..ad148c86a72a 100644
+index 7578eff6b215..7119f7500c20 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -987,11 +987,6 @@ KBUILD_CFLAGS	+= -fno-strict-overflow
@@ -190,70 +168,42 @@ index e3add857c2c9..c421af5a3cdc 100644
  
  	BUILD_BUG_ON(sizeof(boot_params) != 4096);
  	memcpy(&boot_params.hdr, &hdr, sizeof(hdr));
-diff --git a/arch/x86/kernel/cpu/mce/amd.c b/arch/x86/kernel/cpu/mce/amd.c
-index 1940d305db1c..1c87501e0fa3 100644
---- a/arch/x86/kernel/cpu/mce/amd.c
-+++ b/arch/x86/kernel/cpu/mce/amd.c
-@@ -1294,10 +1294,23 @@ static void threshold_remove_bank(struct threshold_bank *bank)
- 	kfree(bank);
- }
+diff --git a/arch/x86/kvm/emulate.c b/arch/x86/kvm/emulate.c
+index 89b11e7dca8a..c58366ae4da2 100644
+--- a/arch/x86/kvm/emulate.c
++++ b/arch/x86/kvm/emulate.c
+@@ -247,6 +247,9 @@ enum x86_transfer_type {
  
-+static void __threshold_remove_device(struct threshold_bank **bp)
-+{
-+	unsigned int bank, numbanks = this_cpu_read(mce_num_banks);
-+
-+	for (bank = 0; bank < numbanks; bank++) {
-+		if (!bp[bank])
-+			continue;
-+
-+		threshold_remove_bank(bp[bank]);
-+		bp[bank] = NULL;
-+	}
-+	kfree(bp);
-+}
-+
- int mce_threshold_remove_device(unsigned int cpu)
+ static ulong reg_read(struct x86_emulate_ctxt *ctxt, unsigned nr)
  {
- 	struct threshold_bank **bp = this_cpu_read(threshold_banks);
--	unsigned int bank, numbanks = this_cpu_read(mce_num_banks);
++	if (WARN_ON_ONCE(nr >= 16))
++		nr &= 16 - 1;
++
+ 	if (!(ctxt->regs_valid & (1 << nr))) {
+ 		ctxt->regs_valid |= 1 << nr;
+ 		ctxt->_regs[nr] = ctxt->ops->read_gpr(ctxt, nr);
+@@ -256,6 +259,9 @@ static ulong reg_read(struct x86_emulate_ctxt *ctxt, unsigned nr)
  
- 	if (!bp)
- 		return 0;
-@@ -1308,13 +1321,7 @@ int mce_threshold_remove_device(unsigned int cpu)
- 	 */
- 	this_cpu_write(threshold_banks, NULL);
+ static ulong *reg_write(struct x86_emulate_ctxt *ctxt, unsigned nr)
+ {
++	if (WARN_ON_ONCE(nr >= 16))
++		nr &= 16 - 1;
++
+ 	ctxt->regs_valid |= 1 << nr;
+ 	ctxt->regs_dirty |= 1 << nr;
+ 	return &ctxt->_regs[nr];
+@@ -269,9 +275,10 @@ static ulong *reg_rmw(struct x86_emulate_ctxt *ctxt, unsigned nr)
  
--	for (bank = 0; bank < numbanks; bank++) {
--		if (bp[bank]) {
--			threshold_remove_bank(bp[bank]);
--			bp[bank] = NULL;
--		}
--	}
--	kfree(bp);
-+	__threshold_remove_device(bp);
- 	return 0;
+ static void writeback_registers(struct x86_emulate_ctxt *ctxt)
+ {
++	unsigned long dirty = ctxt->regs_dirty;
+ 	unsigned reg;
+ 
+-	for_each_set_bit(reg, (ulong *)&ctxt->regs_dirty, 16)
++	for_each_set_bit(reg, &dirty, 16)
+ 		ctxt->ops->write_gpr(ctxt, reg, ctxt->_regs[reg]);
  }
  
-@@ -1351,15 +1358,14 @@ int mce_threshold_create_device(unsigned int cpu)
- 		if (!(this_cpu_read(bank_map) & (1 << bank)))
- 			continue;
- 		err = threshold_create_bank(bp, cpu, bank);
--		if (err)
--			goto out_err;
-+		if (err) {
-+			__threshold_remove_device(bp);
-+			return err;
-+		}
- 	}
- 	this_cpu_write(threshold_banks, bp);
- 
- 	if (thresholding_irq_en)
- 		mce_threshold_vector = amd_threshold_interrupt;
- 	return 0;
--out_err:
--	mce_threshold_remove_device(cpu);
--	return err;
- }
 diff --git a/drivers/cpufreq/intel_pstate.c b/drivers/cpufreq/intel_pstate.c
 index 846bb3a78788..2216b24b6f84 100644
 --- a/drivers/cpufreq/intel_pstate.c
@@ -534,8 +484,24 @@ index 11e3009121cc..be1456dea484 100644
  };
  
  /**
+diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
+index 17aeb7d5c485..1c9b3e9d4345 100644
+--- a/drivers/nvme/host/pci.c
++++ b/drivers/nvme/host/pci.c
+@@ -3475,10 +3475,7 @@ static const struct pci_device_id nvme_id_table[] = {
+ 				NVME_QUIRK_128_BYTES_SQES |
+ 				NVME_QUIRK_SHARED_TAGS |
+ 				NVME_QUIRK_SKIP_CID_GEN },
+-	{ PCI_DEVICE(0x144d, 0xa808),   /* Samsung X5 */
+-		.driver_data =  NVME_QUIRK_DELAY_BEFORE_CHK_RDY|
+-				NVME_QUIRK_NO_DEEPEST_PS |
+-				NVME_QUIRK_IGNORE_DEV_SUBNQN, },
++
+ 	{ PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
+ 	{ 0, }
+ };
 diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
-index dc6e55761fd1..e7d38c3ebacb 100644
+index edc27a88a057..30777f9b8fce 100644
 --- a/drivers/scsi/sd.c
 +++ b/drivers/scsi/sd.c
 @@ -2843,7 +2843,6 @@ static void sd_read_app_tag_own(struct scsi_disk *sdkp, unsigned char *buffer)
@@ -673,195 +639,6 @@ index d724f676608b..5046efcffb4c 100644
  	}
  
  	if (vp_dev->msix_enabled) {
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 1fae0196292a..90050b4add7a 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -120,6 +120,7 @@ static bool inode_io_list_move_locked(struct inode *inode,
- 				      struct list_head *head)
- {
- 	assert_spin_locked(&wb->list_lock);
-+	assert_spin_locked(&inode->i_lock);
- 
- 	list_move(&inode->i_io_list, head);
- 
-@@ -1365,9 +1366,9 @@ static int move_expired_inodes(struct list_head *delaying_queue,
- 		inode = wb_inode(delaying_queue->prev);
- 		if (inode_dirtied_after(inode, dirtied_before))
- 			break;
-+		spin_lock(&inode->i_lock);
- 		list_move(&inode->i_io_list, &tmp);
- 		moved++;
--		spin_lock(&inode->i_lock);
- 		inode->i_state |= I_SYNC_QUEUED;
- 		spin_unlock(&inode->i_lock);
- 		if (sb_is_blkdev_sb(inode->i_sb))
-@@ -1383,7 +1384,12 @@ static int move_expired_inodes(struct list_head *delaying_queue,
- 		goto out;
- 	}
- 
--	/* Move inodes from one superblock together */
-+	/*
-+	 * Although inode's i_io_list is moved from 'tmp' to 'dispatch_queue',
-+	 * we don't take inode->i_lock here because it is just a pointless overhead.
-+	 * Inode is already marked as I_SYNC_QUEUED so writeback list handling is
-+	 * fully under our control.
-+	 */
- 	while (!list_empty(&tmp)) {
- 		sb = wb_inode(tmp.prev)->i_sb;
- 		list_for_each_prev_safe(pos, node, &tmp) {
-@@ -1779,11 +1785,12 @@ static long writeback_sb_inodes(struct super_block *sb,
- 	};
- 	unsigned long start_time = jiffies;
- 	long write_chunk;
--	long wrote = 0;  /* count both pages and inodes */
-+	long total_wrote = 0;  /* count both pages and inodes */
- 
- 	while (!list_empty(&wb->b_io)) {
- 		struct inode *inode = wb_inode(wb->b_io.prev);
- 		struct bdi_writeback *tmp_wb;
-+		long wrote;
- 
- 		if (inode->i_sb != sb) {
- 			if (work->sb) {
-@@ -1825,8 +1832,8 @@ static long writeback_sb_inodes(struct super_block *sb,
- 			 * We'll have another go at writing back this inode
- 			 * when we completed a full scan of b_io.
- 			 */
--			spin_unlock(&inode->i_lock);
- 			requeue_io(inode, wb);
-+			spin_unlock(&inode->i_lock);
- 			trace_writeback_sb_inodes_requeue(inode);
- 			continue;
- 		}
-@@ -1859,7 +1866,9 @@ static long writeback_sb_inodes(struct super_block *sb,
- 
- 		wbc_detach_inode(&wbc);
- 		work->nr_pages -= write_chunk - wbc.nr_to_write;
--		wrote += write_chunk - wbc.nr_to_write;
-+		wrote = write_chunk - wbc.nr_to_write - wbc.pages_skipped;
-+		wrote = wrote < 0 ? 0 : wrote;
-+		total_wrote += wrote;
- 
- 		if (need_resched()) {
- 			/*
-@@ -1881,7 +1890,7 @@ static long writeback_sb_inodes(struct super_block *sb,
- 		tmp_wb = inode_to_wb_and_lock_list(inode);
- 		spin_lock(&inode->i_lock);
- 		if (!(inode->i_state & I_DIRTY_ALL))
--			wrote++;
-+			total_wrote++;
- 		requeue_inode(inode, tmp_wb, &wbc);
- 		inode_sync_complete(inode);
- 		spin_unlock(&inode->i_lock);
-@@ -1895,14 +1904,14 @@ static long writeback_sb_inodes(struct super_block *sb,
- 		 * bail out to wb_writeback() often enough to check
- 		 * background threshold and other termination conditions.
- 		 */
--		if (wrote) {
-+		if (total_wrote) {
- 			if (time_is_before_jiffies(start_time + HZ / 10UL))
- 				break;
- 			if (work->nr_pages <= 0)
- 				break;
- 		}
- 	}
--	return wrote;
-+	return total_wrote;
- }
- 
- static long __writeback_inodes_wb(struct bdi_writeback *wb,
-@@ -2355,6 +2364,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
- {
- 	struct super_block *sb = inode->i_sb;
- 	int dirtytime = 0;
-+	struct bdi_writeback *wb = NULL;
- 
- 	trace_writeback_mark_inode_dirty(inode, flags);
- 
-@@ -2406,6 +2416,17 @@ void __mark_inode_dirty(struct inode *inode, int flags)
- 			inode->i_state &= ~I_DIRTY_TIME;
- 		inode->i_state |= flags;
- 
-+		/*
-+		 * Grab inode's wb early because it requires dropping i_lock and we
-+		 * need to make sure following checks happen atomically with dirty
-+		 * list handling so that we don't move inodes under flush worker's
-+		 * hands.
-+		 */
-+		if (!was_dirty) {
-+			wb = locked_inode_to_wb_and_lock_list(inode);
-+			spin_lock(&inode->i_lock);
-+		}
-+
- 		/*
- 		 * If the inode is queued for writeback by flush worker, just
- 		 * update its dirty state. Once the flush worker is done with
-@@ -2413,7 +2434,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
- 		 * list, based upon its state.
- 		 */
- 		if (inode->i_state & I_SYNC_QUEUED)
--			goto out_unlock_inode;
-+			goto out_unlock;
- 
- 		/*
- 		 * Only add valid (hashed) inodes to the superblock's
-@@ -2421,22 +2442,19 @@ void __mark_inode_dirty(struct inode *inode, int flags)
- 		 */
- 		if (!S_ISBLK(inode->i_mode)) {
- 			if (inode_unhashed(inode))
--				goto out_unlock_inode;
-+				goto out_unlock;
- 		}
- 		if (inode->i_state & I_FREEING)
--			goto out_unlock_inode;
-+			goto out_unlock;
- 
- 		/*
- 		 * If the inode was already on b_dirty/b_io/b_more_io, don't
- 		 * reposition it (that would break b_dirty time-ordering).
- 		 */
- 		if (!was_dirty) {
--			struct bdi_writeback *wb;
- 			struct list_head *dirty_list;
- 			bool wakeup_bdi = false;
- 
--			wb = locked_inode_to_wb_and_lock_list(inode);
--
- 			inode->dirtied_when = jiffies;
- 			if (dirtytime)
- 				inode->dirtied_time_when = jiffies;
-@@ -2450,6 +2468,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
- 							       dirty_list);
- 
- 			spin_unlock(&wb->list_lock);
-+			spin_unlock(&inode->i_lock);
- 			trace_writeback_dirty_inode_enqueue(inode);
- 
- 			/*
-@@ -2464,6 +2483,9 @@ void __mark_inode_dirty(struct inode *inode, int flags)
- 			return;
- 		}
- 	}
-+out_unlock:
-+	if (wb)
-+		spin_unlock(&wb->list_lock);
- out_unlock_inode:
- 	spin_unlock(&inode->i_lock);
- }
-diff --git a/fs/inode.c b/fs/inode.c
-index 9d9b422504d1..bd4da9c5207e 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -27,7 +27,7 @@
-  * Inode locking rules:
-  *
-  * inode->i_lock protects:
-- *   inode->i_state, inode->i_hash, __iget()
-+ *   inode->i_state, inode->i_hash, __iget(), inode->i_io_list
-  * Inode LRU list locks protect:
-  *   inode->i_sb->s_inode_lru, inode->i_lru
-  * inode->i_sb->s_inode_list_lock protects:
 diff --git a/fs/xfs/xfs_filestream.c b/fs/xfs/xfs_filestream.c
 index 6a3ce0f6dc9e..be9bcf8a1f99 100644
 --- a/fs/xfs/xfs_filestream.c
@@ -932,81 +709,58 @@ index 69138e9db787..7515a465ec03 100644
  
  /* The actual configuration determine if the init/exit sections
   * are handled as text/data or they can be discarded (which
-diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
-index 567c3ddba2c4..c6199dbe2591 100644
---- a/include/linux/nodemask.h
-+++ b/include/linux/nodemask.h
-@@ -375,14 +375,13 @@ static inline void __nodes_fold(nodemask_t *dstp, const nodemask_t *origp,
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index a8911b1f35aa..b3278f8184d5 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -2118,6 +2118,47 @@ static inline void cond_resched_rcu(void)
+ #endif
  }
  
- #if MAX_NUMNODES > 1
--#define for_each_node_mask(node, mask)			\
--	for ((node) = first_node(mask);			\
--		(node) < MAX_NUMNODES;			\
--		(node) = next_node((node), (mask)))
-+#define for_each_node_mask(node, mask)				    \
-+	for ((node) = first_node(mask);				    \
-+	     (node >= 0) && (node) < MAX_NUMNODES;		    \
-+	     (node) = next_node((node), (mask)))
- #else /* MAX_NUMNODES == 1 */
--#define for_each_node_mask(node, mask)			\
--	if (!nodes_empty(mask))				\
--		for ((node) = 0; (node) < 1; (node)++)
-+#define for_each_node_mask(node, mask)                                  \
-+	for ((node) = 0; (node) < 1 && !nodes_empty(mask); (node)++)
- #endif /* MAX_NUMNODES */
- 
++#ifdef CONFIG_PREEMPT_DYNAMIC
++
++extern bool preempt_model_none(void);
++extern bool preempt_model_voluntary(void);
++extern bool preempt_model_full(void);
++
++#else
++
++static inline bool preempt_model_none(void)
++{
++	return IS_ENABLED(CONFIG_PREEMPT_NONE);
++}
++static inline bool preempt_model_voluntary(void)
++{
++	return IS_ENABLED(CONFIG_PREEMPT_VOLUNTARY);
++}
++static inline bool preempt_model_full(void)
++{
++	return IS_ENABLED(CONFIG_PREEMPT);
++}
++
++#endif
++
++static inline bool preempt_model_rt(void)
++{
++	return IS_ENABLED(CONFIG_PREEMPT_RT);
++}
++
++/*
++ * Does the preemption model allow non-cooperative preemption?
++ *
++ * For !CONFIG_PREEMPT_DYNAMIC kernels this is an exact match with
++ * CONFIG_PREEMPTION; for CONFIG_PREEMPT_DYNAMIC this doesn't work as the
++ * kernel is *built* with CONFIG_PREEMPTION=y but may run with e.g. the
++ * PREEMPT_NONE model.
++ */
++static inline bool preempt_model_preemptible(void)
++{
++	return preempt_model_full() || preempt_model_rt();
++}
++
  /*
-diff --git a/include/net/sch_generic.h b/include/net/sch_generic.h
-index 9bab396c1f3b..80973ce820f3 100644
---- a/include/net/sch_generic.h
-+++ b/include/net/sch_generic.h
-@@ -187,37 +187,17 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
- 		if (spin_trylock(&qdisc->seqlock))
- 			return true;
- 
--		/* Paired with smp_mb__after_atomic() to make sure
--		 * STATE_MISSED checking is synchronized with clearing
--		 * in pfifo_fast_dequeue().
-+		/* No need to insist if the MISSED flag was already set.
-+		 * Note that test_and_set_bit() also gives us memory ordering
-+		 * guarantees wrt potential earlier enqueue() and below
-+		 * spin_trylock(), both of which are necessary to prevent races
- 		 */
--		smp_mb__before_atomic();
--
--		/* If the MISSED flag is set, it means other thread has
--		 * set the MISSED flag before second spin_trylock(), so
--		 * we can return false here to avoid multi cpus doing
--		 * the set_bit() and second spin_trylock() concurrently.
--		 */
--		if (test_bit(__QDISC_STATE_MISSED, &qdisc->state))
-+		if (test_and_set_bit(__QDISC_STATE_MISSED, &qdisc->state))
- 			return false;
- 
--		/* Set the MISSED flag before the second spin_trylock(),
--		 * if the second spin_trylock() return false, it means
--		 * other cpu holding the lock will do dequeuing for us
--		 * or it will see the MISSED flag set after releasing
--		 * lock and reschedule the net_tx_action() to do the
--		 * dequeuing.
--		 */
--		set_bit(__QDISC_STATE_MISSED, &qdisc->state);
--
--		/* spin_trylock() only has load-acquire semantic, so use
--		 * smp_mb__after_atomic() to ensure STATE_MISSED is set
--		 * before doing the second spin_trylock().
--		 */
--		smp_mb__after_atomic();
--
--		/* Retry again in case other CPU may not see the new flag
--		 * after it releases the lock at the end of qdisc_run_end().
-+		/* Try to take the lock again to make sure that we will either
-+		 * grab it or the CPU that still has it will see MISSED set
-+		 * when testing it in qdisc_run_end()
- 		 */
- 		return spin_trylock(&qdisc->seqlock);
- 	}
+  * Does a critical section need to be broken due to another
+  * task waiting?: (technically does not depend on CONFIG_PREEMPTION,
 diff --git a/include/uapi/linux/vt.h b/include/uapi/linux/vt.h
 index e9d39c48520a..3bceead8da40 100644
 --- a/include/uapi/linux/vt.h
@@ -1072,10 +826,10 @@ index a36fca063a73..767dfacd6ed3 100644
  
  		if (num_online_cpus() < min_required_cpus) {
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index d58c0389eb23..96f6a4f3ee92 100644
+index d815ea5a79b4..a6740344a2f3 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -2190,7 +2190,7 @@ void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
+@@ -2193,7 +2193,7 @@ void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
  {
  	if (p->sched_class == rq->curr->sched_class)
  		rq->curr->sched_class->check_preempt_curr(rq, p, flags);
@@ -1084,7 +838,66 @@ index d58c0389eb23..96f6a4f3ee92 100644
  		resched_curr(rq);
  
  	/*
-@@ -5689,7 +5689,7 @@ __pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -4764,25 +4764,55 @@ static void do_balance_callbacks(struct rq *rq, struct callback_head *head)
+ 
+ static void balance_push(struct rq *rq);
+ 
++/*
++ * balance_push_callback is a right abuse of the callback interface and plays
++ * by significantly different rules.
++ *
++ * Where the normal balance_callback's purpose is to be ran in the same context
++ * that queued it (only later, when it's safe to drop rq->lock again),
++ * balance_push_callback is specifically targeted at __schedule().
++ *
++ * This abuse is tolerated because it places all the unlikely/odd cases behind
++ * a single test, namely: rq->balance_callback == NULL.
++ */
+ struct callback_head balance_push_callback = {
+ 	.next = NULL,
+ 	.func = (void (*)(struct callback_head *))balance_push,
+ };
+ 
+-static inline struct callback_head *splice_balance_callbacks(struct rq *rq)
++static inline struct callback_head *
++__splice_balance_callbacks(struct rq *rq, bool split)
+ {
+ 	struct callback_head *head = rq->balance_callback;
+ 
++	if (likely(!head))
++		return NULL;
++
+ 	lockdep_assert_rq_held(rq);
+-	if (head)
++	/*
++	 * Must not take balance_push_callback off the list when
++	 * splice_balance_callbacks() and balance_callbacks() are not
++	 * in the same rq->lock section.
++	 *
++	 * In that case it would be possible for __schedule() to interleave
++	 * and observe the list empty.
++	 */
++	if (split && head == &balance_push_callback)
++		head = NULL;
++	else
+ 		rq->balance_callback = NULL;
+ 
+ 	return head;
+ }
+ 
++static inline struct callback_head *splice_balance_callbacks(struct rq *rq)
++{
++	return __splice_balance_callbacks(rq, true);
++}
++
+ static void __balance_callbacks(struct rq *rq)
+ {
+-	do_balance_callbacks(rq, splice_balance_callbacks(rq));
++	do_balance_callbacks(rq, __splice_balance_callbacks(rq, false));
+ }
+ 
+ static inline void balance_callbacks(struct rq *rq, struct callback_head *head)
+@@ -5698,7 +5728,7 @@ __pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  	 * higher scheduling class, because otherwise those lose the
  	 * opportunity to pull in more work from other CPUs.
  	 */
@@ -1093,7 +906,7 @@ index d58c0389eb23..96f6a4f3ee92 100644
  		   rq->nr_running == rq->cfs.h_nr_running)) {
  
  		p = pick_next_task_fair(rq, prev, rf);
-@@ -8415,6 +8415,18 @@ static void __init preempt_dynamic_init(void)
+@@ -8424,6 +8454,18 @@ static void __init preempt_dynamic_init(void)
  	}
  }
  
@@ -1112,7 +925,7 @@ index d58c0389eb23..96f6a4f3ee92 100644
  #else /* !CONFIG_PREEMPT_DYNAMIC */
  
  static inline void preempt_dynamic_init(void) { }
-@@ -9457,11 +9469,11 @@ void __init sched_init(void)
+@@ -9466,11 +9508,11 @@ void __init sched_init(void)
  	int i;
  
  	/* Make sure the linker didn't screw up */
@@ -1129,10 +942,22 @@ index d58c0389eb23..96f6a4f3ee92 100644
  
  	wait_bit_init();
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 8dccb34eb190..1234589ac1d1 100644
+index 59958f4ccce7..870d3d730920 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
-@@ -2182,6 +2182,8 @@ static inline void set_next_task(struct rq *rq, struct task_struct *next)
+@@ -1686,6 +1686,11 @@ queue_balance_callback(struct rq *rq,
+ {
+ 	lockdep_assert_rq_held(rq);
+ 
++	/*
++	 * Don't (re)queue an already queued item; nor queue anything when
++	 * balance_push() is active, see the comment with
++	 * balance_push_callback.
++	 */
+ 	if (unlikely(head->next || rq->balance_callback == &balance_push_callback))
+ 		return;
+ 
+@@ -2181,6 +2186,8 @@ static inline void set_next_task(struct rq *rq, struct task_struct *next)
   *
   *   include/asm-generic/vmlinux.lds.h
   *
@@ -1141,7 +966,7 @@ index 8dccb34eb190..1234589ac1d1 100644
   * Also enforce alignment on the instance, not the type, to guarantee layout.
   */
  #define DEFINE_SCHED_CLASS(name) \
-@@ -2190,17 +2192,16 @@ const struct sched_class name##_sched_class \
+@@ -2189,17 +2196,16 @@ const struct sched_class name##_sched_class \
  	__section("__" #name "_sched_class")
  
  /* Defined in include/asm-generic/vmlinux.lds.h */
@@ -1165,6 +990,32 @@ index 8dccb34eb190..1234589ac1d1 100644
  
  extern const struct sched_class stop_sched_class;
  extern const struct sched_class dl_sched_class;
+diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
+index 114c31bdf8f9..4b0354a89cb2 100644
+--- a/kernel/trace/trace.c
++++ b/kernel/trace/trace.c
+@@ -4291,17 +4291,11 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
+ 		   entries,
+ 		   total,
+ 		   buf->cpu,
+-#if defined(CONFIG_PREEMPT_NONE)
+-		   "server",
+-#elif defined(CONFIG_PREEMPT_VOLUNTARY)
+-		   "desktop",
+-#elif defined(CONFIG_PREEMPT)
+-		   "preempt",
+-#elif defined(CONFIG_PREEMPT_RT)
+-		   "preempt_rt",
+-#else
++		   preempt_model_none()      ? "server" :
++		   preempt_model_voluntary() ? "desktop" :
++		   preempt_model_full()      ? "preempt" :
++		   preempt_model_rt()        ? "preempt_rt" :
+ 		   "unknown",
+-#endif
+ 		   /* These are reserved for later use */
+ 		   0, 0, 0, 0);
+ #ifdef CONFIG_SMP
 diff --git a/kernel/workqueue.c b/kernel/workqueue.c
 index 0d2514b4ff0d..4056f2a3f9d5 100644
 --- a/kernel/workqueue.c
@@ -1178,21 +1029,19 @@ index 0d2514b4ff0d..4056f2a3f9d5 100644
  		}
  
  		mutex_unlock(&wq_pool_attach_mutex);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0e42038382c1..5ced6cb260ed 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5324,8 +5324,8 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
- 		page = __rmqueue_pcplist(zone, 0, ac.migratetype, alloc_flags,
- 								pcp, pcp_list);
- 		if (unlikely(!page)) {
--			/* Try and get at least one page */
--			if (!nr_populated)
-+			/* Try and allocate at least one page */
-+			if (!nr_account)
- 				goto failed_irq;
- 			break;
- 		}
+diff --git a/mm/swap.c b/mm/swap.c
+index 7e320ec08c6a..8a98d21d2786 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -881,7 +881,7 @@ void lru_cache_disable(void)
+ 	 * lru_disable_count = 0 will have exited the critical
+ 	 * section when synchronize_rcu() returns.
+ 	 */
+-	synchronize_rcu();
++	synchronize_rcu_expedited();
+ #ifdef CONFIG_SMP
+ 	__lru_add_drain_all(true);
+ #else
 diff --git a/net/sched/Kconfig b/net/sched/Kconfig
 index 1e8ab4749c6c..75122fd6506b 100644
 --- a/net/sched/Kconfig
@@ -1215,75 +1064,6 @@ index 1e8ab4749c6c..75122fd6506b 100644
  	default "pfifo_fast"
  endif
  
--- 
-2.36.1
-
-From ec30fb24d0071136499abe32144c75907733ee78 Mon Sep 17 00:00:00 2001
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Mon, 30 May 2022 09:45:38 +0200
-Subject: [PATCH 2/3] sched/autogroup: Fix sysctl move
-
-Ivan reported /proc/sys/kernel/sched_autogroup_enabled went walk-about
-and using the noautogroup command line parameter would result in a
-boot error message.
-
-Turns out the sysctl move placed the init function wrong.
-
-Fixes: c8eaf6ac76f4 ("sched: move autogroup sysctls into its own file")
-Reported-by: Ivan Kozik <ivan@ludios.org>
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Tested-by: Ivan Kozik <ivan@ludios.org>
-Link: https://lkml.kernel.org/r/YpR2IqndgsyMzN00@worktop.programming.kicks-ass.net
----
- kernel/sched/autogroup.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/kernel/sched/autogroup.c b/kernel/sched/autogroup.c
-index 16092b49ff6a..4ebaf97f7bd8 100644
---- a/kernel/sched/autogroup.c
-+++ b/kernel/sched/autogroup.c
-@@ -36,6 +36,7 @@ void __init autogroup_init(struct task_struct *init_task)
- 	kref_init(&autogroup_default.kref);
- 	init_rwsem(&autogroup_default.lock);
- 	init_task->signal->autogroup = &autogroup_default;
-+	sched_autogroup_sysctl_init();
- }
- 
- void autogroup_free(struct task_group *tg)
-@@ -219,7 +220,6 @@ void sched_autogroup_exit(struct signal_struct *sig)
- static int __init setup_autogroup(char *str)
- {
- 	sysctl_sched_autogroup_enabled = 0;
--	sched_autogroup_sysctl_init();
- 
- 	return 1;
- }
--- 
-2.36.1
-
-From 83c208d084b9a1cf8407f0fd152e2aab28ea15e4 Mon Sep 17 00:00:00 2001
-From: Peter Jung <admin@ptr1337.dev>
-Date: Wed, 1 Jun 2022 23:55:40 +0200
-Subject: [PATCH 3/3] numa-fix
-
-Signed-off-by: Peter Jung <admin@ptr1337.dev>
----
- mm/swap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/swap.c b/mm/swap.c
-index 7e320ec08c6a..8a98d21d2786 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -881,7 +881,7 @@ void lru_cache_disable(void)
- 	 * lru_disable_count = 0 will have exited the critical
- 	 * section when synchronize_rcu() returns.
- 	 */
--	synchronize_rcu();
-+	synchronize_rcu_expedited();
- #ifdef CONFIG_SMP
- 	__lru_add_drain_all(true);
- #else
 -- 
 2.36.1
 
