@@ -35,7 +35,7 @@ S="${WORKDIR}/${P}"
 
 src_install() {
 	distutils-r1_src_install
-	mv "${ED}/usr/share/doc/nicotine" "${ED}/usr/share/doc/${PF}" || die
+#	mv "${ED}/usr/share/doc/nicotine" "${ED}/usr/share/doc/${PF}" || die
 }
 
 pkg_postinst() {
