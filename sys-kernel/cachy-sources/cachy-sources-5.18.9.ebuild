@@ -31,7 +31,7 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/cachy-patches/5.18/0001-lrng.patch
 						${FILESDIR}/cachy-patches/5.18/0001-rcu.patch
 						${FILESDIR}/cachy-patches/5.18/0001-misc.patch
-						${FILESDIR}/cachy-patches/5.18/sched/0001-tt-5.18.patch
+						${FILESDIR}/cachy-patches/5.18/sched/0001-tt-cachy-5.18.patch
 						${FILESDIR}/maple-tree-v2-5.18.patch"
 
 	kernel-2-src-prepare-overlay_src_unpack
