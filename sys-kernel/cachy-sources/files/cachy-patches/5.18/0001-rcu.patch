@@ -1,9 +1,12 @@
-From ba1235f762ab025bb67b3fdf9900ba035d2c84d5 Mon Sep 17 00:00:00 2001
+From ee36d681f41a930f9295851630493ef62573ce1a Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Fri, 24 Jun 2022 06:00:09 +0200
-Subject: [PATCH] rcu
+Date: Fri, 1 Jul 2022 11:08:51 +0200
+Subject: [PATCH 10/13] rcu
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
+(cherry picked from commit d6d2deb6739188e998ea021102f655f9b0e8ff20)
+(cherry picked from commit c734142d761a47c95033c9843559348d600b3599)
+(cherry picked from commit b9f2da3f78d67f9a725dec4ba233c8fb9d6ec9fd)
 ---
  kernel/rcu/Kconfig       |  29 +++++
  kernel/rcu/tasks.h       |  28 +++--
@@ -731,5 +734,5 @@ index 8360d86db1c0..d67d5d585eb8 100644
  {
  }
 -- 
-2.37.0.rc2.138.g5c70b8d9af
+2.37.0
 

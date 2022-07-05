@@ -1,7 +1,7 @@
-From 0a85e017c074c9022e1270a997383a5077df618c Mon Sep 17 00:00:00 2001
+From 7c965cee36ed25fb130be666caa5b021bcdce870 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Fri, 24 Jun 2022 23:26:41 +0200
-Subject: [PATCH] bcachefs-after-lru
+Date: Sat, 2 Jul 2022 03:37:00 +0200
+Subject: [PATCH 13/13] bcachefs-after-lru
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -29,7 +29,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  fs/bcachefs/Makefile                          |   68 +
  fs/bcachefs/acl.c                             |  406 ++
  fs/bcachefs/acl.h                             |   58 +
- fs/bcachefs/alloc_background.c                | 1577 ++++++++
+ fs/bcachefs/alloc_background.c                | 1600 ++++++++
  fs/bcachefs/alloc_background.h                |  181 +
  fs/bcachefs/alloc_foreground.c                | 1282 ++++++
  fs/bcachefs/alloc_foreground.h                |  173 +
@@ -82,7 +82,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  fs/bcachefs/counters.c                        |  107 +
  fs/bcachefs/counters.h                        |   17 +
  fs/bcachefs/darray.h                          |   77 +
- fs/bcachefs/data_update.c                     |  371 ++
+ fs/bcachefs/data_update.c                     |  379 ++
  fs/bcachefs/data_update.h                     |   38 +
  fs/bcachefs/debug.c                           |  707 ++++
  fs/bcachefs/debug.h                           |   30 +
@@ -103,7 +103,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  fs/bcachefs/extents_types.h                   |   40 +
  fs/bcachefs/eytzinger.h                       |  281 ++
  fs/bcachefs/fifo.h                            |  127 +
- fs/bcachefs/fs-common.c                       |  494 +++
+ fs/bcachefs/fs-common.c                       |  496 +++
  fs/bcachefs/fs-common.h                       |   43 +
  fs/bcachefs/fs-io.c                           | 3496 +++++++++++++++++
  fs/bcachefs/fs-io.h                           |   56 +
@@ -113,8 +113,8 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  fs/bcachefs/fs.h                              |  208 +
  fs/bcachefs/fsck.c                            | 2413 ++++++++++++
  fs/bcachefs/fsck.h                            |    8 +
- fs/bcachefs/inode.c                           |  738 ++++
- fs/bcachefs/inode.h                           |  203 +
+ fs/bcachefs/inode.c                           |  771 ++++
+ fs/bcachefs/inode.h                           |  189 +
  fs/bcachefs/io.c                              | 2417 ++++++++++++
  fs/bcachefs/io.h                              |  189 +
  fs/bcachefs/io_types.h                        |  161 +
@@ -136,8 +136,8 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  fs/bcachefs/lru.h                             |   19 +
  fs/bcachefs/migrate.c                         |  193 +
  fs/bcachefs/migrate.h                         |    7 +
- fs/bcachefs/move.c                            |  943 +++++
- fs/bcachefs/move.h                            |   66 +
+ fs/bcachefs/move.c                            |  951 +++++
+ fs/bcachefs/move.h                            |   67 +
  fs/bcachefs/move_types.h                      |   19 +
  fs/bcachefs/movinggc.c                        |  282 ++
  fs/bcachefs/movinggc.h                        |    9 +
@@ -172,7 +172,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  fs/bcachefs/tests.c                           |  947 +++++
  fs/bcachefs/tests.h                           |   15 +
  fs/bcachefs/trace.c                           |   12 +
- fs/bcachefs/util.c                            |  957 +++++
+ fs/bcachefs/util.c                            |  958 +++++
  fs/bcachefs/util.h                            |  783 ++++
  fs/bcachefs/varint.c                          |  121 +
  fs/bcachefs/varint.h                          |   11 +
@@ -194,7 +194,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  include/linux/list_bl.h                       |   22 +
  include/linux/lockdep.h                       |    4 +
  include/linux/pretty-printers.h               |   10 +
- include/linux/printbuf.h                      |  257 ++
+ include/linux/printbuf.h                      |  283 ++
  include/linux/sched.h                         |    1 +
  include/linux/seq_buf.h                       |  162 -
  include/linux/shrinker.h                      |    8 +
@@ -204,13 +204,13 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  include/linux/trace_events.h                  |    2 +-
  include/linux/trace_seq.h                     |   17 +-
  include/linux/vmalloc.h                       |    1 +
- include/trace/events/bcachefs.h               | 1017 +++++
+ include/trace/events/bcachefs.h               | 1020 +++++
  init/init_task.c                              |    1 +
  kernel/Kconfig.locks                          |    3 +
  kernel/locking/Makefile                       |    1 +
  kernel/locking/lockdep.c                      |   20 +
  kernel/locking/six.c                          |  759 ++++
- kernel/module.c                               |    4 +-
+ kernel/module/main.c                          |    4 +-
  kernel/trace/trace.c                          |   45 +-
  kernel/trace/trace_dynevent.c                 |   34 +-
  kernel/trace/trace_events_filter.c            |    2 +-
@@ -230,7 +230,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  lib/string_helpers.c                          |  224 +-
  lib/test_hexdump.c                            |   30 +-
  lib/test_printf.c                             |   33 +-
- lib/vsprintf.c                                | 1723 ++++----
+ lib/vsprintf.c                                | 1740 ++++----
  mm/Makefile                                   |    2 +-
  mm/filemap.c                                  |    1 +
  mm/memcontrol.c                               |   68 +-
@@ -242,7 +242,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  mm/vmalloc.c                                  |   21 +
  mm/vmscan.c                                   |   88 +
  tools/testing/nvdimm/test/ndtest.c            |   22 +-
- 237 files changed, 83709 insertions(+), 2161 deletions(-)
+ 237 files changed, 83816 insertions(+), 2162 deletions(-)
  create mode 100644 fs/bcachefs/Kconfig
  create mode 100644 fs/bcachefs/Makefile
  create mode 100644 fs/bcachefs/acl.c
@@ -408,10 +408,10 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  create mode 100644 lib/pretty-printers.c
  create mode 100644 lib/printbuf.c
  delete mode 100644 lib/seq_buf.c
- rename {lib => mm}/show_mem.c (84%)
+ rename {lib => mm}/show_mem.c (83%)
 
 diff --git a/Documentation/core-api/printk-formats.rst b/Documentation/core-api/printk-formats.rst
-index 5e89497ba314..8fc0b62af158 100644
+index 5e89497ba314..4f4a35b3aadc 100644
 --- a/Documentation/core-api/printk-formats.rst
 +++ b/Documentation/core-api/printk-formats.rst
 @@ -625,6 +625,28 @@ Examples::
@@ -435,16 +435,16 @@ index 5e89497ba314..8fc0b62af158 100644
 +                pr_buf(out, "bar=%u baz=%u", foo->bar, foo->baz);
 +        }
 +
-+        printf("%pf(%p)", foo_to_text, foo);
++        printf("%pf(%p)", CALL_PP(foo_to_text, foo));
 +
-+Note that a pretty-printer may not sleep, if called from printk(). If called
-+from pr_buf() or sprintf() there are no such restrictions.
++Note that a pretty-printer may not sleep if called from printk(). If called from
++pr_buf() or sprintf() there are no such restrictions.
 +
  Thanks
  ======
  
 diff --git a/arch/powerpc/kernel/process.c b/arch/powerpc/kernel/process.c
-index a75d20f23dac..02769353d3c8 100644
+index 9be279469a85..4212864c81d5 100644
 --- a/arch/powerpc/kernel/process.c
 +++ b/arch/powerpc/kernel/process.c
 @@ -39,7 +39,7 @@
@@ -880,7 +880,7 @@ index d3ca79c3ebdf..8779a80f8156 100644
  static inline bool bio_remaining_done(struct bio *bio)
  {
 diff --git a/block/blk-core.c b/block/blk-core.c
-index 80a091af2bea..56ebcaeb009f 100644
+index e5f4471b65a8..17cb27cdfb16 100644
 --- a/block/blk-core.c
 +++ b/block/blk-core.c
 @@ -207,6 +207,7 @@ const char *blk_status_to_str(blk_status_t status)
@@ -1840,10 +1840,10 @@ index 000000000000..2d76a4897ba8
 +#endif /* _BCACHEFS_ACL_H */
 diff --git a/fs/bcachefs/alloc_background.c b/fs/bcachefs/alloc_background.c
 new file mode 100644
-index 000000000000..5467f76ec77d
+index 000000000000..738567173431
 --- /dev/null
 +++ b/fs/bcachefs/alloc_background.c
-@@ -0,0 +1,1577 @@
+@@ -0,0 +1,1600 @@
 +// SPDX-License-Identifier: GPL-2.0
 +#include "bcachefs.h"
 +#include "alloc_background.h"
@@ -2531,21 +2531,23 @@ index 000000000000..5467f76ec77d
 +}
 +
 +static int bch2_check_alloc_key(struct btree_trans *trans,
-+				struct btree_iter *alloc_iter)
++				struct btree_iter *alloc_iter,
++				struct btree_iter *discard_iter,
++				struct btree_iter *freespace_iter)
 +{
 +	struct bch_fs *c = trans->c;
 +	struct bch_dev *ca;
-+	struct btree_iter discard_iter, freespace_iter;
 +	struct bch_alloc_v4 a;
 +	unsigned discard_key_type, freespace_key_type;
 +	struct bkey_s_c alloc_k, k;
 +	struct printbuf buf = PRINTBUF;
-+	struct printbuf buf2 = PRINTBUF;
 +	int ret;
 +
-+	alloc_k = bch2_btree_iter_peek(alloc_iter);
++	alloc_k = bch2_dev_bucket_exists(c, alloc_iter->pos)
++		? bch2_btree_iter_peek_slot(alloc_iter)
++		: bch2_btree_iter_peek(alloc_iter);
 +	if (!alloc_k.k)
-+		return 0;
++		return 1;
 +
 +	ret = bkey_err(alloc_k);
 +	if (ret)
@@ -2567,12 +2569,10 @@ index 000000000000..5467f76ec77d
 +	freespace_key_type = a.data_type == BCH_DATA_free
 +		? KEY_TYPE_set : 0;
 +
-+	bch2_trans_iter_init(trans, &discard_iter, BTREE_ID_need_discard,
-+			     alloc_k.k->p, 0);
-+	bch2_trans_iter_init(trans, &freespace_iter, BTREE_ID_freespace,
-+			     alloc_freespace_pos(alloc_k.k->p, a), 0);
++	bch2_btree_iter_set_pos(discard_iter, alloc_k.k->p);
++	bch2_btree_iter_set_pos(freespace_iter, alloc_freespace_pos(alloc_k.k->p, a));
 +
-+	k = bch2_btree_iter_peek_slot(&discard_iter);
++	k = bch2_btree_iter_peek_slot(discard_iter);
 +	ret = bkey_err(k);
 +	if (ret)
 +		goto err;
@@ -2592,14 +2592,14 @@ index 000000000000..5467f76ec77d
 +
 +		bkey_init(&update->k);
 +		update->k.type	= discard_key_type;
-+		update->k.p	= discard_iter.pos;
++		update->k.p	= discard_iter->pos;
 +
-+		ret = bch2_trans_update(trans, &discard_iter, update, 0);
++		ret = bch2_trans_update(trans, discard_iter, update, 0);
 +		if (ret)
 +			goto err;
 +	}
 +
-+	k = bch2_btree_iter_peek_slot(&freespace_iter);
++	k = bch2_btree_iter_peek_slot(freespace_iter);
 +	ret = bkey_err(k);
 +	if (ret)
 +		goto err;
@@ -2620,18 +2620,15 @@ index 000000000000..5467f76ec77d
 +
 +		bkey_init(&update->k);
 +		update->k.type	= freespace_key_type;
-+		update->k.p	= freespace_iter.pos;
++		update->k.p	= freespace_iter->pos;
 +		bch2_key_resize(&update->k, 1);
 +
-+		ret = bch2_trans_update(trans, &freespace_iter, update, 0);
++		ret = bch2_trans_update(trans, freespace_iter, update, 0);
 +		if (ret)
 +			goto err;
 +	}
 +err:
 +fsck_err:
-+	bch2_trans_iter_exit(trans, &freespace_iter);
-+	bch2_trans_iter_exit(trans, &discard_iter);
-+	printbuf_exit(&buf2);
 +	printbuf_exit(&buf);
 +	return ret;
 +}
@@ -2701,48 +2698,64 @@ index 000000000000..5467f76ec77d
 +int bch2_check_alloc_info(struct bch_fs *c)
 +{
 +	struct btree_trans trans;
-+	struct btree_iter iter;
-+	struct bkey_s_c k;
++	struct btree_iter iter, discard_iter, freespace_iter;
 +	int ret = 0;
 +
 +	bch2_trans_init(&trans, c, 0, 0);
 +
-+	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
-+			   BTREE_ITER_PREFETCH, k, ret) {
-+		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
-+			bch2_check_alloc_key(&trans, &iter));
++	bch2_trans_iter_init(&trans, &iter, BTREE_ID_alloc, POS_MIN,
++			     BTREE_ITER_PREFETCH);
++	bch2_trans_iter_init(&trans, &discard_iter, BTREE_ID_need_discard, POS_MIN,
++			     BTREE_ITER_PREFETCH);
++	bch2_trans_iter_init(&trans, &freespace_iter, BTREE_ID_freespace, POS_MIN,
++			     BTREE_ITER_PREFETCH);
++	while (1) {
++		ret = __bch2_trans_do(&trans, NULL, NULL,
++				      BTREE_INSERT_NOFAIL|
++				      BTREE_INSERT_LAZY_RW,
++			bch2_check_alloc_key(&trans, &iter,
++					     &discard_iter,
++					     &freespace_iter));
 +		if (ret)
 +			break;
++
++		bch2_btree_iter_advance(&iter);
 +	}
++	bch2_trans_iter_exit(&trans, &freespace_iter);
++	bch2_trans_iter_exit(&trans, &discard_iter);
 +	bch2_trans_iter_exit(&trans, &iter);
 +
-+	if (ret)
++	if (ret < 0)
 +		goto err;
 +
 +	bch2_trans_iter_init(&trans, &iter, BTREE_ID_need_discard, POS_MIN,
 +			     BTREE_ITER_PREFETCH);
 +	while (1) {
-+		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
++		ret = __bch2_trans_do(&trans, NULL, NULL,
++				      BTREE_INSERT_NOFAIL|
++				      BTREE_INSERT_LAZY_RW,
 +			bch2_check_discard_freespace_key(&trans, &iter));
 +		if (ret)
 +			break;
 +
-+		bch2_btree_iter_set_pos(&iter, bpos_nosnap_successor(iter.pos));
++		bch2_btree_iter_advance(&iter);
 +	}
 +	bch2_trans_iter_exit(&trans, &iter);
 +
-+	if (ret)
++	if (ret < 0)
 +		goto err;
 +
 +	bch2_trans_iter_init(&trans, &iter, BTREE_ID_freespace, POS_MIN,
 +			     BTREE_ITER_PREFETCH);
 +	while (1) {
-+		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
++		ret = __bch2_trans_do(&trans, NULL, NULL,
++				      BTREE_INSERT_NOFAIL|
++				      BTREE_INSERT_LAZY_RW,
 +			bch2_check_discard_freespace_key(&trans, &iter));
 +		if (ret)
 +			break;
 +
-+		bch2_btree_iter_set_pos(&iter, bpos_nosnap_successor(iter.pos));
++		bch2_btree_iter_advance(&iter);
 +	}
 +	bch2_trans_iter_exit(&trans, &iter);
 +err:
@@ -3002,7 +3015,8 @@ index 000000000000..5467f76ec77d
 +		percpu_ref_put(&c->writes);
 +}
 +
-+static int invalidate_one_bucket(struct btree_trans *trans, struct bch_dev *ca)
++static int invalidate_one_bucket(struct btree_trans *trans, struct bch_dev *ca,
++				 struct bpos *bucket_pos, unsigned *cached_sectors)
 +{
 +	struct bch_fs *c = trans->c;
 +	struct btree_iter lru_iter, alloc_iter = { NULL };
@@ -3020,8 +3034,10 @@ index 000000000000..5467f76ec77d
 +	if (ret)
 +		goto out;
 +
-+	if (!k.k || k.k->p.inode != ca->dev_idx)
++	if (!k.k || k.k->p.inode != ca->dev_idx) {
++		ret = 1;
 +		goto out;
++	}
 +
 +	if (k.k->type != KEY_TYPE_lru) {
 +		prt_printf(&buf, "non lru key in lru btree:\n  ");
@@ -3041,8 +3057,9 @@ index 000000000000..5467f76ec77d
 +	idx	= k.k->p.offset;
 +	bucket	= le64_to_cpu(bkey_s_c_to_lru(k).v->idx);
 +
-+	a = bch2_trans_start_alloc_update(trans, &alloc_iter,
-+					  POS(ca->dev_idx, bucket));
++	*bucket_pos = POS(ca->dev_idx, bucket);
++
++	a = bch2_trans_start_alloc_update(trans, &alloc_iter, *bucket_pos);
 +	ret = PTR_ERR_OR_ZERO(a);
 +	if (ret)
 +		goto out;
@@ -3064,6 +3081,11 @@ index 000000000000..5467f76ec77d
 +		}
 +	}
 +
++	if (!a->v.cached_sectors)
++		bch_err(c, "invalidating empty bucket, confused");
++
++	*cached_sectors = a->v.cached_sectors;
++
 +	SET_BCH_ALLOC_V4_NEED_INC_GEN(&a->v, false);
 +	a->v.gen++;
 +	a->v.data_type		= 0;
@@ -3076,8 +3098,6 @@ index 000000000000..5467f76ec77d
 +				BTREE_TRIGGER_BUCKET_INVALIDATE);
 +	if (ret)
 +		goto out;
-+
-+	trace_invalidate_bucket(c, a->k.p.inode, a->k.p.offset);
 +out:
 +	bch2_trans_iter_exit(trans, &alloc_iter);
 +	bch2_trans_iter_exit(trans, &lru_iter);
@@ -3090,7 +3110,8 @@ index 000000000000..5467f76ec77d
 +	struct bch_fs *c = container_of(work, struct bch_fs, invalidate_work);
 +	struct bch_dev *ca;
 +	struct btree_trans trans;
-+	unsigned i;
++	struct bpos bucket;
++	unsigned i, sectors;
 +	int ret = 0;
 +
 +	bch2_trans_init(&trans, c, 0, 0);
@@ -3103,10 +3124,12 @@ index 000000000000..5467f76ec77d
 +			ret = __bch2_trans_do(&trans, NULL, NULL,
 +					      BTREE_INSERT_USE_RESERVE|
 +					      BTREE_INSERT_NOFAIL,
-+					invalidate_one_bucket(&trans, ca));
++					invalidate_one_bucket(&trans, ca, &bucket,
++							      &sectors));
 +			if (ret)
 +				break;
 +
++			trace_invalidate_bucket(c, bucket.inode, bucket.offset, sectors);
 +			this_cpu_inc(c->counters[BCH_COUNTER_bucket_invalidate]);
 +		}
 +	}
@@ -36428,10 +36451,10 @@ index 000000000000..519ab9b96e67
 +#endif /* _BCACHEFS_DARRAY_H */
 diff --git a/fs/bcachefs/data_update.c b/fs/bcachefs/data_update.c
 new file mode 100644
-index 000000000000..3e7d684a88f7
+index 000000000000..cc9ae6dad0d5
 --- /dev/null
 +++ b/fs/bcachefs/data_update.c
-@@ -0,0 +1,371 @@
+@@ -0,0 +1,379 @@
 +// SPDX-License-Identifier: GPL-2.0
 +
 +#include "bcachefs.h"
@@ -36685,6 +36708,14 @@ index 000000000000..3e7d684a88f7
 +		}
 +		continue;
 +nomatch:
++		if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG)) {
++			struct printbuf buf = PRINTBUF;
++
++			bch2_bkey_val_to_text(&buf, c, old);
++			bch_info(c, "no match for %s", buf.buf);
++			printbuf_exit(&buf);
++		}
++
 +		if (m->ctxt) {
 +			BUG_ON(k.k->p.offset <= iter.pos.offset);
 +			atomic64_inc(&m->ctxt->stats->keys_raced);
@@ -43981,10 +44012,10 @@ index 000000000000..cdb272708a4b
 +#endif /* _BCACHEFS_FIFO_H */
 diff --git a/fs/bcachefs/fs-common.c b/fs/bcachefs/fs-common.c
 new file mode 100644
-index 000000000000..d543480be111
+index 000000000000..53ffc684223c
 --- /dev/null
 +++ b/fs/bcachefs/fs-common.c
-@@ -0,0 +1,494 @@
+@@ -0,0 +1,496 @@
 +// SPDX-License-Identifier: GPL-2.0
 +
 +#include "bcachefs.h"
@@ -44191,7 +44222,9 @@ index 000000000000..d543480be111
 +		goto err;
 +
 +	inode_u->bi_ctime = now;
-+	bch2_inode_nlink_inc(inode_u);
++	ret = bch2_inode_nlink_inc(inode_u);
++	if (ret)
++		return ret;
 +
 +	ret = bch2_inode_peek(trans, &dir_iter, dir_u, dir, BTREE_ITER_INTENT);
 +	if (ret)
@@ -44284,7 +44317,7 @@ index 000000000000..d543480be111
 +		if (ret)
 +			goto err;
 +	} else {
-+		bch2_inode_nlink_dec(inode_u);
++		bch2_inode_nlink_dec(trans, inode_u);
 +	}
 +
 +	if (inode_u->bi_dir		== dirent_iter.pos.inode &&
@@ -44449,7 +44482,7 @@ index 000000000000..d543480be111
 +	}
 +
 +	if (mode == BCH_RENAME_OVERWRITE)
-+		bch2_inode_nlink_dec(dst_inode_u);
++		bch2_inode_nlink_dec(trans, dst_inode_u);
 +
 +	src_dir_u->bi_mtime		= now;
 +	src_dir_u->bi_ctime		= now;
@@ -53302,10 +53335,10 @@ index 000000000000..264f2706b12d
 +#endif /* _BCACHEFS_FSCK_H */
 diff --git a/fs/bcachefs/inode.c b/fs/bcachefs/inode.c
 new file mode 100644
-index 000000000000..88d83d91546a
+index 000000000000..6a2b94908371
 --- /dev/null
 +++ b/fs/bcachefs/inode.c
-@@ -0,0 +1,738 @@
+@@ -0,0 +1,771 @@
 +// SPDX-License-Identifier: GPL-2.0
 +
 +#include "bcachefs.h"
@@ -54044,12 +54077,45 @@ index 000000000000..88d83d91546a
 +	return bch2_trans_do(c, NULL, NULL, 0,
 +		bch2_inode_find_by_inum_trans(&trans, inum, inode));
 +}
++
++int bch2_inode_nlink_inc(struct bch_inode_unpacked *bi)
++{
++	if (bi->bi_flags & BCH_INODE_UNLINKED)
++		bi->bi_flags &= ~BCH_INODE_UNLINKED;
++	else {
++		if (bi->bi_nlink == U32_MAX)
++			return -EINVAL;
++
++		bi->bi_nlink++;
++	}
++
++	return 0;
++}
++
++void bch2_inode_nlink_dec(struct btree_trans *trans, struct bch_inode_unpacked *bi)
++{
++	if (bi->bi_nlink && (bi->bi_flags & BCH_INODE_UNLINKED)) {
++		bch2_trans_inconsistent(trans, "inode %llu unlinked but link count nonzero",
++					bi->bi_inum);
++		return;
++	}
++
++	if (bi->bi_flags & BCH_INODE_UNLINKED) {
++		bch2_trans_inconsistent(trans, "inode %llu link count underflow", bi->bi_inum);
++		return;
++	}
++
++	if (bi->bi_nlink)
++		bi->bi_nlink--;
++	else
++		bi->bi_flags |= BCH_INODE_UNLINKED;
++}
 diff --git a/fs/bcachefs/inode.h b/fs/bcachefs/inode.h
 new file mode 100644
-index 000000000000..9442600a7440
+index 000000000000..2ac2fc10513b
 --- /dev/null
 +++ b/fs/bcachefs/inode.h
-@@ -0,0 +1,203 @@
+@@ -0,0 +1,189 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +#ifndef _BCACHEFS_INODE_H
 +#define _BCACHEFS_INODE_H
@@ -54216,23 +54282,6 @@ index 000000000000..9442600a7440
 +	return S_ISDIR(mode) ? 2 : 1;
 +}
 +
-+static inline void bch2_inode_nlink_inc(struct bch_inode_unpacked *bi)
-+{
-+	if (bi->bi_flags & BCH_INODE_UNLINKED)
-+		bi->bi_flags &= ~BCH_INODE_UNLINKED;
-+	else
-+		bi->bi_nlink++;
-+}
-+
-+static inline void bch2_inode_nlink_dec(struct bch_inode_unpacked *bi)
-+{
-+	BUG_ON(bi->bi_flags & BCH_INODE_UNLINKED);
-+	if (bi->bi_nlink)
-+		bi->bi_nlink--;
-+	else
-+		bi->bi_flags |= BCH_INODE_UNLINKED;
-+}
-+
 +static inline unsigned bch2_inode_nlink_get(struct bch_inode_unpacked *bi)
 +{
 +	return bi->bi_flags & BCH_INODE_UNLINKED
@@ -54251,6 +54300,9 @@ index 000000000000..9442600a7440
 +		bi->bi_flags |= BCH_INODE_UNLINKED;
 +	}
 +}
++
++int bch2_inode_nlink_inc(struct bch_inode_unpacked *);
++void bch2_inode_nlink_dec(struct btree_trans *, struct bch_inode_unpacked *);
 +
 +#endif /* _BCACHEFS_INODE_H */
 diff --git a/fs/bcachefs/io.c b/fs/bcachefs/io.c
@@ -63352,10 +63404,10 @@ index 000000000000..027efaa0d575
 +#endif /* _BCACHEFS_MIGRATE_H */
 diff --git a/fs/bcachefs/move.c b/fs/bcachefs/move.c
 new file mode 100644
-index 000000000000..23767ce0f31e
+index 000000000000..9748b865325d
 --- /dev/null
 +++ b/fs/bcachefs/move.c
-@@ -0,0 +1,943 @@
+@@ -0,0 +1,951 @@
 +// SPDX-License-Identifier: GPL-2.0
 +
 +#include "bcachefs.h"
@@ -63425,6 +63477,10 @@ index 000000000000..23767ce0f31e
 +static void move_write_done(struct closure *cl)
 +{
 +	struct moving_io *io = container_of(cl, struct moving_io, cl);
++	struct moving_context *ctxt = io->write.ctxt;
++
++	if (io->write.op.error)
++		ctxt->write_error = true;
 +
 +	atomic_sub(io->write_sectors, &io->write.ctxt->write_sectors);
 +	closure_return_with_destructor(cl, move_free);
@@ -63502,13 +63558,15 @@ index 000000000000..23767ce0f31e
 +{
 +	move_ctxt_wait_event(ctxt, NULL, list_empty(&ctxt->reads));
 +	closure_sync(&ctxt->cl);
-+	progress_list_del(ctxt->c, ctxt->stats);
-+
 +	EBUG_ON(atomic_read(&ctxt->write_sectors));
 +
-+	trace_move_data(ctxt->c,
-+			atomic64_read(&ctxt->stats->sectors_moved),
-+			atomic64_read(&ctxt->stats->keys_moved));
++	if (ctxt->stats) {
++		progress_list_del(ctxt->c, ctxt->stats);
++
++		trace_move_data(ctxt->c,
++				atomic64_read(&ctxt->stats->sectors_moved),
++				atomic64_read(&ctxt->stats->keys_moved));
++	}
 +}
 +
 +void bch2_moving_ctxt_init(struct moving_context *ctxt,
@@ -63526,13 +63584,14 @@ index 000000000000..23767ce0f31e
 +	ctxt->wp	= wp;
 +	ctxt->wait_on_copygc = wait_on_copygc;
 +
-+	progress_list_add(c, stats);
 +	closure_init_stack(&ctxt->cl);
 +	INIT_LIST_HEAD(&ctxt->reads);
 +	init_waitqueue_head(&ctxt->wait);
 +
-+	if (stats)
++	if (stats) {
++		progress_list_add(c, stats);
 +		stats->data_type = BCH_DATA_user;
++	}
 +}
 +
 +void bch_move_stats_init(struct bch_move_stats *stats, char *name)
@@ -63894,7 +63953,7 @@ index 000000000000..23767ce0f31e
 +			prt_str(&buf, "failed to evacuate bucket ");
 +			bch2_bkey_val_to_text(&buf, c, k);
 +
-+			bch_err_ratelimited(c, "%s", buf.buf);
++			bch2_trans_inconsistent(trans, "%s", buf.buf);
 +			printbuf_exit(&buf);
 +		}
 +	}
@@ -64015,7 +64074,8 @@ index 000000000000..23767ce0f31e
 +		bch2_trans_unlock(&trans);
 +		move_ctxt_wait_event(ctxt, NULL, list_empty(&ctxt->reads));
 +		closure_sync(&ctxt->cl);
-+		lockrestart_do(&trans, verify_bucket_evacuated(&trans, bucket, gen));
++		if (!ctxt->write_error)
++			lockrestart_do(&trans, verify_bucket_evacuated(&trans, bucket, gen));
 +	}
 +err:
 +	bch2_trans_exit(&trans);
@@ -64301,10 +64361,10 @@ index 000000000000..23767ce0f31e
 +}
 diff --git a/fs/bcachefs/move.h b/fs/bcachefs/move.h
 new file mode 100644
-index 000000000000..ef4a0651ced3
+index 000000000000..c0fec69bbb6a
 --- /dev/null
 +++ b/fs/bcachefs/move.h
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,67 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +#ifndef _BCACHEFS_MOVE_H
 +#define _BCACHEFS_MOVE_H
@@ -64322,6 +64382,7 @@ index 000000000000..ef4a0651ced3
 +	struct bch_move_stats	*stats;
 +	struct write_point_specifier wp;
 +	bool			wait_on_copygc;
++	bool			write_error;
 +
 +	/* For waiting on outstanding reads and writes: */
 +	struct closure		cl;
@@ -78501,10 +78562,10 @@ index 000000000000..59e8dfa3d245
 +#include <trace/events/bcachefs.h>
 diff --git a/fs/bcachefs/util.c b/fs/bcachefs/util.c
 new file mode 100644
-index 000000000000..85b8f3df22e0
+index 000000000000..8ef4b5915c37
 --- /dev/null
 +++ b/fs/bcachefs/util.c
-@@ -0,0 +1,957 @@
+@@ -0,0 +1,958 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * random utiility code, for bcache but in theory not specific to bcache
@@ -78652,9 +78713,10 @@ index 000000000000..85b8f3df22e0
 +	if (f_n > div_u64(U64_MAX, b))
 +		return -ERANGE;
 +
-+	if (v + (f_n * b) / f_d < v)
++	f_n = div_u64(f_n * b, f_d);
++	if (v + f_n < v)
 +		return -ERANGE;
-+	v += (f_n * b) / f_d;
++	v += f_n;
 +
 +	*res = v;
 +	return cp - start;
@@ -81762,10 +81824,10 @@ index 00450fd86bb4..c11103a8720a 100644
  static inline void bio_release_pages(struct bio *bio, bool mark_dirty)
  {
 diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 0dd8506aa3b6..3c3da651eb8a 100644
+index 108e3d114bfc..20f76bd27b9a 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
-@@ -876,6 +876,7 @@ extern const char *blk_op_str(unsigned int op);
+@@ -873,6 +873,7 @@ extern const char *blk_op_str(unsigned int op);
  
  int blk_status_to_errno(blk_status_t status);
  blk_status_t errno_to_blk_status(int errno);
@@ -82195,10 +82257,10 @@ index 000000000000..f39d8edfba02
 +#endif /* _LINUX_PRETTY_PRINTERS_H */
 diff --git a/include/linux/printbuf.h b/include/linux/printbuf.h
 new file mode 100644
-index 000000000000..ebbc4a55fc04
+index 000000000000..861c5d75f852
 --- /dev/null
 +++ b/include/linux/printbuf.h
-@@ -0,0 +1,257 @@
+@@ -0,0 +1,283 @@
 +/* SPDX-License-Identifier: LGPL-2.1+ */
 +/* Copyright (C) 2022 Kent Overstreet */
 +
@@ -82454,6 +82516,32 @@ index 000000000000..ebbc4a55fc04
 +{
 +	buf->atomic--;
 +}
++
++/*
++ * This is used for the %pf(%p) sprintf format extension, where we pass a pretty
++ * printer and arguments to the pretty-printer to sprintf
++ *
++ * Instead of passing a pretty-printer function to sprintf directly, we pass it
++ * a pointer to a struct call_pp, so that sprintf can check that the magic
++ * number is present, which in turn ensures that the CALL_PP() macro has been
++ * used in order to typecheck the arguments to the pretty printer function
++ *
++ * Example usage:
++ *   sprintf("%pf(%p)", CALL_PP(prt_bdev, bdev));
++ */
++struct call_pp {
++	unsigned long	magic;
++	void		*fn;
++};
++
++#define PP_TYPECHECK(fn, ...)					\
++	({ while (0) fn((struct printbuf *) NULL, ##__VA_ARGS__); })
++
++#define CALL_PP_MAGIC		(unsigned long) 0xce0b92d22f6b6be4
++
++#define CALL_PP(fn, ...)					\
++	(PP_TYPECHECK(fn, ##__VA_ARGS__),			\
++	 &((struct call_pp) { CALL_PP_MAGIC, fn })), ##__VA_ARGS__
 +
 +#endif /* _LINUX_PRINTBUF_H */
 diff --git a/include/linux/sched.h b/include/linux/sched.h
@@ -83043,10 +83131,10 @@ index b159c2789961..0f4151e98331 100644
  extern void *__vmalloc(unsigned long size, gfp_t gfp_mask) __alloc_size(1);
 diff --git a/include/trace/events/bcachefs.h b/include/trace/events/bcachefs.h
 new file mode 100644
-index 000000000000..b96b25741b68
+index 000000000000..66ad356e95bc
 --- /dev/null
 +++ b/include/trace/events/bcachefs.h
-@@ -0,0 +1,1017 @@
+@@ -0,0 +1,1020 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +#undef TRACE_SYSTEM
 +#define TRACE_SYSTEM bcachefs
@@ -83583,24 +83671,27 @@ index 000000000000..b96b25741b68
 +);
 +
 +TRACE_EVENT(invalidate_bucket,
-+	TP_PROTO(struct bch_fs *c, unsigned dev, u64 bucket),
-+	TP_ARGS(c, dev, bucket),
++	TP_PROTO(struct bch_fs *c, unsigned dev, u64 bucket, u32 sectors),
++	TP_ARGS(c, dev, bucket, sectors),
 +
 +	TP_STRUCT__entry(
 +		__field(dev_t,		dev			)
 +		__field(u32,		dev_idx			)
++		__field(u32,		sectors			)
 +		__field(u64,		bucket			)
 +	),
 +
 +	TP_fast_assign(
 +		__entry->dev		= c->dev;
 +		__entry->dev_idx	= dev;
++		__entry->sectors	= sectors;
 +		__entry->bucket		= bucket;
 +	),
 +
-+	TP_printk("%d:%d invalidated %u:%llu",
++	TP_printk("%d:%d invalidated %u:%llu cached sectors %u",
 +		  MAJOR(__entry->dev), MINOR(__entry->dev),
-+		  __entry->dev_idx, __entry->bucket)
++		  __entry->dev_idx, __entry->bucket,
++		  __entry->sectors)
 +);
 +
 +/* Moving IO */
@@ -84892,11 +84983,11 @@ index 000000000000..fca1208720b6
 +#endif
 +}
 +EXPORT_SYMBOL_GPL(six_lock_pcpu_alloc);
-diff --git a/kernel/module.c b/kernel/module.c
-index 936a2a57e48b..ba02295e928f 100644
---- a/kernel/module.c
-+++ b/kernel/module.c
-@@ -2833,9 +2833,7 @@ static void dynamic_debug_remove(struct module *mod, struct _ddebug *debug)
+diff --git a/kernel/module/main.c b/kernel/module/main.c
+index b37e25676615..8a140eece588 100644
+--- a/kernel/module/main.c
++++ b/kernel/module/main.c
+@@ -1608,9 +1608,7 @@ static void dynamic_debug_remove(struct module *mod, struct _ddebug *debug)
  
  void * __weak module_alloc(unsigned long size)
  {
@@ -85229,7 +85320,7 @@ index 203204cadf92..9f270fdde99b 100644
  
  	trace_seq_puts(s, " */\n");
 diff --git a/kernel/trace/trace_kprobe.c b/kernel/trace/trace_kprobe.c
-index 47cebef78532..b97a912eede6 100644
+index 13439743285c..6e4485b042d8 100644
 --- a/kernel/trace/trace_kprobe.c
 +++ b/kernel/trace/trace_kprobe.c
 @@ -915,7 +915,7 @@ static int create_or_delete_trace_kprobe(const char *raw_command)
@@ -87253,7 +87344,7 @@ index 5144899d3c6b..f9e97879dcdf 100644
  		result = test_data_1;
  
 diff --git a/lib/test_printf.c b/lib/test_printf.c
-index 07309c45f327..853e89e2f8c8 100644
+index 07309c45f327..ac5f9f0eb4e0 100644
 --- a/lib/test_printf.c
 +++ b/lib/test_printf.c
 @@ -9,6 +9,7 @@
@@ -87298,8 +87389,8 @@ index 07309c45f327..853e89e2f8c8 100644
 +{
 +	int i = 1;
 +
-+	test("0", "%pf()",   printf_test_fn_0);
-+	test("1", "%pf(%p)", printf_test_fn_1, &i);
++	test("0", "%pf()",   CALL_PP(printf_test_fn_0));
++	test("1", "%pf(%p)", CALL_PP(printf_test_fn_1, &i));
 +	/*
 +	 * Not tested, so we don't fail the build with -Werror:
 +	 */
@@ -87318,7 +87409,7 @@ index 07309c45f327..853e89e2f8c8 100644
  	kfree(alloced_buffer);
  }
 diff --git a/lib/vsprintf.c b/lib/vsprintf.c
-index 40d26a07a133..fcdf187b2113 100644
+index 40d26a07a133..dfca8a7c93ed 100644
 --- a/lib/vsprintf.c
 +++ b/lib/vsprintf.c
 @@ -44,6 +44,7 @@
@@ -88196,14 +88287,14 @@ index 40d26a07a133..fcdf187b2113 100644
 +	/* nothing to print */
 +	if (len == 0)
 +		return;
- 
--	if (check_pointer(&buf, end, addr, spec))
--		return buf;
++
 +	/* if we pass '%ph[CDN]', field width remains
 +	   negative value, fallback to the default */
 +	if (len < 0)
 +		len = 1;
-+
+ 
+-	if (check_pointer(&buf, end, addr, spec))
+-		return buf;
 +	len = min(len, 64);
 +
 +	if (check_pointer(out, addr))
@@ -88495,10 +88586,9 @@ index 40d26a07a133..fcdf187b2113 100644
 -		ip6_string(ip6_addr, addr, fmt);
 -
 -	return string_nocheck(buf, end, ip6_addr, spec);
-+		ip6_string(out, addr, fmt);
- }
- 
- static noinline_for_stack
+-}
+-
+-static noinline_for_stack
 -char *ip4_addr_string(char *buf, char *end, const u8 *addr,
 -		      struct printf_spec spec, const char *fmt)
 -{
@@ -88507,9 +88597,10 @@ index 40d26a07a133..fcdf187b2113 100644
 -	ip4_string(ip4_addr, addr, fmt);
 -
 -	return string_nocheck(buf, end, ip4_addr, spec);
--}
--
--static noinline_for_stack
++		ip6_string(out, addr, fmt);
+ }
+ 
+ static noinline_for_stack
 -char *ip6_addr_string_sa(char *buf, char *end, const struct sockaddr_in6 *sa,
 -			 struct printf_spec spec, const char *fmt)
 +void ip6_addr_string_sa(struct printbuf *out,
@@ -88809,15 +88900,15 @@ index 40d26a07a133..fcdf187b2113 100644
 -	*p++ = ' ';
 -	strcpy(p, orig & BIT(31) ? "big-endian" : "little-endian");
 -	p += strlen(p);
-+	prt_char(out, ' ');
-+	prt_str(out, orig & BIT(31) ? "big-endian" : "little-endian");
- 
+-
 -	*p++ = ' ';
 -	*p++ = '(';
 -	p = special_hex_number(p, output + sizeof(output) - 2, orig, sizeof(u32));
 -	*p++ = ')';
 -	*p = '\0';
--
++	prt_char(out, ' ');
++	prt_str(out, orig & BIT(31) ? "big-endian" : "little-endian");
+ 
 -	return string(buf, end, output, spec);
 +	prt_char(out, ' ');
 +	prt_char(out, '(');
@@ -89444,11 +89535,12 @@ index 40d26a07a133..fcdf187b2113 100644
  	}
  }
  
-@@ -2623,7 +2477,16 @@ int format_decode(const char *fmt, struct printf_spec *spec)
+@@ -2623,8 +2477,14 @@ int format_decode(const char *fmt, struct printf_spec *spec)
  		return ++fmt - start;
  
  	case 'p':
 -		spec->type = FORMAT_TYPE_PTR;
+-		return ++fmt - start;
 +		fmt++;
 +		if (fmt[0] == 'f' &&
 +		    fmt[1] == '(') {
@@ -89457,16 +89549,14 @@ index 40d26a07a133..fcdf187b2113 100644
 +		} else
 +			spec->type = FORMAT_TYPE_PTR;
 +		return fmt - start;
-+	case '(':
-+		spec->type = FORMAT_TYPE_FN;
- 		return ++fmt - start;
  
  	case '%':
-@@ -2705,53 +2568,71 @@ set_precision(struct printf_spec *spec, int prec)
+ 		spec->type = FORMAT_TYPE_PERCENT_CHAR;
+@@ -2705,53 +2565,89 @@ set_precision(struct printf_spec *spec, int prec)
  	}
  }
  
-+static void call_prt_fn(struct printbuf *out, void *fn, void **fn_args, unsigned nr_args)
++static void call_prt_fn(struct printbuf *out, struct call_pp *call_pp, void **fn_args, unsigned nr_args)
 +{
 +	typedef void (*printf_fn_0)(struct printbuf *);
 +	typedef void (*printf_fn_1)(struct printbuf *, void *);
@@ -89477,6 +89567,24 @@ index 40d26a07a133..fcdf187b2113 100644
 +	typedef void (*printf_fn_6)(struct printbuf *, void *, void *, void *, void *, void *, void *);
 +	typedef void (*printf_fn_7)(struct printbuf *, void *, void *, void *, void *, void *, void *, void *);
 +	typedef void (*printf_fn_8)(struct printbuf *, void *, void *, void *, void *, void *, void *, void *, void *);
++	void *fn;
++	unsigned i;
++
++	if (check_pointer(out, call_pp))
++		return;
++
++	if (call_pp->magic != CALL_PP_MAGIC) {
++		error_string(out, "bad pretty-printer magic");
++		return;
++	}
++
++	fn = call_pp->fn;
++	if (check_pointer(out, fn))
++		return;
++
++	for (i = 0; i < nr_args; i++)
++		if (check_pointer(out, fn_args[i]))
++			return;
 +
 +	switch (nr_args) {
 +	case 0:
@@ -89520,17 +89628,18 @@ index 40d26a07a133..fcdf187b2113 100644
   *
 - * This function generally follows C99 vsnprintf, but has some
 - * extensions and a few limitations:
-- *
++ * prt_vprintf works much like the traditional vsnprintf(), but outputs to a
++ * printbuf instead of raw pointer/size.
+  *
 - *  - ``%n`` is unsupported
 - *  - ``%p*`` is handled by pointer()
 - *
 - * See pointer() or Documentation/core-api/printk-formats.rst for more
 - * extensive description.
-- *
-- * **Please update the documentation in both places when making changes**
-+ * prt_vprintf works much like the traditional vsnprintf(), but outputs to a
-+ * printbuf instead of raw pointer/size.
++ * If you're not already dealing with a va_list consider using prt_printf().
   *
+- * **Please update the documentation in both places when making changes**
+- *
 - * The return value is the number of characters which would
 - * be generated for the given input, excluding the trailing
 - * '\0', as per ISO C99. If you want to have the exact
@@ -89538,8 +89647,7 @@ index 40d26a07a133..fcdf187b2113 100644
 - * (not including the trailing '\0'), use vscnprintf(). If the
 - * return is greater than or equal to @size, the resulting
 - * string is truncated.
-+ * If you're not already dealing with a va_list consider using prt_printf().
-  *
+- *
 - * If you're not already dealing with a va_list consider using snprintf().
 + * See the vsnprintf() documentation for format string extensions over C99.
   */
@@ -89568,7 +89676,7 @@ index 40d26a07a133..fcdf187b2113 100644
  
  	while (*fmt) {
  		const char *old_fmt = fmt;
-@@ -2760,16 +2641,9 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
+@@ -2760,16 +2656,9 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
  		fmt += read;
  
  		switch (spec.type) {
@@ -89587,7 +89695,7 @@ index 40d26a07a133..fcdf187b2113 100644
  
  		case FORMAT_TYPE_WIDTH:
  			set_field_width(&spec, va_arg(args, int));
-@@ -2779,44 +2653,60 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
+@@ -2779,44 +2668,60 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
  			set_precision(&spec, va_arg(args, int));
  			break;
  
@@ -89673,7 +89781,7 @@ index 40d26a07a133..fcdf187b2113 100644
  			break;
  
  		case FORMAT_TYPE_INVALID:
-@@ -2869,21 +2759,70 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
+@@ -2869,21 +2774,70 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
  				num = va_arg(args, unsigned int);
  			}
  
@@ -89710,7 +89818,7 @@ index 40d26a07a133..fcdf187b2113 100644
 +void prt_printf(struct printbuf *out, const char *fmt, ...)
 +{
 +	va_list args;
- 
++
 +	va_start(args, fmt);
 +	prt_vprintf(out, fmt, args);
 +	va_end(args);
@@ -89748,13 +89856,13 @@ index 40d26a07a133..fcdf187b2113 100644
 +int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 +{
 +	struct printbuf out = PRINTBUF_EXTERN(buf, size);
-+
+ 
 +	prt_vprintf(&out, fmt, args);
 +	return out.pos;
  }
  EXPORT_SYMBOL(vsnprintf);
  
-@@ -3021,53 +2960,46 @@ EXPORT_SYMBOL(sprintf);
+@@ -3021,53 +2975,46 @@ EXPORT_SYMBOL(sprintf);
   * bstr_printf() - Binary data to text string
   */
  
@@ -89825,7 +89933,7 @@ index 40d26a07a133..fcdf187b2113 100644
  	value;								\
  })
  
-@@ -3098,16 +3030,12 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
+@@ -3098,16 +3045,12 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
  		case FORMAT_TYPE_STR: {
  			const char *save_str = va_arg(args, char *);
  			const char *err_msg;
@@ -89843,7 +89951,7 @@ index 40d26a07a133..fcdf187b2113 100644
  			break;
  		}
  
-@@ -3127,12 +3055,7 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
+@@ -3127,12 +3070,7 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
  					save_arg(void *);
  					break;
  				}
@@ -89857,7 +89965,7 @@ index 40d26a07a133..fcdf187b2113 100644
  			}
  			/* skip all alphanumeric pointer suffixes */
  			while (isalnum(*fmt))
-@@ -3170,15 +3093,15 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
+@@ -3170,15 +3108,15 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
  	}
  
  out:
@@ -89877,7 +89985,7 @@ index 40d26a07a133..fcdf187b2113 100644
   * @fmt: The format string to use
   * @bin_buf: Binary arguments for the format string
   *
-@@ -3188,26 +3111,14 @@ EXPORT_SYMBOL_GPL(vbin_printf);
+@@ -3188,26 +3126,14 @@ EXPORT_SYMBOL_GPL(vbin_printf);
   *
   * The format follows C99 vsnprintf, but has some extensions:
   *  see vsnprintf comment for details.
@@ -89907,7 +90015,7 @@ index 40d26a07a133..fcdf187b2113 100644
  
  #define get_arg(type)							\
  ({									\
-@@ -3224,12 +3135,6 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
+@@ -3224,12 +3150,6 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
  	value;								\
  })
  
@@ -89920,7 +90028,7 @@ index 40d26a07a133..fcdf187b2113 100644
  	while (*fmt) {
  		const char *old_fmt = fmt;
  		int read = format_decode(fmt, &spec);
-@@ -3237,16 +3142,9 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
+@@ -3237,16 +3157,9 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
  		fmt += read;
  
  		switch (spec.type) {
@@ -89939,7 +90047,7 @@ index 40d26a07a133..fcdf187b2113 100644
  
  		case FORMAT_TYPE_WIDTH:
  			set_field_width(&spec, get_arg(int));
-@@ -3256,38 +3154,24 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
+@@ -3256,38 +3169,24 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
  			set_precision(&spec, get_arg(int));
  			break;
  
@@ -89986,7 +90094,7 @@ index 40d26a07a133..fcdf187b2113 100644
  			/* Non function dereferences were already done */
  			switch (*fmt) {
  			case 'S':
-@@ -3303,17 +3187,12 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
+@@ -3303,17 +3202,12 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
  					break;
  				}
  				/* Pointer dereference was already processed */
@@ -90008,7 +90116,7 @@ index 40d26a07a133..fcdf187b2113 100644
  
  			while (isalnum(*fmt))
  				fmt++;
-@@ -3321,9 +3200,7 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
+@@ -3321,9 +3215,7 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
  		}
  
  		case FORMAT_TYPE_PERCENT_CHAR:
@@ -90019,7 +90127,7 @@ index 40d26a07a133..fcdf187b2113 100644
  			break;
  
  		case FORMAT_TYPE_INVALID:
-@@ -3366,23 +3243,87 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
+@@ -3366,23 +3258,87 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
  				num = get_arg(int);
  			}
  
@@ -90131,7 +90239,7 @@ index 4cc13f3179a5..7e852599b917 100644
  # Give 'page_alloc' its own module-parameter namespace
  page-alloc-y := page_alloc.o
 diff --git a/mm/filemap.c b/mm/filemap.c
-index 61dd39990fda..cb4edb4dfb6d 100644
+index be1859a276e1..222bcfe7afa0 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
 @@ -2223,6 +2223,7 @@ unsigned find_get_pages_range(struct address_space *mapping, pgoff_t *start,
@@ -90322,10 +90430,10 @@ index 49d7df39b02d..9c550a283037 100644
  	if (sysctl_oom_dump_tasks)
  		dump_tasks(oc);
 diff --git a/lib/show_mem.c b/mm/show_mem.c
-similarity index 84%
+similarity index 83%
 rename from lib/show_mem.c
 rename to mm/show_mem.c
-index 1c26c14ffbb9..9264f2c9e370 100644
+index 1c26c14ffbb9..47225158ce49 100644
 --- a/lib/show_mem.c
 +++ b/mm/show_mem.c
 @@ -7,6 +7,9 @@
@@ -90342,11 +90450,11 @@ index 1c26c14ffbb9..9264f2c9e370 100644
  #ifdef CONFIG_MEMORY_FAILURE
  	printk("%lu pages hwpoisoned\n", atomic_long_read(&num_poisoned_pages));
  #endif
-+	pr_info("Unreclaimable slab info:\n");
-+	printk("%pf()", dump_unreclaimable_slab);
++	printk("Unreclaimable slab info:\n");
++	printk("%pf()", CALL_PP(dump_unreclaimable_slab));
 +
 +	printk("Shrinkers:\n");
-+	printk("%pf()", shrinkers_to_text);
++	printk("%pf()", CALL_PP(shrinkers_to_text));
  }
 diff --git a/mm/slab.h b/mm/slab.h
 index 95eb34174c1b..a91fc5aa1054 100644
@@ -90666,5 +90774,5 @@ index 4d1a947367f9..a2097955dace 100644
  static DEVICE_ATTR_RO(flags);
  
 -- 
-2.37.0.rc2.138.g5c70b8d9af
+2.37.0
 
