@@ -22,15 +22,15 @@ SRC_URI="
 
 src_unpack() {
 UNIPATCH_LIST_DEFAULT=""
-		CACHY_PATCHES="${FILESDIR}/cachy-patches/5.18/0002-cachy.patch
-						${FILESDIR}/cachy-patches/5.18/0004-fixes.patch
+			#${FILESDIR}/cachy-patches/5.18/0002-cachy.patch
+		CACHY_PATCHES="${FILESDIR}/cachy-patches/5.18/0004-fixes.patch
 						${FILESDIR}/cachy-patches/5.18/0014-fs-patches.patch
 						${FILESDIR}/cachy-patches/5.18/0007-lru-le9-spf.patch
 						${FILESDIR}/cachy-patches/5.18/0006-lrng.patch
 						${FILESDIR}/cachy-patches/5.18/0010-rcu.patch
 						${FILESDIR}/cachy-patches/5.18/0009-misc.patch
 						${FILESDIR}/cachy-patches/5.18/0011-futex-winesync.patch
-						${FILESDIR}/cachy-patches/5.18/sched/0001-tt-cachy-5.18.patch
+						${FILESDIR}/cachy-patches/5.18/sched/0001-tt-5.18.patch
 						${FILESDIR}/cachy-patches/5.18/0012-perf.patch
 						${FILESDIR}/maple-tree-v2-5.18.patch"
 
