@@ -1,13 +1,10 @@
-From 1784569992797157c51ab939926c30a0b99c2eb2 Mon Sep 17 00:00:00 2001
+From 83ba8851eb957aad57bc9c240dcf22a961bc3b62 Mon Sep 17 00:00:00 2001
 From: Piotr Gorski <lucjan.lucjanov@gmail.com>
 Date: Mon, 6 Jun 2022 12:06:05 +0200
-Subject: [PATCH 01/15] bbr2-5.18: introduce BBRv2
+Subject: [PATCH 01/15] bbr2
 
 Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
-(cherry picked from commit a2604f387d2d1c9adfdb99a2c611bf8924f390a4)
-(cherry picked from commit 2dbd5cb958a2ff752c57bcbfe65c849fb5c08091)
-(cherry picked from commit a7245ed12b652c222e8df845cf4cbc60c90bf3bb)
-(cherry picked from commit a41b44afddb01a3ec148cefc443629058b465ef8)
+(cherry picked from commit 5dcdd263190426aee1f2a4fcfad012ee70ec5c79)
 ---
  include/linux/tcp.h                |    3 +-
  include/net/inet_connection_sock.h |    3 +-
@@ -3301,13 +3298,12 @@ index 20cf4a98c69d..b5f7e49a003a 100644
 -- 
 2.37.0
 
-From fa3f6e4df4e0fd600f9bcc0093b7207f1d272528 Mon Sep 17 00:00:00 2001
+From ae8903d6d1ca47c6a39ce5d3573377a186a815aa Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Sat, 2 Jul 2022 02:19:35 +0200
 Subject: [PATCH 02/15] cachy
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
-(cherry picked from commit ef12a7cb503c3ead80f19cb0d252e1b65216ec97)
 ---
  .../admin-guide/kernel-parameters.txt         |  13 +
  Documentation/admin-guide/pm/cpuidle.rst      |  15 +-
@@ -3370,6 +3366,8 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  include/linux/syscalls.h                      |   1 +
  include/linux/user_namespace.h                |   4 +
  include/linux/wait.h                          |   2 +
+ include/net/netns/ipv4.h                      |   1 +
+ include/trace/events/tcp.h                    |   7 +
  include/uapi/asm-generic/unistd.h             |   5 +-
  include/uapi/linux/if_bonding.h               |   2 +-
  init/Kconfig                                  |  68 ++-
@@ -3404,10 +3402,13 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  mm/vmpressure.c                               |   4 +
  mm/vmscan.c                                   |  24 +-
  net/ipv4/inet_connection_sock.c               |   2 +-
+ net/ipv4/sysctl_net_ipv4.c                    |   7 +
  net/ipv4/tcp.c                                |   4 +-
+ net/ipv4/tcp_input.c                          |  36 ++
+ net/ipv4/tcp_ipv4.c                           |   2 +
  scripts/Makefile.lib                          |  13 +-
  scripts/Makefile.modinst                      |   7 +-
- 98 files changed, 1866 insertions(+), 393 deletions(-)
+ 103 files changed, 1919 insertions(+), 393 deletions(-)
 
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
 index c4893782055b..b23ba248cce9 100644
@@ -3467,7 +3468,7 @@ index aec2cd2aaea7..19754beb5a4e 100644
  In addition to the architecture-level kernel command line options affecting CPU
  idle time management, there are parameters affecting individual ``CPUIdle``
 diff --git a/Makefile b/Makefile
-index 9a664d4d6ddd..cd05994d042f 100644
+index e584b9f6202a..14acdc7189b6 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -758,6 +758,8 @@ else ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3
@@ -5290,6 +5291,36 @@ index 851e07da2583..85653fc33274 100644
  long prepare_to_wait_event(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry, int state);
  void finish_wait(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry);
  long wait_woken(struct wait_queue_entry *wq_entry, unsigned mode, long timeout);
+diff --git a/include/net/netns/ipv4.h b/include/net/netns/ipv4.h
+index ce0cc4e8d8c7..e2684723c51e 100644
+--- a/include/net/netns/ipv4.h
++++ b/include/net/netns/ipv4.h
+@@ -183,6 +183,7 @@ struct netns_ipv4 {
+ 	int sysctl_udp_rmem_min;
+ 
+ 	u8 sysctl_fib_notify_on_flag_change;
++	unsigned int sysctl_tcp_collapse_max_bytes;
+ 
+ #ifdef CONFIG_NET_L3_MASTER_DEV
+ 	u8 sysctl_udp_l3mdev_accept;
+diff --git a/include/trace/events/tcp.h b/include/trace/events/tcp.h
+index edcd6369de10..f2b214aa36b2 100644
+--- a/include/trace/events/tcp.h
++++ b/include/trace/events/tcp.h
+@@ -187,6 +187,13 @@ DEFINE_EVENT(tcp_event_sk, tcp_rcv_space_adjust,
+ 	TP_ARGS(sk)
+ );
+ 
++DEFINE_EVENT(tcp_event_sk, tcp_collapse_max_bytes_exceeded,
++
++	TP_PROTO(struct sock *sk),
++
++	TP_ARGS(sk)
++);
++
+ TRACE_EVENT(tcp_retransmit_synack,
+ 
+ 	TP_PROTO(const struct sock *sk, const struct request_sock *req),
 diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
 index 1c48b0ae3ba3..c780129ab742 100644
 --- a/include/uapi/asm-generic/unistd.h
@@ -7827,6 +7858,24 @@ index 1e5b53c2bb26..f1c86ceac71f 100644
  					  TASK_INTERRUPTIBLE);
  		release_sock(sk);
  		if (reqsk_queue_empty(&icsk->icsk_accept_queue))
+diff --git a/net/ipv4/sysctl_net_ipv4.c b/net/ipv4/sysctl_net_ipv4.c
+index ad80d180b60b..a7ffb923fb43 100644
+--- a/net/ipv4/sysctl_net_ipv4.c
++++ b/net/ipv4/sysctl_net_ipv4.c
+@@ -1393,6 +1393,13 @@ static struct ctl_table ipv4_net_table[] = {
+ 		.extra1		= SYSCTL_ZERO,
+ 		.extra2		= &two,
+ 	},
++	{
++		.procname	= "tcp_collapse_max_bytes",
++		.data		= &init_net.ipv4.sysctl_tcp_collapse_max_bytes,
++		.maxlen		= sizeof(unsigned int),
++		.mode		= 0644,
++		.proc_handler	= proc_douintvec_minmax,
++	},
+ 	{ }
+ };
+ 
 diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
 index ef2719e40835..b910604b3202 100644
 --- a/net/ipv4/tcp.c
@@ -7842,6 +7891,80 @@ index ef2719e40835..b910604b3202 100644
  
  	init_net.ipv4.sysctl_tcp_wmem[0] = SK_MEM_QUANTUM;
  	init_net.ipv4.sysctl_tcp_wmem[1] = 16*1024;
+diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
+index 43c7cf103051..78ff51487913 100644
+--- a/net/ipv4/tcp_input.c
++++ b/net/ipv4/tcp_input.c
+@@ -5388,6 +5388,7 @@ static bool tcp_prune_ofo_queue(struct sock *sk)
+ static int tcp_prune_queue(struct sock *sk)
+ {
+ 	struct tcp_sock *tp = tcp_sk(sk);
++	struct net *net = sock_net(sk);
+ 
+ 	NET_INC_STATS(sock_net(sk), LINUX_MIB_PRUNECALLED);
+ 
+@@ -5399,6 +5400,39 @@ static int tcp_prune_queue(struct sock *sk)
+ 	if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf)
+ 		return 0;
+ 
++	/* For context and additional information about this patch, see the
++	 * blog post at
++	 *
++	 * sysctl:  net.ipv4.tcp_collapse_max_bytes
++	 *
++	 * If tcp_collapse_max_bytes is non-zero, attempt to collapse the
++	 * queue to free up memory if the current amount of memory allocated
++	 * is less than tcp_collapse_max_bytes.  Otherwise, the packet is
++	 * dropped without attempting to collapse the queue.
++	 *
++	 * If tcp_collapse_max_bytes is zero, this feature is disabled
++	 * and the default Linux behavior is used.  The default Linux
++	 * behavior is to always perform the attempt to collapse the
++	 * queue to free up memory.
++	 *
++	 * When the receive queue is small, we want to collapse the
++	 * queue.  There are two reasons for this: (a) the latency of
++	 * performing the collapse will be small on a small queue, and
++	 * (b) we want to avoid sending a congestion signal (via a
++	 * packet drop) to the sender when the receive queue is small.
++	 *
++	 * The result is that we avoid latency spikes caused by the
++	 * time it takes to perform the collapse logic when the receive
++	 * queue is large and full, while preserving existing behavior
++	 * and performance for all other cases.
++	 */
++	if (net->ipv4.sysctl_tcp_collapse_max_bytes &&
++		(atomic_read(&sk->sk_rmem_alloc) > net->ipv4.sysctl_tcp_collapse_max_bytes)) {
++		/* We are dropping the packet */
++		trace_tcp_collapse_max_bytes_exceeded(sk);
++		goto do_not_collapse;
++	}
++
+ 	tcp_collapse_ofo_queue(sk);
+ 	if (!skb_queue_empty(&sk->sk_receive_queue))
+ 		tcp_collapse(sk, &sk->sk_receive_queue, NULL,
+@@ -5418,6 +5452,8 @@ static int tcp_prune_queue(struct sock *sk)
+ 	if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf)
+ 		return 0;
+ 
++do_not_collapse:
++
+ 	/* If we are really being abused, tell the caller to silently
+ 	 * drop receive data on the floor.  It will get retransmitted
+ 	 * and hopefully then we'll have sufficient space.
+diff --git a/net/ipv4/tcp_ipv4.c b/net/ipv4/tcp_ipv4.c
+index cd78b4fc334f..c10bcc9970a2 100644
+--- a/net/ipv4/tcp_ipv4.c
++++ b/net/ipv4/tcp_ipv4.c
+@@ -3210,6 +3210,8 @@ static int bpf_iter_init_tcp(void *priv_data, struct bpf_iter_aux_info *aux)
+ 		return err;
+ 	}
+ 
++	net->ipv4.sysctl_tcp_collapse_max_bytes = 0;
++
+ 	return 0;
+ }
+ 
 diff --git a/scripts/Makefile.lib b/scripts/Makefile.lib
 index 9f69ecdd7977..8e075bef83b5 100644
 --- a/scripts/Makefile.lib
@@ -7893,35 +8016,33 @@ index c2c43a0ecfe0..c15e5395fd32 100644
 -- 
 2.37.0
 
-From 614685d6a89ceb7d8b52e1720dc2327767d9a0b0 Mon Sep 17 00:00:00 2001
+From 123ea7617636b598ad2a4f43aead18e92836b08f Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Tue, 14 Jun 2022 11:02:29 +0200
 Subject: [PATCH 03/15] Extend-DAMOS-for-Proactive-LRU-lists-Sorting
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
-(cherry picked from commit f9a7ddfd24e968f782ab2598ec2001c4e2de9f7f)
-(cherry picked from commit 3b321c940b0381d3c612bb301a51720f77bc9b92)
-(cherry picked from commit 585e2e2526cc51e5bf8ed79a3fdace2bcb599d02)
-(cherry picked from commit bf8daccd2791e941a902001ab1b303f9c0446df0)
+(cherry picked from commit a26a2f08954c8cb977e78ecd5e6a2f6949ecad24)
 ---
  Documentation/admin-guide/mm/damon/index.rst  |   1 +
  .../admin-guide/mm/damon/lru_sort.rst         | 294 ++++++++++
+ .../admin-guide/mm/damon/reclaim.rst          |   6 -
  Documentation/admin-guide/mm/damon/usage.rst  |   2 +
- include/linux/damon.h                         |  18 +
+ include/linux/damon.h                         |  39 +-
  mm/damon/Kconfig                              |   8 +
  mm/damon/Makefile                             |   1 +
  mm/damon/core-test.h                          |  36 ++
  mm/damon/core.c                               | 115 +++-
- mm/damon/dbgfs.c                              |  64 +-
+ mm/damon/dbgfs.c                              |  79 ++-
  mm/damon/lru_sort.c                           | 546 ++++++++++++++++++
  mm/damon/ops-common.c                         |  45 +-
  mm/damon/ops-common.h                         |   2 +
  mm/damon/paddr.c                              |  62 +-
- mm/damon/reclaim.c                            | 124 ++--
- mm/damon/sysfs.c                              | 408 +++++++++++--
+ mm/damon/reclaim.c                            | 132 +++--
+ mm/damon/sysfs.c                              | 423 +++++++++++---
  mm/damon/vaddr-test.h                         |  14 +-
- mm/damon/vaddr.c                              |  90 +--
- 17 files changed, 1619 insertions(+), 211 deletions(-)
+ mm/damon/vaddr.c                              |  93 +--
+ 18 files changed, 1644 insertions(+), 254 deletions(-)
  create mode 100644 Documentation/admin-guide/mm/damon/lru_sort.rst
  create mode 100644 mm/damon/lru_sort.c
 
@@ -8234,6 +8355,23 @@ index 000000000000..c09cace80651
 +    # echo 400 > wmarks_mid
 +    # echo 200 > wmarks_low
 +    # echo Y > enabled
+diff --git a/Documentation/admin-guide/mm/damon/reclaim.rst b/Documentation/admin-guide/mm/damon/reclaim.rst
+index 0af51a9705b1..0aa2b62e6e67 100644
+--- a/Documentation/admin-guide/mm/damon/reclaim.rst
++++ b/Documentation/admin-guide/mm/damon/reclaim.rst
+@@ -48,12 +48,6 @@ DAMON_RECLAIM utilizes module parameters.  That is, you can put
+ ``damon_reclaim.<parameter>=<value>`` on the kernel boot command line or write
+ proper values to ``/sys/modules/damon_reclaim/parameters/<parameter>`` files.
+ 
+-Note that the parameter values except ``enabled`` are applied only when
+-DAMON_RECLAIM starts.  Therefore, if you want to apply new parameter values in
+-runtime and DAMON_RECLAIM is already enabled, you should disable and re-enable
+-it via ``enabled`` parameter file.  Writing of the new values to proper
+-parameter values should be done before the re-enablement.
+-
+ Below are the description of each parameter.
+ 
+ enabled
 diff --git a/Documentation/admin-guide/mm/damon/usage.rst b/Documentation/admin-guide/mm/damon/usage.rst
 index 592ea9a50881..1a9a55c8cf01 100644
 --- a/Documentation/admin-guide/mm/damon/usage.rst
@@ -8248,7 +8386,7 @@ index 592ea9a50881..1a9a55c8cf01 100644
  
  schemes/<N>/access_pattern/
 diff --git a/include/linux/damon.h b/include/linux/damon.h
-index f23cbfa4248d..01748597f9ac 100644
+index f23cbfa4248d..7b1f4a488230 100644
 --- a/include/linux/damon.h
 +++ b/include/linux/damon.h
 @@ -86,6 +86,8 @@ struct damon_target {
@@ -8312,7 +8450,37 @@ index f23cbfa4248d..01748597f9ac 100644
  	int (*after_sampling)(struct damon_ctx *context);
  	int (*after_aggregation)(struct damon_ctx *context);
  	void (*before_terminate)(struct damon_ctx *context);
-@@ -484,6 +499,8 @@ static inline void damon_insert_region(struct damon_region *r,
+@@ -386,7 +401,6 @@ struct damon_callback {
+  * detail.
+  *
+  * @kdamond:		Kernel thread who does the monitoring.
+- * @kdamond_stop:	Notifies whether kdamond should stop.
+  * @kdamond_lock:	Mutex for the synchronizations with @kdamond.
+  *
+  * For each monitoring context, one kernel thread for the monitoring is
+@@ -395,14 +409,14 @@ struct damon_callback {
+  * Once started, the monitoring thread runs until explicitly required to be
+  * terminated or every monitoring target is invalid.  The validity of the
+  * targets is checked via the &damon_operations.target_valid of @ops.  The
+- * termination can also be explicitly requested by writing non-zero to
+- * @kdamond_stop.  The thread sets @kdamond to NULL when it terminates.
+- * Therefore, users can know whether the monitoring is ongoing or terminated by
+- * reading @kdamond.  Reads and writes to @kdamond and @kdamond_stop from
+- * outside of the monitoring thread must be protected by @kdamond_lock.
++ * termination can also be explicitly requested by calling damon_stop().
++ * The thread sets @kdamond to NULL when it terminates. Therefore, users can
++ * know whether the monitoring is ongoing or terminated by reading @kdamond.
++ * Reads and writes to @kdamond from outside of the monitoring thread must
++ * be protected by @kdamond_lock.
+  *
+- * Note that the monitoring thread protects only @kdamond and @kdamond_stop via
+- * @kdamond_lock.  Accesses to other fields must be protected by themselves.
++ * Note that the monitoring thread protects only @kdamond via @kdamond_lock.
++ * Accesses to other fields must be protected by themselves.
+  *
+  * @ops:	Set of monitoring operations for given use cases.
+  * @callback:	Set of callbacks for monitoring events notifications.
+@@ -484,6 +498,8 @@ static inline void damon_insert_region(struct damon_region *r,
  
  void damon_add_region(struct damon_region *r, struct damon_target *t);
  void damon_destroy_region(struct damon_region *r, struct damon_target *t);
@@ -8321,13 +8489,22 @@ index f23cbfa4248d..01748597f9ac 100644
  
  struct damos *damon_new_scheme(
  		unsigned long min_sz_region, unsigned long max_sz_region,
-@@ -509,6 +526,7 @@ int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
+@@ -509,9 +525,16 @@ int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
  int damon_set_schemes(struct damon_ctx *ctx,
  			struct damos **schemes, ssize_t nr_schemes);
  int damon_nr_running_ctxs(void);
 +bool damon_is_registered_ops(enum damon_ops_id id);
  int damon_register_ops(struct damon_operations *ops);
  int damon_select_ops(struct damon_ctx *ctx, enum damon_ops_id id);
+ 
++static inline bool damon_target_has_pid(const struct damon_ctx *ctx)
++{
++	return ctx->ops.id == DAMON_OPS_VADDR || ctx->ops.id == DAMON_OPS_FVADDR;
++}
++
++
+ int damon_start(struct damon_ctx **ctxs, int nr_ctxs, bool exclusive);
+ int damon_stop(struct damon_ctx **ctxs, int nr_ctxs);
  
 diff --git a/mm/damon/Kconfig b/mm/damon/Kconfig
 index 9b559c76d6dd..66265e3a9c65 100644
@@ -8599,7 +8776,7 @@ index 5ce8d7c867f0..7d25dc582fe3 100644
  			kdamond_reset_aggregated(ctx);
  			kdamond_split_regions(ctx);
 diff --git a/mm/damon/dbgfs.c b/mm/damon/dbgfs.c
-index a0dab8b5e45f..e2f5f3927d5e 100644
+index a0dab8b5e45f..cb8a7e9926a4 100644
 --- a/mm/damon/dbgfs.c
 +++ b/mm/damon/dbgfs.c
 @@ -97,6 +97,31 @@ static ssize_t dbgfs_attrs_write(struct file *file,
@@ -8710,6 +8887,59 @@ index a0dab8b5e45f..e2f5f3927d5e 100644
  			goto fail;
  
  		if (min_sz > max_sz || min_nr_a > max_nr_a || min_age > max_age)
+@@ -275,11 +311,6 @@ static ssize_t dbgfs_schemes_write(struct file *file, const char __user *buf,
+ 	return ret;
+ }
+ 
+-static inline bool target_has_pid(const struct damon_ctx *ctx)
+-{
+-	return ctx->ops.id == DAMON_OPS_VADDR;
+-}
+-
+ static ssize_t sprint_target_ids(struct damon_ctx *ctx, char *buf, ssize_t len)
+ {
+ 	struct damon_target *t;
+@@ -288,7 +319,7 @@ static ssize_t sprint_target_ids(struct damon_ctx *ctx, char *buf, ssize_t len)
+ 	int rc;
+ 
+ 	damon_for_each_target(t, ctx) {
+-		if (target_has_pid(ctx))
++		if (damon_target_has_pid(ctx))
+ 			/* Show pid numbers to debugfs users */
+ 			id = pid_vnr(t->pid);
+ 		else
+@@ -415,7 +446,7 @@ static int dbgfs_set_targets(struct damon_ctx *ctx, ssize_t nr_targets,
+ 	struct damon_target *t, *next;
+ 
+ 	damon_for_each_target_safe(t, next, ctx) {
+-		if (target_has_pid(ctx))
++		if (damon_target_has_pid(ctx))
+ 			put_pid(t->pid);
+ 		damon_destroy_target(t);
+ 	}
+@@ -425,11 +456,11 @@ static int dbgfs_set_targets(struct damon_ctx *ctx, ssize_t nr_targets,
+ 		if (!t) {
+ 			damon_for_each_target_safe(t, next, ctx)
+ 				damon_destroy_target(t);
+-			if (target_has_pid(ctx))
++			if (damon_target_has_pid(ctx))
+ 				dbgfs_put_pids(pids, nr_targets);
+ 			return -ENOMEM;
+ 		}
+-		if (target_has_pid(ctx))
++		if (damon_target_has_pid(ctx))
+ 			t->pid = pids[i];
+ 		damon_add_target(ctx, t);
+ 	}
+@@ -722,7 +753,7 @@ static void dbgfs_before_terminate(struct damon_ctx *ctx)
+ {
+ 	struct damon_target *t, *next;
+ 
+-	if (!target_has_pid(ctx))
++	if (!damon_target_has_pid(ctx))
+ 		return;
+ 
+ 	mutex_lock(&ctx->kdamond_lock);
 diff --git a/mm/damon/lru_sort.c b/mm/damon/lru_sort.c
 new file mode 100644
 index 000000000000..c276736a071c
@@ -9431,7 +9661,7 @@ index 21474ae63bc7..dc131c6a5403 100644
  		break;
  	}
 diff --git a/mm/damon/reclaim.c b/mm/damon/reclaim.c
-index e34c4d0c4d93..8efbfb24f3a1 100644
+index e34c4d0c4d93..e69b807fefe4 100644
 --- a/mm/damon/reclaim.c
 +++ b/mm/damon/reclaim.c
 @@ -28,7 +28,18 @@
@@ -9463,7 +9693,7 @@ index e34c4d0c4d93..8efbfb24f3a1 100644
  		a->start = res->start;
  		a->end = res->end;
  	}
-@@ -290,57 +301,56 @@ static struct damos *damon_reclaim_new_scheme(void)
+@@ -290,60 +301,58 @@ static struct damos *damon_reclaim_new_scheme(void)
  	return scheme;
  }
  
@@ -9551,19 +9781,23 @@ index e34c4d0c4d93..8efbfb24f3a1 100644
 +	return 0;
  }
  
- #define ENABLE_CHECK_INTERVAL_MS	1000
-@@ -358,14 +368,39 @@ static void damon_reclaim_timer_fn(struct work_struct *work)
+-#define ENABLE_CHECK_INTERVAL_MS	1000
+ static struct delayed_work damon_reclaim_timer;
+ static void damon_reclaim_timer_fn(struct work_struct *work)
+ {
+@@ -357,12 +366,48 @@ static void damon_reclaim_timer_fn(struct work_struct *work)
+ 		else
  			enabled = last_enabled;
  	}
- 
+-
 -	schedule_delayed_work(&damon_reclaim_timer,
-+	if (enabled)
-+		schedule_delayed_work(&damon_reclaim_timer,
- 			msecs_to_jiffies(ENABLE_CHECK_INTERVAL_MS));
+-			msecs_to_jiffies(ENABLE_CHECK_INTERVAL_MS));
  }
  static DECLARE_DELAYED_WORK(damon_reclaim_timer, damon_reclaim_timer_fn);
  
-+static int enabled_store(const char *val,
++static bool damon_reclaim_initialized;
++
++static int damon_reclaim_enabled_store(const char *val,
 +		const struct kernel_param *kp)
 +{
 +	int rc = param_set_bool(val, kp);
@@ -9571,14 +9805,16 @@ index e34c4d0c4d93..8efbfb24f3a1 100644
 +	if (rc < 0)
 +		return rc;
 +
-+	if (enabled)
-+		schedule_delayed_work(&damon_reclaim_timer, 0);
++	/* system_wq might not initialized yet */
++	if (!damon_reclaim_initialized)
++		return rc;
 +
++	schedule_delayed_work(&damon_reclaim_timer, 0);
 +	return 0;
 +}
 +
 +static const struct kernel_param_ops enabled_param_ops = {
-+	.set = enabled_store,
++	.set = damon_reclaim_enabled_store,
 +	.get = param_get_bool,
 +};
 +
@@ -9586,35 +9822,33 @@ index e34c4d0c4d93..8efbfb24f3a1 100644
 +MODULE_PARM_DESC(enabled,
 +	"Enable or disable DAMON_RECLAIM (default: disabled)");
 +
++static int damon_reclaim_handle_commit_inputs(void)
++{
++	int err;
++
++	if (!commit_inputs)
++		return 0;
++
++	err = damon_reclaim_apply_parameters();
++	commit_inputs = false;
++	return err;
++}
++
  static int damon_reclaim_after_aggregation(struct damon_ctx *c)
  {
  	struct damos *s;
-+	int err = 0;
- 
- 	/* update the stats parameter */
- 	damon_for_each_scheme(s, c) {
-@@ -375,7 +410,23 @@ static int damon_reclaim_after_aggregation(struct damon_ctx *c)
+@@ -375,7 +420,13 @@ static int damon_reclaim_after_aggregation(struct damon_ctx *c)
  		bytes_reclaimed_regions = s->stat.sz_applied;
  		nr_quota_exceeds = s->stat.qt_exceeds;
  	}
 -	return 0;
 +
-+	if (commit_inputs) {
-+		err = damon_reclaim_apply_parameters();
-+		commit_inputs = false;
-+	}
-+	return err;
++	return damon_reclaim_handle_commit_inputs();
 +}
 +
 +static int damon_reclaim_after_wmarks_check(struct damon_ctx *c)
 +{
-+	int err = 0;
-+
-+	if (commit_inputs) {
-+		err = damon_reclaim_apply_parameters();
-+		commit_inputs = false;
-+	}
-+	return err;
++	return damon_reclaim_handle_commit_inputs();
  }
  
  static int __init damon_reclaim_init(void)
@@ -9626,8 +9860,17 @@ index e34c4d0c4d93..8efbfb24f3a1 100644
  	ctx->callback.after_aggregation = damon_reclaim_after_aggregation;
  
  	target = damon_new_target();
+@@ -397,6 +449,8 @@ static int __init damon_reclaim_init(void)
+ 	damon_add_target(ctx, target);
+ 
+ 	schedule_delayed_work(&damon_reclaim_timer, 0);
++
++	damon_reclaim_initialized = true;
+ 	return 0;
+ }
+ 
 diff --git a/mm/damon/sysfs.c b/mm/damon/sysfs.c
-index 48e434cd43d8..0f65db55fa28 100644
+index 48e434cd43d8..7488e27c87c3 100644
 --- a/mm/damon/sysfs.c
 +++ b/mm/damon/sysfs.c
 @@ -762,6 +762,8 @@ static const char * const damon_sysfs_damos_action_strs[] = {
@@ -9750,17 +9993,16 @@ index 48e434cd43d8..0f65db55fa28 100644
  }
  
  static int damon_sysfs_set_attrs(struct damon_ctx *ctx,
-@@ -2066,7 +2138,8 @@ static void damon_sysfs_destroy_targets(struct damon_ctx *ctx)
+@@ -2066,7 +2138,7 @@ static void damon_sysfs_destroy_targets(struct damon_ctx *ctx)
  	struct damon_target *t, *next;
  
  	damon_for_each_target_safe(t, next, ctx) {
 -		if (ctx->ops.id == DAMON_OPS_VADDR)
-+		if (ctx->ops.id == DAMON_OPS_VADDR ||
-+				ctx->ops.id == DAMON_OPS_FVADDR)
++		if (damon_target_has_pid(ctx))
  			put_pid(t->pid);
  		damon_destroy_target(t);
  	}
-@@ -2075,28 +2148,89 @@ static void damon_sysfs_destroy_targets(struct damon_ctx *ctx)
+@@ -2075,28 +2147,88 @@ static void damon_sysfs_destroy_targets(struct damon_ctx *ctx)
  static int damon_sysfs_set_regions(struct damon_target *t,
  		struct damon_sysfs_regions *sysfs_regions)
  {
@@ -9813,8 +10055,7 @@ index 48e434cd43d8..0f65db55fa28 100644
 +
 +	if (!t)
 +		return -ENOMEM;
-+	if (ctx->ops.id == DAMON_OPS_VADDR ||
-+			ctx->ops.id == DAMON_OPS_FVADDR) {
++	if (damon_target_has_pid(ctx)) {
 +		t->pid = find_get_pid(sys_target->pid);
 +		if (!t->pid)
 +			goto destroy_targets_out;
@@ -9842,7 +10083,7 @@ index 48e434cd43d8..0f65db55fa28 100644
 +	struct pid *pid;
 +	struct damon_target *t;
 +
-+	if (ctx->ops.id == DAMON_OPS_PADDR) {
++	if (!damon_target_has_pid(ctx)) {
 +		/* Up to only one target for paddr could exist */
 +		damon_for_each_target(t, ctx)
 +			return t;
@@ -9864,7 +10105,7 @@ index 48e434cd43d8..0f65db55fa28 100644
  }
  
  static int damon_sysfs_set_targets(struct damon_ctx *ctx,
-@@ -2104,28 +2238,22 @@ static int damon_sysfs_set_targets(struct damon_ctx *ctx,
+@@ -2104,28 +2236,22 @@ static int damon_sysfs_set_targets(struct damon_ctx *ctx,
  {
  	int i, err;
  
@@ -9907,7 +10148,7 @@ index 48e434cd43d8..0f65db55fa28 100644
  	}
  	return 0;
  }
-@@ -2183,7 +2311,7 @@ static void damon_sysfs_before_terminate(struct damon_ctx *ctx)
+@@ -2183,7 +2309,7 @@ static void damon_sysfs_before_terminate(struct damon_ctx *ctx)
  {
  	struct damon_target *t, *next;
  
@@ -9916,10 +10157,12 @@ index 48e434cd43d8..0f65db55fa28 100644
  		return;
  
  	mutex_lock(&ctx->kdamond_lock);
-@@ -2194,6 +2322,115 @@ static void damon_sysfs_before_terminate(struct damon_ctx *ctx)
+@@ -2194,34 +2320,134 @@ static void damon_sysfs_before_terminate(struct damon_ctx *ctx)
  	mutex_unlock(&ctx->kdamond_lock);
  }
  
+-static struct damon_ctx *damon_sysfs_build_ctx(
+-		struct damon_sysfs_context *sys_ctx)
 +/*
 + * damon_sysfs_upd_schemes_stats() - Update schemes stats sysfs files.
 + * @kdamond:	The kobject wrapper that associated to the kdamond thread.
@@ -9930,13 +10173,16 @@ index 48e434cd43d8..0f65db55fa28 100644
 + * contexts-internal data and DAMON sysfs variables.
 + */
 +static int damon_sysfs_upd_schemes_stats(struct damon_sysfs_kdamond *kdamond)
-+{
+ {
+-	struct damon_ctx *ctx = damon_new_ctx();
+-	int err;
 +	struct damon_ctx *ctx = kdamond->damon_ctx;
 +	struct damon_sysfs_schemes *sysfs_schemes;
 +	struct damos *scheme;
 +	int schemes_idx = 0;
-+
-+	if (!ctx)
+ 
+ 	if (!ctx)
+-		return ERR_PTR(-ENOMEM);
 +		return -EINVAL;
 +	sysfs_schemes = kdamond->contexts->contexts_arr[0]->schemes;
 +	damon_for_each_scheme(scheme, ctx) {
@@ -9959,6 +10205,25 @@ index 48e434cd43d8..0f65db55fa28 100644
 +		damon_sysfs_ctx_running(kdamond->damon_ctx);
 +}
 +
++static int damon_sysfs_apply_inputs(struct damon_ctx *ctx,
++		struct damon_sysfs_context *sys_ctx)
++{
++	int err;
+ 
+ 	err = damon_select_ops(ctx, sys_ctx->ops_id);
+ 	if (err)
+-		goto out;
++		return err;
+ 	err = damon_sysfs_set_attrs(ctx, sys_ctx->attrs);
+ 	if (err)
+-		goto out;
++		return err;
+ 	err = damon_sysfs_set_targets(ctx, sys_ctx->targets);
+ 	if (err)
++		return err;
++	return damon_sysfs_set_schemes(ctx, sys_ctx->schemes);
++}
++
 +/*
 + * damon_sysfs_commit_input() - Commit user inputs to a running kdamond.
 + * @kdamond:	The kobject wrapper for the associated kdamond.
@@ -9967,31 +10232,14 @@ index 48e434cd43d8..0f65db55fa28 100644
 + */
 +static int damon_sysfs_commit_input(struct damon_sysfs_kdamond *kdamond)
 +{
-+	struct damon_ctx *ctx = kdamond->damon_ctx;
-+	struct damon_sysfs_context *sys_ctx;
-+	int err = 0;
-+
 +	if (!damon_sysfs_kdamond_running(kdamond))
 +		return -EINVAL;
 +	/* TODO: Support multiple contexts per kdamond */
 +	if (kdamond->contexts->nr != 1)
 +		return -EINVAL;
 +
-+	sys_ctx = kdamond->contexts->contexts_arr[0];
-+
-+	err = damon_select_ops(ctx, sys_ctx->ops_id);
-+	if (err)
-+		return err;
-+	err = damon_sysfs_set_attrs(ctx, sys_ctx->attrs);
-+	if (err)
-+		return err;
-+	err = damon_sysfs_set_targets(ctx, sys_ctx->targets);
-+	if (err)
-+		return err;
-+	err = damon_sysfs_set_schemes(ctx, sys_ctx->schemes);
-+	if (err)
-+		return err;
-+	return err;
++	return damon_sysfs_apply_inputs(kdamond->damon_ctx,
++			kdamond->contexts->contexts_arr[0]);
 +}
 +
 +/*
@@ -10011,7 +10259,10 @@ index 48e434cd43d8..0f65db55fa28 100644
 +		return 0;
 +	kdamond = damon_sysfs_cmd_request.kdamond;
 +	if (!kdamond || kdamond->damon_ctx != c)
-+		goto out;
+ 		goto out;
+-	err = damon_sysfs_set_schemes(ctx, sys_ctx->schemes);
+-	if (err)
+-		goto out;
 +	switch (damon_sysfs_cmd_request.cmd) {
 +	case DAMON_SYSFS_CMD_UPDATE_SCHEMES_STATS:
 +		err = damon_sysfs_upd_schemes_stats(kdamond);
@@ -10029,19 +10280,33 @@ index 48e434cd43d8..0f65db55fa28 100644
 +	return err;
 +}
 +
- static struct damon_ctx *damon_sysfs_build_ctx(
- 		struct damon_sysfs_context *sys_ctx)
- {
-@@ -2216,6 +2453,8 @@ static struct damon_ctx *damon_sysfs_build_ctx(
- 	if (err)
- 		goto out;
++static struct damon_ctx *damon_sysfs_build_ctx(
++		struct damon_sysfs_context *sys_ctx)
++{
++	struct damon_ctx *ctx = damon_new_ctx();
++	int err;
++
++	if (!ctx)
++		return ERR_PTR(-ENOMEM);
  
++	err = damon_sysfs_apply_inputs(ctx, sys_ctx);
++	if (err) {
++		damon_destroy_ctx(ctx);
++		return ERR_PTR(err);
++	}
++
 +	ctx->callback.after_wmarks_check = damon_sysfs_cmd_request_callback;
 +	ctx->callback.after_aggregation = damon_sysfs_cmd_request_callback;
  	ctx->callback.before_terminate = damon_sysfs_before_terminate;
  	return ctx;
+-
+-out:
+-	damon_destroy_ctx(ctx);
+-	return ERR_PTR(err);
+ }
  
-@@ -2232,6 +2471,8 @@ static int damon_sysfs_turn_damon_on(struct damon_sysfs_kdamond *kdamond)
+ static int damon_sysfs_turn_damon_on(struct damon_sysfs_kdamond *kdamond)
+@@ -2232,6 +2458,8 @@ static int damon_sysfs_turn_damon_on(struct damon_sysfs_kdamond *kdamond)
  	if (kdamond->damon_ctx &&
  			damon_sysfs_ctx_running(kdamond->damon_ctx))
  		return -EBUSY;
@@ -10050,7 +10315,7 @@ index 48e434cd43d8..0f65db55fa28 100644
  	/* TODO: support multiple contexts per kdamond */
  	if (kdamond->contexts->nr != 1)
  		return -EINVAL;
-@@ -2264,28 +2505,62 @@ static int damon_sysfs_turn_damon_off(struct damon_sysfs_kdamond *kdamond)
+@@ -2264,28 +2492,62 @@ static int damon_sysfs_turn_damon_off(struct damon_sysfs_kdamond *kdamond)
  	 */
  }
  
@@ -10131,7 +10396,7 @@ index 48e434cd43d8..0f65db55fa28 100644
  	return 0;
  }
  
-@@ -2294,18 +2569,17 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
+@@ -2294,18 +2556,17 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
  {
  	struct damon_sysfs_kdamond *kdamond = container_of(kobj,
  			struct damon_sysfs_kdamond, kobj);
@@ -10158,7 +10423,7 @@ index 48e434cd43d8..0f65db55fa28 100644
  	mutex_unlock(&damon_sysfs_lock);
  	if (!ret)
  		ret = count;
-@@ -2424,6 +2698,12 @@ static int damon_sysfs_kdamonds_add_dirs(struct damon_sysfs_kdamonds *kdamonds,
+@@ -2424,6 +2685,12 @@ static int damon_sysfs_kdamonds_add_dirs(struct damon_sysfs_kdamonds *kdamonds,
  	if (damon_sysfs_nr_running_ctxs(kdamonds->kdamonds_arr, kdamonds->nr))
  		return -EBUSY;
  
@@ -10223,7 +10488,7 @@ index 1a55bb6c36c3..d4f55f349100 100644
  }
  
 diff --git a/mm/damon/vaddr.c b/mm/damon/vaddr.c
-index b2ec0aa1ff45..59e1653799f8 100644
+index b2ec0aa1ff45..3c7b9d6dca95 100644
 --- a/mm/damon/vaddr.c
 +++ b/mm/damon/vaddr.c
 @@ -281,77 +281,6 @@ static void damon_va_init(struct damon_ctx *ctx)
@@ -10313,7 +10578,17 @@ index b2ec0aa1ff45..59e1653799f8 100644
  	}
  }
  
-@@ -513,7 +442,7 @@ static int damon_young_pmd_entry(pmd_t *pmd, unsigned long addr,
+@@ -407,8 +336,7 @@ static void damon_hugetlb_mkold(pte_t *pte, struct mm_struct *mm,
+ 	if (pte_young(entry)) {
+ 		referenced = true;
+ 		entry = pte_mkold(entry);
+-		huge_ptep_set_access_flags(vma, addr, pte, entry,
+-					   vma->vm_flags & VM_WRITE);
++		set_huge_pte_at(mm, addr, pte, entry);
+ 	}
+ 
+ #ifdef CONFIG_MMU_NOTIFIER
+@@ -513,7 +441,7 @@ static int damon_young_pmd_entry(pmd_t *pmd, unsigned long addr,
  		if (pmd_young(*pmd) || !page_is_idle(page) ||
  					mmu_notifier_test_young(walk->mm,
  						addr)) {
@@ -10322,7 +10597,7 @@ index b2ec0aa1ff45..59e1653799f8 100644
  			priv->young = true;
  		}
  		put_page(page);
-@@ -753,8 +682,19 @@ static int __init damon_va_initcall(void)
+@@ -753,8 +681,19 @@ static int __init damon_va_initcall(void)
  		.apply_scheme = damon_va_apply_scheme,
  		.get_scheme_score = damon_va_scheme_score,
  	};
@@ -10347,19 +10622,18 @@ index b2ec0aa1ff45..59e1653799f8 100644
 -- 
 2.37.0
 
-From bf2b38c829834195071e703ecd2b0331bfaf050c Mon Sep 17 00:00:00 2001
+From 43cb8797a87dccc0e058faad4bc40eb3020889b4 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Fri, 1 Jul 2022 11:04:42 +0200
 Subject: [PATCH 04/15] fixes
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
-(cherry picked from commit ff64006cc3d9b6d6e88bfc4468726f6cf5a51772)
-(cherry picked from commit f6729c46b5fef55a353a1b4c8b8b46e21f9eef28)
-(cherry picked from commit cff7345a9cddb9b9b50d34f6dd7bb401227f7a62)
+(cherry picked from commit 49f0918ed86c845836c522f62ec93c8df94b35b0)
 ---
  Makefile                                      |  5 --
  arch/x86/kvm/emulate.c                        |  9 ++-
  drivers/cpufreq/intel_pstate.c                |  1 +
+ drivers/gpu/drm/amd/amdgpu/amdgpu_device.c    |  9 +--
  drivers/i2c/busses/i2c-piix4.c                | 16 +++---
  drivers/infiniband/core/addr.c                |  1 +
  drivers/misc/lkdtm/heap.c                     |  1 +
@@ -10374,7 +10648,6 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  .../wireless/intel/iwlwifi/fw/error-dump.h    |  2 +-
  drivers/net/wireless/intel/iwlwifi/fw/file.h  | 10 ++--
  drivers/net/wireless/intel/iwlwifi/mei/sap.h  |  2 +-
- drivers/platform/x86/thinkpad_acpi.c          |  1 +
  drivers/scsi/sd.c                             | 43 ++++++++++++--
  drivers/scsi/sd.h                             |  1 +
  drivers/tty/Kconfig                           | 13 +++++
@@ -10398,10 +10671,10 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  kernel/trace/trace.c                          | 14 ++---
  kernel/workqueue.c                            |  2 +-
  net/sched/Kconfig                             |  4 ++
- 41 files changed, 274 insertions(+), 119 deletions(-)
+ 41 files changed, 278 insertions(+), 123 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index cd05994d042f..26ff42b3af0d 100644
+index 14acdc7189b6..f349952ac5e0 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -993,11 +993,6 @@ KBUILD_CFLAGS	+= -fno-strict-overflow
@@ -10464,6 +10737,33 @@ index 846bb3a78788..2216b24b6f84 100644
  
  	mutex_unlock(&intel_pstate_driver_lock);
  
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+index 66e40cac5eb3..23e01801c530 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+@@ -3960,10 +3960,6 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
+ {
+ 	dev_info(adev->dev, "amdgpu: finishing device.\n");
+ 	flush_delayed_work(&adev->delayed_init_work);
+-	if (adev->mman.initialized) {
+-		flush_delayed_work(&adev->mman.bdev.wq);
+-		ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
+-	}
+ 	adev->shutdown = true;
+ 
+ 	/* make sure IB test finished before entering exclusive mode
+@@ -3984,6 +3980,11 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
+ 	}
+ 	amdgpu_fence_driver_hw_fini(adev);
+ 
++	if (adev->mman.initialized) {
++		flush_delayed_work(&adev->mman.bdev.wq);
++		ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
++	}
++
+ 	if (adev->pm_sysfs_en)
+ 		amdgpu_pm_sysfs_fini(adev);
+ 	if (adev->ucode_sysfs_en)
 diff --git a/drivers/i2c/busses/i2c-piix4.c b/drivers/i2c/busses/i2c-piix4.c
 index ac8e7d60672a..39cb1b7bb865 100644
 --- a/drivers/i2c/busses/i2c-piix4.c
@@ -10786,18 +11086,6 @@ index 11e3009121cc..be1456dea484 100644
  };
  
  /**
-diff --git a/drivers/platform/x86/thinkpad_acpi.c b/drivers/platform/x86/thinkpad_acpi.c
-index e6cb4a14cdd4..aa6ffeaa3932 100644
---- a/drivers/platform/x86/thinkpad_acpi.c
-+++ b/drivers/platform/x86/thinkpad_acpi.c
-@@ -4529,6 +4529,7 @@ static void thinkpad_acpi_amd_s2idle_restore(void)
- 	iounmap(addr);
- cleanup_resource:
- 	release_resource(res);
-+	kfree(res);
- }
- 
- static struct acpi_s2idle_dev_ops thinkpad_acpi_s2idle_dev_ops = {
 diff --git a/drivers/scsi/sd.c b/drivers/scsi/sd.c
 index edc27a88a057..30777f9b8fce 100644
 --- a/drivers/scsi/sd.c
@@ -11561,7 +11849,7 @@ index 1e8ab4749c6c..75122fd6506b 100644
 -- 
 2.37.0
 
-From 1930fb90876d86b93e294662f5a1c448d5d239e1 Mon Sep 17 00:00:00 2001
+From ecf8a656336cfc109597b8f5971436d3c9d22d72 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Fri, 1 Jul 2022 11:05:05 +0200
 Subject: [PATCH 05/15] hwmon
@@ -11570,6 +11858,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
 (cherry picked from commit c40053c8e7f58d0d29dd58f9c85dfa9430264226)
 (cherry picked from commit 55a212fa1c318dba3421b9d20a19500bb0ba3c09)
 (cherry picked from commit a04167e48bfcb784a07391e10177357eb54b6e56)
+(cherry picked from commit 11bed739b494a6d2e910f5b33a3a5acfa88b7513)
 ---
  .../bindings/hwmon/nuvoton,nct6775.yaml       |   57 +
  Documentation/hwmon/asus_ec_sensors.rst       |   28 +-
@@ -17618,15 +17907,13 @@ index 000000000000..93f708148e65
 -- 
 2.37.0
 
-From 7793ccb9cbbfaa5957ba345d10f68b589a1caf2f Mon Sep 17 00:00:00 2001
+From 2f26932fddcd86ae5c6357571b9b0f1c8e1efd77 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Fri, 1 Jul 2022 11:05:23 +0200
 Subject: [PATCH 06/15] lrng
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
-(cherry picked from commit 74f6b8d5cd33481898d0056fc3ca3af51674ec45)
-(cherry picked from commit 4d294b8e11d624b701ea0a8f597b3b5376ba4bdc)
-(cherry picked from commit d7a4de9ccb432ddf9967374192e7972eea70a8d7)
+(cherry picked from commit 0cda71bc446a2dec4994b10089ba3b6cb42c8b8a)
 ---
  MAINTAINERS                                   |   7 +
  crypto/drbg.c                                 |  16 +-
@@ -17645,7 +17932,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  drivers/char/lrng/lrng_drng_drbg.h            |  13 +
  drivers/char/lrng/lrng_drng_kcapi.c           | 208 ++++
  drivers/char/lrng/lrng_drng_kcapi.h           |  13 +
- drivers/char/lrng/lrng_drng_mgr.c             | 575 +++++++++++
+ drivers/char/lrng/lrng_drng_mgr.c             | 586 +++++++++++
  drivers/char/lrng/lrng_drng_mgr.h             |  85 ++
  drivers/char/lrng/lrng_es_aux.c               | 335 +++++++
  drivers/char/lrng/lrng_es_aux.h               |  44 +
@@ -17693,7 +17980,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  .../crypto/internal}/jitterentropy.h          |   0
  include/linux/lrng.h                          | 177 ++++
  kernel/sched/core.c                           |   3 +
- 65 files changed, 9847 insertions(+), 10 deletions(-)
+ 65 files changed, 9858 insertions(+), 10 deletions(-)
  create mode 100644 drivers/char/lrng/Kconfig
  create mode 100644 drivers/char/lrng/Makefile
  create mode 100644 drivers/char/lrng/lrng_definitions.h
@@ -19925,10 +20212,10 @@ index 000000000000..5db25aaf830c
 +#endif /* _LRNG_KCAPI_DRNG_H */
 diff --git a/drivers/char/lrng/lrng_drng_mgr.c b/drivers/char/lrng/lrng_drng_mgr.c
 new file mode 100644
-index 000000000000..78739ef94b8a
+index 000000000000..54f346ae850e
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_drng_mgr.c
-@@ -0,0 +1,575 @@
+@@ -0,0 +1,586 @@
 +// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 +/*
 + * LRNG DRNG management
@@ -20389,7 +20676,18 @@ index 000000000000..78739ef94b8a
 +
 +		/*
 +		 * In FIPS mode according to IG 7.19, force a reseed after
-+		 * generating data as conditioning component.
++		 * generating data as conditioning component. When setting
++		 * ->force_reseed = true, it is possible that the subsequent
++		 * reseed may fail if insufficient entropy is available but yet
++		 * random bits are generated. We accept this potential issue
++		 * as bullet-proof solution would be to invoke
++		 * lrng_unset_fully_seeded(drng) which is an easy DoS vector.
++		 * This function would then imply that the respective DRNG
++		 * instance is not usable until a reseed happened. If this is
++		 * the initial DRNG, the entire LRNG goes back to
++		 * non-operational mode, which is the DoS. The other solution
++		 * would be to instantiate a separate DRNG for PR, which is
++		 * a waste.
 +		 */
 +		if (pr && lrng_sp80090c_compliant())
 +			drng->force_reseed = true;
@@ -28109,7 +28407,7 @@ index f06231237a74..185488fd7612 100644
 -- 
 2.37.0
 
-From 827520ba995b8a087723e3ca7608fca2412b220c Mon Sep 17 00:00:00 2001
+From 25a65bbeb49ed7c71cab8651413444b989d85b70 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Fri, 1 Jul 2022 11:06:27 +0200
 Subject: [PATCH 07/15] lru-le9-spf
@@ -28118,6 +28416,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
 (cherry picked from commit 7cc49eaa2167bc276b1f3b1e76a92239887af709)
 (cherry picked from commit 611da1c1b1376d21875fa90008ff0a27c0f9c91d)
 (cherry picked from commit 3a884e7afff88baf8f5e6f72d8a2e2763669028d)
+(cherry picked from commit 0cb42cac17e2de5aa3d2211342d053ebad6c3609)
 ---
  Documentation/admin-guide/mm/index.rst        |    1 +
  Documentation/admin-guide/mm/multigen_lru.rst |  156 +
@@ -28780,7 +29079,7 @@ index 77341b160aca..2598795f4e70 100644
  	/*
  	 * Handle the "normal" (no error) case first.
 diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index 500f2a0831ef..e5d9e28990d7 100644
+index 45e471516c3c..04c49103c9bc 100644
 --- a/arch/powerpc/Kconfig
 +++ b/arch/powerpc/Kconfig
 @@ -149,6 +149,7 @@ config PPC
@@ -35710,13 +36009,14 @@ index 592569a8974c..db6f0c8a98c2 100644
 -- 
 2.37.0
 
-From 46217312f4e011635058cb42d59cc839069d30b7 Mon Sep 17 00:00:00 2001
+From 12aa169e7b589c280e716d66e90672955ccafbe0 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Sat, 2 Jul 2022 02:15:29 +0200
 Subject: [PATCH 08/15] kbuild-module
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 (cherry picked from commit 2d8cfb00fec3099124c0f1c5f98409257802d77f)
+(cherry picked from commit fbadc24d978e3dfca6ccd0ed3fd58e1bb39a821c)
 ---
  Documentation/kbuild/kconfig-language.rst     |    6 +
  MAINTAINERS                                   |    4 +-
@@ -35907,7 +36207,7 @@ index f8f4e02e944a..0387c7da2146 100644
  MONOLITHIC POWER SYSTEM PMIC DRIVER
  M:	Saravanan Sekar <sravanhome@gmail.com>
 diff --git a/Makefile b/Makefile
-index 26ff42b3af0d..66cb5ec4ff18 100644
+index f349952ac5e0..fa666651ab73 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -436,6 +436,7 @@ else
@@ -36331,7 +36631,7 @@ index 70d3cffb0251..933d031c249a
  if [ "$(basename $2)" = "vmlinuz" ]; then
  # Compressed install
 diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index e5d9e28990d7..dd236ac41f44 100644
+index 04c49103c9bc..e822b7f9e1a3 100644
 --- a/arch/powerpc/Kconfig
 +++ b/arch/powerpc/Kconfig
 @@ -158,6 +158,7 @@ config PPC
@@ -36342,7 +36642,7 @@ index e5d9e28990d7..dd236ac41f44 100644
  	select ARCH_WEAK_RELEASE_ACQUIRE
  	select BINFMT_ELF
  	select BUILDTIME_TABLE_SORT
-@@ -566,7 +567,6 @@ config RELOCATABLE
+@@ -570,7 +571,6 @@ config RELOCATABLE
  	bool "Build a relocatable kernel"
  	depends on PPC64 || (FLATMEM && (44x || FSL_BOOKE))
  	select NONSTATIC_KERNEL
@@ -36478,10 +36778,10 @@ index 18c39159c0ff..4c63f3f0643d
  if [ "$(basename $2)" = "Image.gz" ]; then
  # Compressed install
 diff --git a/arch/s390/Kconfig b/arch/s390/Kconfig
-index 359b0cc0dc35..18a0dc869693 100644
+index d7dcad901146..ddb567985482 100644
 --- a/arch/s390/Kconfig
 +++ b/arch/s390/Kconfig
-@@ -587,7 +587,6 @@ endchoice
+@@ -586,7 +586,6 @@ endchoice
  
  config RELOCATABLE
  	bool "Build a relocatable kernel"
@@ -47007,12 +47307,13 @@ index fa9819e022b7..f621e6078512 100644
 -- 
 2.37.0
 
-From 0ea802c892460a60c2c903483aeb93352292dac8 Mon Sep 17 00:00:00 2001
+From c656a93cf93ef022d46d8d702bce588499fcc052 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Sat, 2 Jul 2022 03:30:44 +0200
 Subject: [PATCH 09/15] misc
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
+(cherry picked from commit 1105a7c66f82cf55f93d7e5e1782705d758454ff)
 ---
  Documentation/core-api/mm-api.rst             |    8 +-
  MAINTAINERS                                   |    1 +
@@ -47069,9 +47370,12 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  include/linux/cpumask.h                       |  125 +-
  include/linux/gfp.h                           |  334 +---
  include/linux/gfp_flags.h                     |  338 ++++
+ include/linux/mm_types.h                      |    5 +
+ include/linux/mmzone.h                        |   12 +-
  lib/bitmap.c                                  |    9 +-
  lib/cpumask.c                                 |   97 +-
  lib/test_bitmap.c                             |   62 +
+ mm/page_alloc.c                               |  393 +++--
  net/ipv4/netfilter/Kconfig                    |    9 +
  net/netfilter/Kconfig                         |    8 +
  net/netfilter/Makefile                        |    3 +
@@ -47080,7 +47384,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  tools/include/linux/bitmap.h                  |   12 +-
  tools/include/linux/bitops.h                  |   16 +
  tools/lib/bitmap.c                            |    6 +-
- 66 files changed, 4256 insertions(+), 805 deletions(-)
+ 69 files changed, 4498 insertions(+), 973 deletions(-)
  create mode 100644 drivers/net/wireless/realtek/rtw88/rtw8723du.c
  create mode 100644 drivers/net/wireless/realtek/rtw88/rtw8723du.h
  create mode 100644 drivers/net/wireless/realtek/rtw88/rtw8821cu.c
@@ -52105,6 +52409,72 @@ index 000000000000..846cc8151340
 +#define GFP_MOVABLE_SHIFT 3
 +
 +#endif /* __LINUX_GFP_FLAGS_H */
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index d04ecb679137..e831d46481b6 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -89,6 +89,7 @@ struct page {
+ 			 */
+ 			union {
+ 				struct list_head lru;
++
+ 				/* Or, for the Unevictable "LRU list" slot */
+ 				struct {
+ 					/* Always even, to negate PageTail */
+@@ -96,6 +97,10 @@ struct page {
+ 					/* Count page's or folio's mlocks */
+ 					unsigned int mlock_count;
+ 				};
++
++				/* Or, free page */
++				struct list_head buddy_list;
++				struct list_head pcp_list;
+ 			};
+ 			/* See page-flags.h for PAGE_MAPPING_FLAGS */
+ 			struct address_space *mapping;
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index b2e8869be7cf..3cbb5c2f94a1 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -569,15 +569,18 @@ enum zone_watermarks {
+ };
+ 
+ /*
+- * One per migratetype for each PAGE_ALLOC_COSTLY_ORDER plus one additional
+- * for pageblock size for THP if configured.
++ * One per migratetype for each PAGE_ALLOC_COSTLY_ORDER. One additional list
++ * for THP which will usually be GFP_MOVABLE. Even if it is another type,
++ * it should not contribute to serious fragmentation causing THP allocation
++ * failures.
+  */
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ #define NR_PCP_THP 1
+ #else
+ #define NR_PCP_THP 0
+ #endif
+-#define NR_PCP_LISTS (MIGRATE_PCPTYPES * (PAGE_ALLOC_COSTLY_ORDER + 1 + NR_PCP_THP))
++#define NR_LOWORDER_PCP_LISTS (MIGRATE_PCPTYPES * (PAGE_ALLOC_COSTLY_ORDER + 1))
++#define NR_PCP_LISTS (NR_LOWORDER_PCP_LISTS + NR_PCP_THP)
+ 
+ /*
+  * Shift to encode migratetype and order in the same integer, with order
+@@ -593,6 +596,7 @@ enum zone_watermarks {
+ 
+ /* Fields and list protected by pagesets local_lock in page_alloc.c */
+ struct per_cpu_pages {
++	spinlock_t lock;	/* Protects lists field */
+ 	int count;		/* number of pages in the list */
+ 	int high;		/* high watermark, emptying needed */
+ 	int batch;		/* chunk size for buddy add/remove */
+@@ -603,7 +607,7 @@ struct per_cpu_pages {
+ 
+ 	/* Lists of pages, one per migrate type stored on the pcp-lists */
+ 	struct list_head lists[NR_PCP_LISTS];
+-};
++} ____cacheline_aligned_in_smp;
+ 
+ struct per_cpu_zonestat {
+ #ifdef CONFIG_SMP
 diff --git a/lib/bitmap.c b/lib/bitmap.c
 index 0d5c2ece0bcb..8f05cb60019c 100644
 --- a/lib/bitmap.c
@@ -52367,6 +52737,727 @@ index 0c82f07f74fc..d67e2d1e6276 100644
  }
  
  KSTM_MODULE_LOADERS(test_bitmap);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 041c16aa8f2f..9017f505cee6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -127,13 +127,97 @@ atomic_long_t kswapd_waiters = ATOMIC_LONG_INIT(0);
+ static DEFINE_MUTEX(pcp_batch_high_lock);
+ #define MIN_PERCPU_PAGELIST_HIGH_FRACTION (8)
+ 
+-struct pagesets {
+-	local_lock_t lock;
+-};
+-static DEFINE_PER_CPU(struct pagesets, pagesets) = {
+-	.lock = INIT_LOCAL_LOCK(lock),
+-};
++#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT_RT)
++/*
++ * On SMP, spin_trylock is sufficient protection.
++ * On PREEMPT_RT, spin_trylock is equivalent on both SMP and UP.
++ */
++#define pcp_trylock_prepare(flags)	do { } while (0)
++#define pcp_trylock_finish(flag)	do { } while (0)
++#else
++
++/* UP spin_trylock always succeeds so disable IRQs to prevent re-entrancy. */
++#define pcp_trylock_prepare(flags)	local_irq_save(flags)
++#define pcp_trylock_finish(flags)	local_irq_restore(flags)
++#endif
++
++/*
++ * Locking a pcp requires a PCP lookup followed by a spinlock. To avoid
++ * a migration causing the wrong PCP to be locked and remote memory being
++ * potentially allocated, pin the task to the CPU for the lookup+lock.
++ * preempt_disable is used on !RT because it is faster than migrate_disable.
++ * migrate_disable is used on RT because otherwise RT spinlock usage is
++ * interfered with and a high priority task cannot preempt the allocator.
++ */
++#ifndef CONFIG_PREEMPT_RT
++#define pcpu_task_pin()		preempt_disable()
++#define pcpu_task_unpin()	preempt_enable()
++#else
++#define pcpu_task_pin()		migrate_disable()
++#define pcpu_task_unpin()	migrate_enable()
++#endif
+ 
++/*
++ * Generic helper to lookup and a per-cpu variable with an embedded spinlock.
++ * Return value should be used with equivalent unlock helper.
++ */
++#define pcpu_spin_lock(type, member, ptr)				\
++({									\
++	type *_ret;							\
++	pcpu_task_pin();						\
++	_ret = this_cpu_ptr(ptr);					\
++	spin_lock(&_ret->member);					\
++	_ret;								\
++})
++
++#define pcpu_spin_lock_irqsave(type, member, ptr, flags)		\
++({									\
++	type *_ret;							\
++	pcpu_task_pin();						\
++	_ret = this_cpu_ptr(ptr);					\
++	spin_lock_irqsave(&_ret->member, flags);			\
++	_ret;								\
++})
++
++#define pcpu_spin_trylock_irqsave(type, member, ptr, flags)		\
++({									\
++	type *_ret;							\
++	pcpu_task_pin();						\
++	_ret = this_cpu_ptr(ptr);					\
++	if (!spin_trylock_irqsave(&_ret->member, flags)) {		\
++		pcpu_task_unpin();					\
++		_ret = NULL;						\
++	}								\
++	_ret;								\
++})
++
++#define pcpu_spin_unlock(member, ptr)					\
++({									\
++	spin_unlock(&ptr->member);					\
++	pcpu_task_unpin();						\
++})
++
++#define pcpu_spin_unlock_irqrestore(member, ptr, flags)			\
++({									\
++	spin_unlock_irqrestore(&ptr->member, flags);			\
++	pcpu_task_unpin();						\
++})
++
++/* struct per_cpu_pages specific helpers. */
++#define pcp_spin_lock(ptr)						\
++	pcpu_spin_lock(struct per_cpu_pages, lock, ptr)
++
++#define pcp_spin_lock_irqsave(ptr, flags)				\
++	pcpu_spin_lock_irqsave(struct per_cpu_pages, lock, ptr, flags)
++
++#define pcp_spin_trylock_irqsave(ptr, flags)				\
++	pcpu_spin_trylock_irqsave(struct per_cpu_pages, lock, ptr, flags)
++
++#define pcp_spin_unlock(ptr)						\
++	pcpu_spin_unlock(lock, ptr)
++
++#define pcp_spin_unlock_irqrestore(ptr, flags)				\
++	pcpu_spin_unlock_irqrestore(lock, ptr, flags)
+ #ifdef CONFIG_USE_PERCPU_NUMA_NODE_ID
+ DEFINE_PER_CPU(int, numa_node);
+ EXPORT_PER_CPU_SYMBOL(numa_node);
+@@ -152,13 +236,7 @@ DEFINE_PER_CPU(int, _numa_mem_);		/* Kernel "local memory" node */
+ EXPORT_PER_CPU_SYMBOL(_numa_mem_);
+ #endif
+ 
+-/* work_structs for global per-cpu drains */
+-struct pcpu_drain {
+-	struct zone *zone;
+-	struct work_struct work;
+-};
+ static DEFINE_MUTEX(pcpu_drain_mutex);
+-static DEFINE_PER_CPU(struct pcpu_drain, pcpu_drain);
+ 
+ #ifdef CONFIG_GCC_PLUGIN_LATENT_ENTROPY
+ volatile unsigned long latent_entropy __latent_entropy;
+@@ -650,7 +728,7 @@ static inline unsigned int order_to_pindex(int migratetype, int order)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 	if (order > PAGE_ALLOC_COSTLY_ORDER) {
+ 		VM_BUG_ON(order != pageblock_order);
+-		base = PAGE_ALLOC_COSTLY_ORDER + 1;
++		return NR_LOWORDER_PCP_LISTS;
+ 	}
+ #else
+ 	VM_BUG_ON(order > PAGE_ALLOC_COSTLY_ORDER);
+@@ -664,7 +742,7 @@ static inline int pindex_to_order(unsigned int pindex)
+ 	int order = pindex / MIGRATE_PCPTYPES;
+ 
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	if (order > PAGE_ALLOC_COSTLY_ORDER)
++	if (pindex == NR_LOWORDER_PCP_LISTS)
+ 		order = pageblock_order;
+ #else
+ 	VM_BUG_ON(order > PAGE_ALLOC_COSTLY_ORDER);
+@@ -782,7 +860,7 @@ static inline bool set_page_guard(struct zone *zone, struct page *page,
+ 		return false;
+ 
+ 	__SetPageGuard(page);
+-	INIT_LIST_HEAD(&page->lru);
++	INIT_LIST_HEAD(&page->buddy_list);
+ 	set_page_private(page, order);
+ 	/* Guard pages are not available for any usage */
+ 	__mod_zone_freepage_state(zone, -(1 << order), migratetype);
+@@ -959,7 +1037,7 @@ static inline void add_to_free_list(struct page *page, struct zone *zone,
+ {
+ 	struct free_area *area = &zone->free_area[order];
+ 
+-	list_add(&page->lru, &area->free_list[migratetype]);
++	list_add(&page->buddy_list, &area->free_list[migratetype]);
+ 	area->nr_free++;
+ }
+ 
+@@ -969,7 +1047,7 @@ static inline void add_to_free_list_tail(struct page *page, struct zone *zone,
+ {
+ 	struct free_area *area = &zone->free_area[order];
+ 
+-	list_add_tail(&page->lru, &area->free_list[migratetype]);
++	list_add_tail(&page->buddy_list, &area->free_list[migratetype]);
+ 	area->nr_free++;
+ }
+ 
+@@ -983,7 +1061,7 @@ static inline void move_to_free_list(struct page *page, struct zone *zone,
+ {
+ 	struct free_area *area = &zone->free_area[order];
+ 
+-	list_move_tail(&page->lru, &area->free_list[migratetype]);
++	list_move_tail(&page->buddy_list, &area->free_list[migratetype]);
+ }
+ 
+ static inline void del_page_from_free_list(struct page *page, struct zone *zone,
+@@ -993,7 +1071,7 @@ static inline void del_page_from_free_list(struct page *page, struct zone *zone,
+ 	if (page_reported(page))
+ 		__ClearPageReported(page);
+ 
+-	list_del(&page->lru);
++	list_del(&page->buddy_list);
+ 	__ClearPageBuddy(page);
+ 	set_page_private(page, 0);
+ 	zone->free_area[order].nr_free--;
+@@ -1460,10 +1538,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 	/* Ensure requested pindex is drained first. */
+ 	pindex = pindex - 1;
+ 
+-	/*
+-	 * local_lock_irq held so equivalent to spin_lock_irqsave for
+-	 * both PREEMPT_RT and non-PREEMPT_RT configurations.
+-	 */
++	/* Caller must hold IRQ-safe pcp->lock so IRQs are disabled. */
+ 	spin_lock(&zone->lock);
+ 	isolated_pageblocks = has_isolate_pageblock(zone);
+ 
+@@ -1491,11 +1566,11 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 		do {
+ 			int mt;
+ 
+-			page = list_last_entry(list, struct page, lru);
++			page = list_last_entry(list, struct page, pcp_list);
+ 			mt = get_pcppage_migratetype(page);
+ 
+ 			/* must delete to avoid corrupting pcp list */
+-			list_del(&page->lru);
++			list_del(&page->pcp_list);
+ 			count -= nr_pages;
+ 			pcp->count -= nr_pages;
+ 
+@@ -3032,10 +3107,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 	const bool can_resched = !preempt_count() && !irqs_disabled();
+ 	int i, allocated = 0, last_mod = 0;
+ 
+-	/*
+-	 * local_lock_irq held so equivalent to spin_lock_irqsave for
+-	 * both PREEMPT_RT and non-PREEMPT_RT configurations.
+-	 */
++	/* Caller must hold IRQ-safe pcp->lock so IRQs are disabled. */
+ 	spin_lock(&zone->lock);
+ 	for (i = 0; i < count; ++i) {
+ 		struct page *page = __rmqueue(zone, order, migratetype,
+@@ -3068,7 +3140,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 		 * for IO devices that can merge IO requests if the physical
+ 		 * pages are ordered properly.
+ 		 */
+-		list_add_tail(&page->lru, list);
++		list_add_tail(&page->pcp_list, list);
+ 		allocated++;
+ 		if (is_migrate_cma(get_pcppage_migratetype(page)))
+ 			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
+@@ -3091,51 +3163,48 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+  * Called from the vmstat counter updater to drain pagesets of this
+  * currently executing processor on remote nodes after they have
+  * expired.
+- *
+- * Note that this function must be called with the thread pinned to
+- * a single processor.
+  */
+ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
+ {
+-	unsigned long flags;
+ 	int to_drain, batch;
+ 
+-	local_lock_irqsave(&pagesets.lock, flags);
+ 	batch = READ_ONCE(pcp->batch);
+ 	to_drain = min(pcp->count, batch);
+-	if (to_drain > 0)
++	if (to_drain > 0) {
++		unsigned long flags;
++
++		/*
++		 * free_pcppages_bulk expects IRQs disabled for zone->lock
++		 * so even though pcp->lock is not intended to be IRQ-safe,
++		 * it's needed in this context.
++		 */
++		spin_lock_irqsave(&pcp->lock, flags);
+ 		free_pcppages_bulk(zone, to_drain, pcp, 0);
+-	local_unlock_irqrestore(&pagesets.lock, flags);
++		spin_unlock_irqrestore(&pcp->lock, flags);
++	}
+ }
+ #endif
+ 
+ /*
+  * Drain pcplists of the indicated processor and zone.
+- *
+- * The processor must either be the current processor and the
+- * thread pinned to the current processor or a processor that
+- * is not online.
+  */
+ static void drain_pages_zone(unsigned int cpu, struct zone *zone)
+ {
+-	unsigned long flags;
+ 	struct per_cpu_pages *pcp;
+ 
+-	local_lock_irqsave(&pagesets.lock, flags);
+-
+ 	pcp = per_cpu_ptr(zone->per_cpu_pageset, cpu);
+-	if (pcp->count)
+-		free_pcppages_bulk(zone, pcp->count, pcp, 0);
++	if (pcp->count) {
++		unsigned long flags;
+ 
+-	local_unlock_irqrestore(&pagesets.lock, flags);
++		/* See drain_zone_pages on why this is disabling IRQs */
++		spin_lock_irqsave(&pcp->lock, flags);
++		free_pcppages_bulk(zone, pcp->count, pcp, 0);
++		spin_unlock_irqrestore(&pcp->lock, flags);
++	}
+ }
+ 
+ /*
+  * Drain pcplists of all zones on the indicated processor.
+- *
+- * The processor must either be the current processor and the
+- * thread pinned to the current processor or a processor that
+- * is not online.
+  */
+ static void drain_pages(unsigned int cpu)
+ {
+@@ -3148,9 +3217,6 @@ static void drain_pages(unsigned int cpu)
+ 
+ /*
+  * Spill all of this CPU's per-cpu pages back into the buddy allocator.
+- *
+- * The CPU has to be pinned. When zone parameter is non-NULL, spill just
+- * the single zone's pages.
+  */
+ void drain_local_pages(struct zone *zone)
+ {
+@@ -3162,24 +3228,6 @@ void drain_local_pages(struct zone *zone)
+ 		drain_pages(cpu);
+ }
+ 
+-static void drain_local_pages_wq(struct work_struct *work)
+-{
+-	struct pcpu_drain *drain;
+-
+-	drain = container_of(work, struct pcpu_drain, work);
+-
+-	/*
+-	 * drain_all_pages doesn't use proper cpu hotplug protection so
+-	 * we can race with cpu offline when the WQ can move this from
+-	 * a cpu pinned worker to an unbound one. We can operate on a different
+-	 * cpu which is alright but we also have to make sure to not move to
+-	 * a different one.
+-	 */
+-	migrate_disable();
+-	drain_local_pages(drain->zone);
+-	migrate_enable();
+-}
+-
+ /*
+  * The implementation of drain_all_pages(), exposing an extra parameter to
+  * drain on all cpus.
+@@ -3200,13 +3248,6 @@ static void __drain_all_pages(struct zone *zone, bool force_all_cpus)
+ 	 */
+ 	static cpumask_t cpus_with_pcps;
+ 
+-	/*
+-	 * Make sure nobody triggers this path before mm_percpu_wq is fully
+-	 * initialized.
+-	 */
+-	if (WARN_ON_ONCE(!mm_percpu_wq))
+-		return;
+-
+ 	/*
+ 	 * Do not drain if one is already in progress unless it's specific to
+ 	 * a zone. Such callers are primarily CMA and memory hotplug and need
+@@ -3256,14 +3297,11 @@ static void __drain_all_pages(struct zone *zone, bool force_all_cpus)
+ 	}
+ 
+ 	for_each_cpu(cpu, &cpus_with_pcps) {
+-		struct pcpu_drain *drain = per_cpu_ptr(&pcpu_drain, cpu);
+-
+-		drain->zone = zone;
+-		INIT_WORK(&drain->work, drain_local_pages_wq);
+-		queue_work_on(cpu, mm_percpu_wq, &drain->work);
++		if (zone)
++			drain_pages_zone(cpu, zone);
++		else
++			drain_pages(cpu);
+ 	}
+-	for_each_cpu(cpu, &cpus_with_pcps)
+-		flush_work(&per_cpu_ptr(&pcpu_drain, cpu)->work);
+ 
+ 	mutex_unlock(&pcpu_drain_mutex);
+ }
+@@ -3272,8 +3310,6 @@ static void __drain_all_pages(struct zone *zone, bool force_all_cpus)
+  * Spill all the per-cpu pages from all CPUs back into the buddy allocator.
+  *
+  * When zone parameter is non-NULL, spill just the single zone's pages.
+- *
+- * Note that this can be extremely slow as the draining happens in a workqueue.
+  */
+ void drain_all_pages(struct zone *zone)
+ {
+@@ -3318,7 +3354,7 @@ void mark_free_pages(struct zone *zone)
+ 
+ 	for_each_migratetype_order(order, t) {
+ 		list_for_each_entry(page,
+-				&zone->free_area[order].free_list[t], lru) {
++				&zone->free_area[order].free_list[t], buddy_list) {
+ 			unsigned long i;
+ 
+ 			pfn = page_to_pfn(page);
+@@ -3395,19 +3431,17 @@ static int nr_pcp_high(struct per_cpu_pages *pcp, struct zone *zone,
+ 	return min(READ_ONCE(pcp->batch) << 2, high);
+ }
+ 
+-static void free_unref_page_commit(struct page *page, int migratetype,
++static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
++				   struct page *page, int migratetype,
+ 				   unsigned int order)
+ {
+-	struct zone *zone = page_zone(page);
+-	struct per_cpu_pages *pcp;
+ 	int high;
+ 	int pindex;
+ 	bool free_high;
+ 
+ 	__count_vm_event(PGFREE);
+-	pcp = this_cpu_ptr(zone->per_cpu_pageset);
+ 	pindex = order_to_pindex(migratetype, order);
+-	list_add(&page->lru, &pcp->lists[pindex]);
++	list_add(&page->pcp_list, &pcp->lists[pindex]);
+ 	pcp->count += 1 << order;
+ 
+ 	/*
+@@ -3432,6 +3466,9 @@ static void free_unref_page_commit(struct page *page, int migratetype,
+ void free_unref_page(struct page *page, unsigned int order)
+ {
+ 	unsigned long flags;
++	unsigned long __maybe_unused UP_flags;
++	struct per_cpu_pages *pcp;
++	struct zone *zone;
+ 	unsigned long pfn = page_to_pfn(page);
+ 	int migratetype;
+ 
+@@ -3454,9 +3491,16 @@ void free_unref_page(struct page *page, unsigned int order)
+ 		migratetype = MIGRATE_MOVABLE;
+ 	}
+ 
+-	local_lock_irqsave(&pagesets.lock, flags);
+-	free_unref_page_commit(page, migratetype, order);
+-	local_unlock_irqrestore(&pagesets.lock, flags);
++	zone = page_zone(page);
++	pcp_trylock_prepare(UP_flags);
++	pcp = pcp_spin_trylock_irqsave(zone->per_cpu_pageset, flags);
++	if (pcp) {
++		free_unref_page_commit(zone, pcp, page, migratetype, order);
++		pcp_spin_unlock_irqrestore(pcp, flags);
++	} else {
++		free_one_page(zone, page, pfn, order, migratetype, FPI_NONE);
++	}
++	pcp_trylock_finish(UP_flags);
+ }
+ 
+ /*
+@@ -3465,6 +3509,8 @@ void free_unref_page(struct page *page, unsigned int order)
+ void free_unref_page_list(struct list_head *list)
+ {
+ 	struct page *page, *next;
++	struct per_cpu_pages *pcp = NULL;
++	struct zone *locked_zone = NULL;
+ 	unsigned long flags;
+ 	int batch_count = 0;
+ 	int migratetype;
+@@ -3489,8 +3535,18 @@ void free_unref_page_list(struct list_head *list)
+ 		}
+ 	}
+ 
+-	local_lock_irqsave(&pagesets.lock, flags);
+ 	list_for_each_entry_safe(page, next, list, lru) {
++		struct zone *zone = page_zone(page);
++
++		/* Different zone, different pcp lock. */
++		if (zone != locked_zone) {
++			if (pcp)
++				pcp_spin_unlock_irqrestore(pcp, flags);
++
++			locked_zone = zone;
++			pcp = pcp_spin_lock_irqsave(locked_zone->per_cpu_pageset, flags);
++		}
++
+ 		/*
+ 		 * Non-isolated types over MIGRATE_PCPTYPES get added
+ 		 * to the MIGRATE_MOVABLE pcp list.
+@@ -3500,19 +3556,21 @@ void free_unref_page_list(struct list_head *list)
+ 			migratetype = MIGRATE_MOVABLE;
+ 
+ 		trace_mm_page_free_batched(page);
+-		free_unref_page_commit(page, migratetype, 0);
++		free_unref_page_commit(zone, pcp, page, migratetype, 0);
+ 
+ 		/*
+ 		 * Guard against excessive IRQ disabled times when we get
+ 		 * a large list of pages to free.
+ 		 */
+ 		if (++batch_count == SWAP_CLUSTER_MAX) {
+-			local_unlock_irqrestore(&pagesets.lock, flags);
++			pcp_spin_unlock_irqrestore(pcp, flags);
+ 			batch_count = 0;
+-			local_lock_irqsave(&pagesets.lock, flags);
++			pcp = pcp_spin_lock_irqsave(locked_zone->per_cpu_pageset, flags);
+ 		}
+ 	}
+-	local_unlock_irqrestore(&pagesets.lock, flags);
++
++	if (pcp)
++		pcp_spin_unlock_irqrestore(pcp, flags);
+ }
+ 
+ /*
+@@ -3637,6 +3695,43 @@ static inline void zone_statistics(struct zone *preferred_zone, struct zone *z,
+ #endif
+ }
+ 
++static __always_inline
++struct page *rmqueue_buddy(struct zone *preferred_zone, struct zone *zone,
++			   unsigned int order, unsigned int alloc_flags,
++			   int migratetype)
++{
++	struct page *page;
++	unsigned long flags;
++
++	do {
++		page = NULL;
++		spin_lock_irqsave(&zone->lock, flags);
++		/*
++		 * order-0 request can reach here when the pcplist is skipped
++		 * due to non-CMA allocation context. HIGHATOMIC area is
++		 * reserved for high-order atomic allocation, so order-0
++		 * request should skip it.
++		 */
++		if (order > 0 && alloc_flags & ALLOC_HARDER)
++			page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
++		if (!page) {
++			page = __rmqueue(zone, order, migratetype, alloc_flags);
++			if (!page) {
++				spin_unlock_irqrestore(&zone->lock, flags);
++				return NULL;
++			}
++		}
++		__mod_zone_freepage_state(zone, -(1 << order),
++					  get_pcppage_migratetype(page));
++		spin_unlock_irqrestore(&zone->lock, flags);
++	} while (check_new_pages(page, order));
++
++	__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
++	zone_statistics(preferred_zone, zone, 1);
++
++	return page;
++}
++
+ /* Remove page from the per-cpu list, caller must protect the list */
+ static inline
+ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
+@@ -3670,8 +3765,8 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
+ 				return NULL;
+ 		}
+ 
+-		page = list_first_entry(list, struct page, lru);
+-		list_del(&page->lru);
++		page = list_first_entry(list, struct page, pcp_list);
++		list_del(&page->pcp_list);
+ 		pcp->count -= 1 << order;
+ 	} while (check_new_pcp(page, order));
+ 
+@@ -3688,19 +3783,29 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+ 	struct list_head *list;
+ 	struct page *page;
+ 	unsigned long flags;
++	unsigned long __maybe_unused UP_flags;
+ 
+-	local_lock_irqsave(&pagesets.lock, flags);
++	/*
++	 * spin_trylock may fail due to a parallel drain. In the future, the
++	 * trylock will also protect against IRQ reentrancy.
++	 */
++	pcp_trylock_prepare(UP_flags);
++	pcp = pcp_spin_trylock_irqsave(zone->per_cpu_pageset, flags);
++	if (!pcp) {
++		pcp_trylock_finish(UP_flags);
++		return NULL;
++	}
+ 
+ 	/*
+ 	 * On allocation, reduce the number of pages that are batch freed.
+ 	 * See nr_pcp_free() where free_factor is increased for subsequent
+ 	 * frees.
+ 	 */
+-	pcp = this_cpu_ptr(zone->per_cpu_pageset);
+ 	pcp->free_factor >>= 1;
+ 	list = &pcp->lists[order_to_pindex(migratetype, order)];
+ 	page = __rmqueue_pcplist(zone, order, migratetype, alloc_flags, pcp, list);
+-	local_unlock_irqrestore(&pagesets.lock, flags);
++	pcp_spin_unlock_irqrestore(pcp, flags);
++	pcp_trylock_finish(UP_flags);
+ 	if (page) {
+ 		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1);
+ 		zone_statistics(preferred_zone, zone, 1);
+@@ -3717,68 +3822,20 @@ struct page *rmqueue(struct zone *preferred_zone,
+ 			gfp_t gfp_flags, unsigned int alloc_flags,
+ 			int migratetype)
+ {
+-	unsigned long flags;
+ 	struct page *page;
+ 
+-	if (likely(pcp_allowed_order(order))) {
+-		/*
+-		 * MIGRATE_MOVABLE pcplist could have the pages on CMA area and
+-		 * we need to skip it when CMA area isn't allowed.
+-		 */
+-		if (!IS_ENABLED(CONFIG_CMA) || alloc_flags & ALLOC_CMA ||
+-				migratetype != MIGRATE_MOVABLE) {
+-			page = rmqueue_pcplist(preferred_zone, zone, order,
+-					gfp_flags, migratetype, alloc_flags);
+-			goto out;
+-		}
+-	}
+-
+-	/*
+-	 * We most definitely don't want callers attempting to
+-	 * allocate greater than order-1 page units with __GFP_NOFAIL.
+-	 */
+-	WARN_ON_ONCE((gfp_flags & __GFP_NOFAIL) && (order > 1));
+-
+-	do {
+-		page = NULL;
+-		spin_lock_irqsave(&zone->lock, flags);
+-		/*
+-		 * order-0 request can reach here when the pcplist is skipped
+-		 * due to non-CMA allocation context. HIGHATOMIC area is
+-		 * reserved for high-order atomic allocation, so order-0
+-		 * request should skip it.
+-		 */
+-		if (order > 0 && alloc_flags & ALLOC_HARDER) {
+-			page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
+-			if (page)
+-				trace_mm_page_alloc_zone_locked(page, order, migratetype);
+-		}
+-		if (!page) {
+-			page = __rmqueue(zone, order, migratetype, alloc_flags);
+-			if (!page)
+-				goto failed;
+-		}
+-		__mod_zone_freepage_state(zone, -(1 << order),
+-					  get_pcppage_migratetype(page));
+-		spin_unlock_irqrestore(&zone->lock, flags);
+-	} while (check_new_pages(page, order));
+-
+-	__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
+-	zone_statistics(preferred_zone, zone, 1);
++	page = rmqueue_buddy(preferred_zone, zone, order, alloc_flags,
++							migratetype);
+ 
+ out:
+ 	/* Separate test+clear to avoid unnecessary atomics */
+-	if (test_bit(ZONE_BOOSTED_WATERMARK, &zone->flags)) {
++	if (unlikely(test_bit(ZONE_BOOSTED_WATERMARK, &zone->flags))) {
+ 		clear_bit(ZONE_BOOSTED_WATERMARK, &zone->flags);
+ 		wakeup_kswapd(zone, 0, 0, zone_idx(zone));
+ 	}
+ 
+ 	VM_BUG_ON_PAGE(page && bad_range(zone, page), page);
+ 	return page;
+-
+-failed:
+-	spin_unlock_irqrestore(&zone->lock, flags);
+-	return NULL;
+ }
+ 
+ #ifdef CONFIG_FAIL_PAGE_ALLOC
+@@ -5252,6 +5309,7 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
+ {
+ 	struct page *page;
+ 	unsigned long flags;
++	unsigned long __maybe_unused UP_flags;
+ 	struct zone *zone;
+ 	struct zoneref *z;
+ 	struct per_cpu_pages *pcp;
+@@ -5332,11 +5390,14 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
+ 	if (unlikely(!zone))
+ 		goto failed;
+ 
++	/* Is a parallel drain in progress? */
++	pcp_trylock_prepare(UP_flags);
++	pcp = pcp_spin_trylock_irqsave(zone->per_cpu_pageset, flags);
++	if (!pcp)
++		goto failed_irq;
++
+ 	/* Attempt the batch allocation */
+-	local_lock_irqsave(&pagesets.lock, flags);
+-	pcp = this_cpu_ptr(zone->per_cpu_pageset);
+ 	pcp_list = &pcp->lists[order_to_pindex(ac.migratetype, 0)];
+-
+ 	while (nr_populated < nr_pages) {
+ 
+ 		/* Skip existing pages */
+@@ -5349,8 +5410,10 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
+ 								pcp, pcp_list);
+ 		if (unlikely(!page)) {
+ 			/* Try and allocate at least one page */
+-			if (!nr_account)
++			if (!nr_account) {
++				pcp_spin_unlock_irqrestore(pcp, flags);
+ 				goto failed_irq;
++			}
+ 			break;
+ 		}
+ 		nr_account++;
+@@ -5363,7 +5426,8 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
+ 		nr_populated++;
+ 	}
+ 
+-	local_unlock_irqrestore(&pagesets.lock, flags);
++	pcp_spin_unlock_irqrestore(pcp, flags);
++	pcp_trylock_finish(UP_flags);
+ 
+ 	__count_zid_vm_events(PGALLOC, zone_idx(zone), nr_account);
+ 	zone_statistics(ac.preferred_zoneref->zone, zone, nr_account);
+@@ -5372,7 +5436,7 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
+ 	return nr_populated;
+ 
+ failed_irq:
+-	local_unlock_irqrestore(&pagesets.lock, flags);
++	pcp_trylock_finish(UP_flags);
+ 
+ failed:
+ 	page = __alloc_pages(gfp, 0, preferred_nid, nodemask);
+@@ -7002,6 +7066,7 @@ static void per_cpu_pages_init(struct per_cpu_pages *pcp, struct per_cpu_zonesta
+ 	memset(pcp, 0, sizeof(*pcp));
+ 	memset(pzstats, 0, sizeof(*pzstats));
+ 
++	spin_lock_init(&pcp->lock);
+ 	for (pindex = 0; pindex < NR_PCP_LISTS; pindex++)
+ 		INIT_LIST_HEAD(&pcp->lists[pindex]);
+ 
 diff --git a/net/ipv4/netfilter/Kconfig b/net/ipv4/netfilter/Kconfig
 index aab384126f61..83ecd0e61bbf 100644
 --- a/net/ipv4/netfilter/Kconfig
@@ -54057,7 +55148,7 @@ index db466ef7be9d..5a4d5ab2bcbb 100644
 -- 
 2.37.0
 
-From ee36d681f41a930f9295851630493ef62573ce1a Mon Sep 17 00:00:00 2001
+From f79cd1ae206add3e6972c1bbd868fd02f9000f53 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Fri, 1 Jul 2022 11:08:51 +0200
 Subject: [PATCH 10/15] rcu
@@ -54066,6 +55157,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
 (cherry picked from commit d6d2deb6739188e998ea021102f655f9b0e8ff20)
 (cherry picked from commit c734142d761a47c95033c9843559348d600b3599)
 (cherry picked from commit b9f2da3f78d67f9a725dec4ba233c8fb9d6ec9fd)
+(cherry picked from commit 74881edb41e91bff905c0b83bd04f881401dbb7e)
 ---
  kernel/rcu/Kconfig       |  29 +++++
  kernel/rcu/tasks.h       |  28 +++--
@@ -54795,7 +55887,7 @@ index 8360d86db1c0..d67d5d585eb8 100644
 -- 
 2.37.0
 
-From 262640b83732a3ae67b328343a35c45950ea944c Mon Sep 17 00:00:00 2001
+From d4e9f3577b7891119a398f4da8ad8e12f3e58e3f Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Fri, 1 Jul 2022 11:09:31 +0200
 Subject: [PATCH 11/15] futex-winesync
@@ -54804,6 +55896,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
 (cherry picked from commit 87a9a0056b1c4e4897cc370e47081b52ef9b48bc)
 (cherry picked from commit f6581da90f83eaeed593c55faa2d0939802a738c)
 (cherry picked from commit 16eaa7cef9b90553344bda2c83f4c55ae9dcfdd8)
+(cherry picked from commit d3f5c011b431376a46bc538024b77ca0d3ee6fdf)
 ---
  Documentation/admin-guide/devices.txt         |    3 +-
  Documentation/userspace-api/index.rst         |    1 +
@@ -58344,7 +59437,7 @@ index 000000000000..169e922484b0
 -- 
 2.37.0
 
-From 01c17c0fd257e03876951c92eb10810c7a6db36d Mon Sep 17 00:00:00 2001
+From c1d049ba6df7d39d5c0ff4c9b02cb077a189c75a Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Sat, 2 Jul 2022 00:47:39 +0200
 Subject: [PATCH 12/15] perf
@@ -58353,6 +59446,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
 (cherry picked from commit ae30b7a263aebd91e077ab29c58717f3e6f468bf)
 (cherry picked from commit 64810ba969412227f97e957a403d8cf20a28b95d)
 (cherry picked from commit 5e3fdb7fdd7880dcd962a8fb11d61ebcd0cd7561)
+(cherry picked from commit eaa65ab761af6ca82323d19bff7d7b4fe1cec564)
 ---
  arch/x86/events/Kconfig              |   8 +
  arch/x86/events/amd/Makefile         |   1 +
@@ -61717,12 +62811,13 @@ index 174e7d83fcbd..765e9e752d03 100644
 -- 
 2.37.0
 
-From 6febdbea457fdc4f1d65603298ed0a7d54624807 Mon Sep 17 00:00:00 2001
+From ea13a6c36795564843d98839f849b259d22e152b Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Mon, 4 Jul 2022 15:07:16 +0200
-Subject: [PATCH 14/15] clr
+Subject: [PATCH 13/15] clr
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
+(cherry picked from commit 588713e8ae954f732002ca602a7bb75c73afc31e)
 ---
  arch/x86/include/asm/topology.h       |  1 +
  arch/x86/kernel/alternative.c         |  2 ++
@@ -62057,7 +63152,7 @@ index bc5507ab8450..df7bd4b72647 100644
  	const char *name;
  	/* pointer to module in temporary copy, freed at end of load_module() */
 diff --git a/kernel/module/main.c b/kernel/module/main.c
-index 8a140eece588..69a6916645c5 100644
+index b37e25676615..31d83ee88462 100644
 --- a/kernel/module/main.c
 +++ b/kernel/module/main.c
 @@ -53,6 +53,7 @@
@@ -62124,10 +63219,10 @@ index 39b74221f4a7..ec3eab8cd6b1 100644
  	if (best) {
  		raid6_2data_recov = best->data2;
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 041c16aa8f2f..4873c904527f 100644
+index 9017f505cee6..bceb0a641fab 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -6883,11 +6883,11 @@ static int zone_batchsize(struct zone *zone)
+@@ -6947,11 +6947,11 @@ static int zone_batchsize(struct zone *zone)
  
  	/*
  	 * The number of pages to batch allocate is either ~0.1%
@@ -62141,7 +63236,7 @@ index 041c16aa8f2f..4873c904527f 100644
  	batch /= 4;		/* We effectively *= 4 below */
  	if (batch < 1)
  		batch = 1;
-@@ -6965,6 +6965,7 @@ static int zone_highsize(struct zone *zone, int batch, int cpu_online)
+@@ -7029,6 +7029,7 @@ static int zone_highsize(struct zone *zone, int batch, int cpu_online)
  	 * historical relationship between high and batch.
  	 */
  	high = max(high, batch << 2);
@@ -62152,15 +63247,18 @@ index 041c16aa8f2f..4873c904527f 100644
 -- 
 2.37.0
 
-From 1b476442bdd3da889f2c6238b10a839d55c5a535 Mon Sep 17 00:00:00 2001
+From 291cee9e0c94496a3a21e2f143e82a62eee30f62 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Mon, 4 Jul 2022 15:07:41 +0200
-Subject: [PATCH 15/15] fs-patches
+Subject: [PATCH 14/15] fs-patches
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
+(cherry picked from commit 02944b8d966c6b43f33f33b9752619e6f73471df)
 ---
  .../cgroup-v1/blkio-controller.rst            |   2 +-
  Documentation/block/bfq-iosched.rst           |   2 +-
+ arch/parisc/include/asm/cacheflush.h          |   6 +-
+ arch/parisc/kernel/cache.c                    |   2 +-
  block/Kconfig                                 |   2 +-
  block/Kconfig.iosched                         |  12 +-
  block/bfq-cgroup.c                            | 117 ++-
@@ -62211,11 +63309,13 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  fs/btrfs/tree-log.c                           |  27 +-
  fs/btrfs/tree-log.h                           |   3 +
  fs/btrfs/volumes.h                            |   7 +
- fs/btrfs/zstd.c                               |  14 +-
+ fs/btrfs/zstd.c                               |  48 +-
  include/linux/blk-mq.h                        |  30 +
  include/linux/blkdev.h                        |  21 +-
+ include/linux/highmem-internal.h              |  10 +-
  include/linux/ioprio.h                        |  24 +-
- 56 files changed, 1894 insertions(+), 1486 deletions(-)
+ mm/highmem.c                                  |   2 +-
+ 60 files changed, 1918 insertions(+), 1516 deletions(-)
 
 diff --git a/Documentation/admin-guide/cgroup-v1/blkio-controller.rst b/Documentation/admin-guide/cgroup-v1/blkio-controller.rst
 index 16253eda192e..48559541c9d8 100644
@@ -62242,6 +63342,50 @@ index df3a8a47f58c..88b5251734ce 100644
 +        Available values: 1..10000 (default: 100).
  
          For cgroup v1, it is set by writing the value to `blkio.bfq.weight`.
+ 
+diff --git a/arch/parisc/include/asm/cacheflush.h b/arch/parisc/include/asm/cacheflush.h
+index 8d03b3b26229..0bdee6724132 100644
+--- a/arch/parisc/include/asm/cacheflush.h
++++ b/arch/parisc/include/asm/cacheflush.h
+@@ -22,7 +22,7 @@ void flush_kernel_icache_range_asm(unsigned long, unsigned long);
+ void flush_user_dcache_range_asm(unsigned long, unsigned long);
+ void flush_kernel_dcache_range_asm(unsigned long, unsigned long);
+ void purge_kernel_dcache_range_asm(unsigned long, unsigned long);
+-void flush_kernel_dcache_page_asm(void *);
++void flush_kernel_dcache_page_asm(const void *addr);
+ void flush_kernel_icache_page(void *);
+ 
+ /* Cache flush operations */
+@@ -31,7 +31,7 @@ void flush_cache_all_local(void);
+ void flush_cache_all(void);
+ void flush_cache_mm(struct mm_struct *mm);
+ 
+-void flush_kernel_dcache_page_addr(void *addr);
++void flush_kernel_dcache_page_addr(const void *addr);
+ 
+ #define flush_kernel_dcache_range(start,size) \
+ 	flush_kernel_dcache_range_asm((start), (start)+(size));
+@@ -75,7 +75,7 @@ void flush_dcache_page_asm(unsigned long phys_addr, unsigned long vaddr);
+ void flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr);
+ 
+ #define ARCH_HAS_FLUSH_ON_KUNMAP
+-static inline void kunmap_flush_on_unmap(void *addr)
++static inline void kunmap_flush_on_unmap(const void *addr)
+ {
+ 	flush_kernel_dcache_page_addr(addr);
+ }
+diff --git a/arch/parisc/kernel/cache.c b/arch/parisc/kernel/cache.c
+index a20c1c47b780..0ffae317bc0b 100644
+--- a/arch/parisc/kernel/cache.c
++++ b/arch/parisc/kernel/cache.c
+@@ -549,7 +549,7 @@ extern void purge_kernel_dcache_page_asm(unsigned long);
+ extern void clear_user_page_asm(void *, unsigned long);
+ extern void copy_user_page_asm(void *, void *, unsigned long);
+ 
+-void flush_kernel_dcache_page_addr(void *addr)
++void flush_kernel_dcache_page_addr(const void *addr)
+ {
+ 	unsigned long flags;
  
 diff --git a/block/Kconfig b/block/Kconfig
 index 50b17e260fa2..b14e1af7b310 100644
@@ -68594,7 +69738,7 @@ index f3e28f11cfb6..4ed4110a8bd1 100644
   * Additional info to pass along bio.
   *
 diff --git a/fs/btrfs/zstd.c b/fs/btrfs/zstd.c
-index fc42dd0badd7..0fe31a6f6e68 100644
+index fc42dd0badd7..78e0272e770e 100644
 --- a/fs/btrfs/zstd.c
 +++ b/fs/btrfs/zstd.c
 @@ -93,22 +93,26 @@ static inline struct workspace *list_to_workspace(struct list_head *list)
@@ -68637,6 +69781,133 @@ index fc42dd0badd7..0fe31a6f6e68 100644
  }
  
  /*
+@@ -399,7 +403,7 @@ int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
+ 
+ 	/* map in the first page of input data */
+ 	in_page = find_get_page(mapping, start >> PAGE_SHIFT);
+-	workspace->in_buf.src = kmap(in_page);
++	workspace->in_buf.src = kmap_local_page(in_page);
+ 	workspace->in_buf.pos = 0;
+ 	workspace->in_buf.size = min_t(size_t, len, PAGE_SIZE);
+ 
+@@ -411,7 +415,7 @@ int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
+ 		goto out;
+ 	}
+ 	pages[nr_pages++] = out_page;
+-	workspace->out_buf.dst = kmap(out_page);
++	workspace->out_buf.dst = page_address(out_page);
+ 	workspace->out_buf.pos = 0;
+ 	workspace->out_buf.size = min_t(size_t, max_out, PAGE_SIZE);
+ 
+@@ -446,9 +450,7 @@ int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
+ 		if (workspace->out_buf.pos == workspace->out_buf.size) {
+ 			tot_out += PAGE_SIZE;
+ 			max_out -= PAGE_SIZE;
+-			kunmap(out_page);
+ 			if (nr_pages == nr_dest_pages) {
+-				out_page = NULL;
+ 				ret = -E2BIG;
+ 				goto out;
+ 			}
+@@ -458,7 +460,7 @@ int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
+ 				goto out;
+ 			}
+ 			pages[nr_pages++] = out_page;
+-			workspace->out_buf.dst = kmap(out_page);
++			workspace->out_buf.dst = page_address(out_page);
+ 			workspace->out_buf.pos = 0;
+ 			workspace->out_buf.size = min_t(size_t, max_out,
+ 							PAGE_SIZE);
+@@ -473,15 +475,15 @@ int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
+ 		/* Check if we need more input */
+ 		if (workspace->in_buf.pos == workspace->in_buf.size) {
+ 			tot_in += PAGE_SIZE;
+-			kunmap(in_page);
++			kunmap_local(workspace->in_buf.src);
+ 			put_page(in_page);
+-
+ 			start += PAGE_SIZE;
+ 			len -= PAGE_SIZE;
+ 			in_page = find_get_page(mapping, start >> PAGE_SHIFT);
+-			workspace->in_buf.src = kmap(in_page);
++			workspace->in_buf.src = kmap_local_page(in_page);
+ 			workspace->in_buf.pos = 0;
+ 			workspace->in_buf.size = min_t(size_t, len, PAGE_SIZE);
++			workspace->out_buf.dst = page_address(out_page);
+ 		}
+ 	}
+ 	while (1) {
+@@ -506,9 +508,7 @@ int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
+ 
+ 		tot_out += PAGE_SIZE;
+ 		max_out -= PAGE_SIZE;
+-		kunmap(out_page);
+ 		if (nr_pages == nr_dest_pages) {
+-			out_page = NULL;
+ 			ret = -E2BIG;
+ 			goto out;
+ 		}
+@@ -518,7 +518,7 @@ int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
+ 			goto out;
+ 		}
+ 		pages[nr_pages++] = out_page;
+-		workspace->out_buf.dst = kmap(out_page);
++		workspace->out_buf.dst = page_address(out_page);
+ 		workspace->out_buf.pos = 0;
+ 		workspace->out_buf.size = min_t(size_t, max_out, PAGE_SIZE);
+ 	}
+@@ -533,13 +533,10 @@ int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
+ 	*total_out = tot_out;
+ out:
+ 	*out_pages = nr_pages;
+-	/* Cleanup */
+-	if (in_page) {
+-		kunmap(in_page);
++	if (workspace->in_buf.src) {
++		kunmap_local(workspace->in_buf.src);
+ 		put_page(in_page);
+ 	}
+-	if (out_page)
+-		kunmap(out_page);
+ 	return ret;
+ }
+ 
+@@ -563,7 +560,7 @@ int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
+ 		goto done;
+ 	}
+ 
+-	workspace->in_buf.src = kmap(pages_in[page_in_index]);
++	workspace->in_buf.src = kmap_local_page(pages_in[page_in_index]);
+ 	workspace->in_buf.pos = 0;
+ 	workspace->in_buf.size = min_t(size_t, srclen, PAGE_SIZE);
+ 
+@@ -599,14 +596,15 @@ int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
+ 			break;
+ 
+ 		if (workspace->in_buf.pos == workspace->in_buf.size) {
+-			kunmap(pages_in[page_in_index++]);
++			kunmap_local(workspace->in_buf.src);
++			page_in_index++;
+ 			if (page_in_index >= total_pages_in) {
+ 				workspace->in_buf.src = NULL;
+ 				ret = -EIO;
+ 				goto done;
+ 			}
+ 			srclen -= PAGE_SIZE;
+-			workspace->in_buf.src = kmap(pages_in[page_in_index]);
++			workspace->in_buf.src = kmap_local_page(pages_in[page_in_index]);
+ 			workspace->in_buf.pos = 0;
+ 			workspace->in_buf.size = min_t(size_t, srclen, PAGE_SIZE);
+ 		}
+@@ -615,7 +613,7 @@ int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
+ 	zero_fill_bio(cb->orig_bio);
+ done:
+ 	if (workspace->in_buf.src)
+-		kunmap(pages_in[page_in_index]);
++		kunmap_local(workspace->in_buf.src);
+ 	return ret;
+ }
+ 
 diff --git a/include/linux/blk-mq.h b/include/linux/blk-mq.h
 index 9f07061418db..b1a80d263b85 100644
 --- a/include/linux/blk-mq.h
@@ -68691,7 +69962,7 @@ index 9f07061418db..b1a80d263b85 100644
  {
  	return false;
 diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 20f76bd27b9a..df0c37188002 100644
+index 108e3d114bfc..d7c85f562adc 100644
 --- a/include/linux/blkdev.h
 +++ b/include/linux/blkdev.h
 @@ -561,9 +561,13 @@ struct request_queue {
@@ -68737,7 +70008,7 @@ index 20f76bd27b9a..df0c37188002 100644
  static inline bool blk_queue_zone_is_seq(struct request_queue *q,
  					 sector_t sector)
  {
-@@ -995,8 +1014,6 @@ void disk_set_independent_access_ranges(struct gendisk *disk,
+@@ -994,8 +1013,6 @@ void disk_set_independent_access_ranges(struct gendisk *disk,
   */
  /* Supports zoned block devices sequential write constraint */
  #define ELEVATOR_F_ZBD_SEQ_WRITE	(1U << 0)
@@ -68746,6 +70017,55 @@ index 20f76bd27b9a..df0c37188002 100644
  
  extern void blk_queue_required_elevator_features(struct request_queue *q,
  						 unsigned int features);
+diff --git a/include/linux/highmem-internal.h b/include/linux/highmem-internal.h
+index a77be5630209..b05b5ccb6673 100644
+--- a/include/linux/highmem-internal.h
++++ b/include/linux/highmem-internal.h
+@@ -8,7 +8,7 @@
+ #ifdef CONFIG_KMAP_LOCAL
+ void *__kmap_local_pfn_prot(unsigned long pfn, pgprot_t prot);
+ void *__kmap_local_page_prot(struct page *page, pgprot_t prot);
+-void kunmap_local_indexed(void *vaddr);
++void kunmap_local_indexed(const void *vaddr);
+ void kmap_local_fork(struct task_struct *tsk);
+ void __kmap_local_sched_out(void);
+ void __kmap_local_sched_in(void);
+@@ -89,7 +89,7 @@ static inline void *kmap_local_pfn(unsigned long pfn)
+ 	return __kmap_local_pfn_prot(pfn, kmap_prot);
+ }
+ 
+-static inline void __kunmap_local(void *vaddr)
++static inline void __kunmap_local(const void *vaddr)
+ {
+ 	kunmap_local_indexed(vaddr);
+ }
+@@ -121,7 +121,7 @@ static inline void *kmap_atomic_pfn(unsigned long pfn)
+ 	return __kmap_local_pfn_prot(pfn, kmap_prot);
+ }
+ 
+-static inline void __kunmap_atomic(void *addr)
++static inline void __kunmap_atomic(const void *addr)
+ {
+ 	kunmap_local_indexed(addr);
+ 	pagefault_enable();
+@@ -192,7 +192,7 @@ static inline void *kmap_local_pfn(unsigned long pfn)
+ 	return kmap_local_page(pfn_to_page(pfn));
+ }
+ 
+-static inline void __kunmap_local(void *addr)
++static inline void __kunmap_local(const void *addr)
+ {
+ #ifdef ARCH_HAS_FLUSH_ON_KUNMAP
+ 	kunmap_flush_on_unmap(addr);
+@@ -219,7 +219,7 @@ static inline void *kmap_atomic_pfn(unsigned long pfn)
+ 	return kmap_atomic(pfn_to_page(pfn));
+ }
+ 
+-static inline void __kunmap_atomic(void *addr)
++static inline void __kunmap_atomic(const void *addr)
+ {
+ #ifdef ARCH_HAS_FLUSH_ON_KUNMAP
+ 	kunmap_flush_on_unmap(addr);
 diff --git a/include/linux/ioprio.h b/include/linux/ioprio.h
 index 3f53bc27a19b..7578d4f6a969 100644
 --- a/include/linux/ioprio.h
@@ -68792,6 +70112,19 @@ index 3f53bc27a19b..7578d4f6a969 100644
  
  extern int set_task_ioprio(struct task_struct *task, int ioprio);
  
+diff --git a/mm/highmem.c b/mm/highmem.c
+index 1a692997fac4..e32083e4ce0d 100644
+--- a/mm/highmem.c
++++ b/mm/highmem.c
+@@ -561,7 +561,7 @@ void *__kmap_local_page_prot(struct page *page, pgprot_t prot)
+ }
+ EXPORT_SYMBOL(__kmap_local_page_prot);
+ 
+-void kunmap_local_indexed(void *vaddr)
++void kunmap_local_indexed(const void *vaddr)
+ {
+ 	unsigned long addr = (unsigned long) vaddr & PAGE_MASK;
+ 	pte_t *kmap_pte;
 -- 
 2.37.0
 
