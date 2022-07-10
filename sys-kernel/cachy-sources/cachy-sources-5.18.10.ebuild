@@ -23,8 +23,8 @@ SRC_URI="
 src_unpack() {
 UNIPATCH_LIST_DEFAULT=""
 			#${FILESDIR}/cachy-patches/5.18/0002-cachy.patch
-		CACHY_PATCHES="${FILESDIR}/cachy-patches/5.18/trunk/0001-ksm.patch
-						${FILESDIR}/cachy-patches/5.18/0004-fixes.patch
+			#${FILESDIR}/cachy-patches/5.18/trunk/0001-ksm.patch
+		CACHY_PATCHES="${FILESDIR}/cachy-patches/5.18/0004-fixes.patch
 						${FILESDIR}/cachy-patches/5.18/0014-fs-patches.patch
 						${FILESDIR}/cachy-patches/5.18/0007-lru-le9-spf.patch
 						${FILESDIR}/cachy-patches/5.18/0006-lrng.patch
