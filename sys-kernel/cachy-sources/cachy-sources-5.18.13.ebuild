@@ -3,7 +3,7 @@
 
 EAPI="6"
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="15"
+K_GENPATCHES_VER="17"
 UNIPATCH_STRICTORDER="1"
 K_SECURITY_UNSUPPORTED="1"
 K_NOSETEXTRAVERSION="1"
@@ -32,7 +32,7 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/cachy-patches/5.18/0010-futex-winesync.patch
 						${FILESDIR}/cachy-patches/5.18/0011-rcu.patch
 						${FILESDIR}/cachy-patches/5.18/0013-fs-patches.patch
-						${FILESDIR}/cachy-patches/5.18/0016-perf.patch
+						${FILESDIR}/cachy-patches/5.18/0014-perf.patch
 						${FILESDIR}/maple-tree-v2-5.18.patch"
 
 	kernel-2-src-prepare-overlay_src_unpack
