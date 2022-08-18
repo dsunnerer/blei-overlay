@@ -1,11 +1,10 @@
-From c54a4c05bf41ae2269e764e1b1f2c2f5f7f69101 Mon Sep 17 00:00:00 2001
+From 073f3b67faebffe59deff93c9b972197acf8973f Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Fri, 5 Aug 2022 19:34:26 +0200
-Subject: [PATCH 11/16] lrng
+Date: Tue, 9 Aug 2022 13:35:38 +0200
+Subject: [PATCH 12/16] lrng
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
- MAINTAINERS                                   |   7 +
  crypto/drbg.c                                 |  16 +-
  crypto/jitterentropy-kcapi.c                  |   3 +-
  crypto/jitterentropy.c                        |   2 +-
@@ -22,7 +21,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  drivers/char/lrng/lrng_drng_drbg.h            |  13 +
  drivers/char/lrng/lrng_drng_kcapi.c           | 208 ++++
  drivers/char/lrng/lrng_drng_kcapi.h           |  13 +
- drivers/char/lrng/lrng_drng_mgr.c             | 585 +++++++++++
+ drivers/char/lrng/lrng_drng_mgr.c             | 657 +++++++++++++
  drivers/char/lrng/lrng_drng_mgr.h             |  86 ++
  drivers/char/lrng/lrng_es_aux.c               | 335 +++++++
  drivers/char/lrng/lrng_es_aux.h               |  44 +
@@ -34,8 +33,8 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  drivers/char/lrng/lrng_es_jent.h              |  17 +
  drivers/char/lrng/lrng_es_krng.c              | 121 +++
  drivers/char/lrng/lrng_es_krng.h              |  17 +
- drivers/char/lrng/lrng_es_mgr.c               | 433 +++++++++
- drivers/char/lrng/lrng_es_mgr.h               |  49 +
+ drivers/char/lrng/lrng_es_mgr.c               | 446 +++++++++
+ drivers/char/lrng/lrng_es_mgr.h               |  51 +
  drivers/char/lrng/lrng_es_mgr_cb.h            |  87 ++
  drivers/char/lrng/lrng_es_sched.c             | 562 +++++++++++
  drivers/char/lrng/lrng_es_sched.h             |  20 +
@@ -46,13 +45,13 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  drivers/char/lrng/lrng_health.h               |  42 +
  drivers/char/lrng/lrng_interface_aux.c        | 126 +++
  drivers/char/lrng/lrng_interface_dev.c        |  35 +
- drivers/char/lrng/lrng_interface_dev_common.c | 297 ++++++
- drivers/char/lrng/lrng_interface_dev_common.h |  50 +
+ drivers/char/lrng/lrng_interface_dev_common.c | 314 ++++++
+ drivers/char/lrng/lrng_interface_dev_common.h |  51 +
  drivers/char/lrng/lrng_interface_hwrand.c     |  68 ++
  drivers/char/lrng/lrng_interface_kcapi.c      | 129 +++
  .../char/lrng/lrng_interface_random_kernel.c  | 207 ++++
  .../char/lrng/lrng_interface_random_kernel.h  |  15 +
- .../char/lrng/lrng_interface_random_user.c    |  71 ++
+ .../char/lrng/lrng_interface_random_user.c    | 104 ++
  drivers/char/lrng/lrng_numa.c                 | 124 +++
  drivers/char/lrng/lrng_numa.h                 |  15 +
  drivers/char/lrng/lrng_proc.c                 |  74 ++
@@ -68,9 +67,9 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  drivers/char/lrng/lrng_testing.h              |  85 ++
  include/crypto/drbg.h                         |   7 +
  .../crypto/internal}/jitterentropy.h          |   0
- include/linux/lrng.h                          | 177 ++++
+ include/linux/lrng.h                          | 251 +++++
  kernel/sched/core.c                           |   3 +
- 65 files changed, 9741 insertions(+), 10 deletions(-)
+ 64 files changed, 9946 insertions(+), 10 deletions(-)
  create mode 100644 drivers/char/lrng/Kconfig
  create mode 100644 drivers/char/lrng/Makefile
  create mode 100644 drivers/char/lrng/lrng_definitions.h
@@ -129,26 +128,8 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  rename {crypto => include/crypto/internal}/jitterentropy.h (100%)
  create mode 100644 include/linux/lrng.h
 
-diff --git a/MAINTAINERS b/MAINTAINERS
-index 173d7200a8cee..b0149b7b885bf 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -11544,6 +11544,13 @@ F:	Documentation/litmus-tests/
- F:	Documentation/memory-barriers.txt
- F:	tools/memory-model/
- 
-+LINUX RANDOM NUMBER GENERATOR (LRNG) DRIVER
-+M:	Stephan Mueller <smueller@chronox.de>
-+S:	Maintained
-+W:	https://www.chronox.de/lrng.html
-+F:	drivers/char/lrng/
-+F:	include/linux/lrng.h
-+
- LIS3LV02D ACCELEROMETER DRIVER
- M:	Eric Piel <eric.piel@tremplin-utc.net>
- S:	Maintained
 diff --git a/crypto/drbg.c b/crypto/drbg.c
-index 177983b6ae38b..ea79a31014a40 100644
+index 177983b6ae38..ea79a31014a4 100644
 --- a/crypto/drbg.c
 +++ b/crypto/drbg.c
 @@ -115,7 +115,7 @@
@@ -236,7 +217,7 @@ index 177983b6ae38b..ea79a31014a40 100644
  static int drbg_kcapi_init(struct crypto_tfm *tfm)
  {
 diff --git a/crypto/jitterentropy-kcapi.c b/crypto/jitterentropy-kcapi.c
-index 2d115bec15aeb..e7dac734d2377 100644
+index 2d115bec15ae..e7dac734d237 100644
 --- a/crypto/jitterentropy-kcapi.c
 +++ b/crypto/jitterentropy-kcapi.c
 @@ -42,8 +42,7 @@
@@ -250,7 +231,7 @@ index 2d115bec15aeb..e7dac734d2377 100644
  /***************************************************************************
   * Helper function
 diff --git a/crypto/jitterentropy.c b/crypto/jitterentropy.c
-index 93bff32138238..81b80a4d3d3a0 100644
+index 93bff3213823..81b80a4d3d3a 100644
 --- a/crypto/jitterentropy.c
 +++ b/crypto/jitterentropy.c
 @@ -133,7 +133,7 @@ struct rand_data {
@@ -263,7 +244,7 @@ index 93bff32138238..81b80a4d3d3a0 100644
  /***************************************************************************
   * Adaptive Proportion Test
 diff --git a/drivers/char/Kconfig b/drivers/char/Kconfig
-index 0b6c03643ddc6..c7d6f6752aa46 100644
+index 0b6c03643ddc..c7d6f6752aa4 100644
 --- a/drivers/char/Kconfig
 +++ b/drivers/char/Kconfig
 @@ -465,4 +465,6 @@ config RANDOM_TRUST_BOOTLOADER
@@ -274,7 +255,7 @@ index 0b6c03643ddc6..c7d6f6752aa46 100644
 +
  endmenu
 diff --git a/drivers/char/Makefile b/drivers/char/Makefile
-index 264eb398fdd4f..c2676f5d5c964 100644
+index 264eb398fdd4..c2676f5d5c96 100644
 --- a/drivers/char/Makefile
 +++ b/drivers/char/Makefile
 @@ -3,7 +3,8 @@
@@ -295,7 +276,7 @@ index 264eb398fdd4f..c2676f5d5c964 100644
 +obj-$(CONFIG_LRNG)		+= lrng/
 diff --git a/drivers/char/lrng/Kconfig b/drivers/char/lrng/Kconfig
 new file mode 100644
-index 0000000000000..bfd6b3ea4f1be
+index 000000000000..bfd6b3ea4f1b
 --- /dev/null
 +++ b/drivers/char/lrng/Kconfig
 @@ -0,0 +1,907 @@
@@ -1208,7 +1189,7 @@ index 0000000000000..bfd6b3ea4f1be
 +endmenu # LRNG
 diff --git a/drivers/char/lrng/Makefile b/drivers/char/lrng/Makefile
 new file mode 100644
-index 0000000000000..f61fc40f4620d
+index 000000000000..f61fc40f4620
 --- /dev/null
 +++ b/drivers/char/lrng/Makefile
 @@ -0,0 +1,39 @@
@@ -1253,7 +1234,7 @@ index 0000000000000..f61fc40f4620d
 +obj-$(CONFIG_LRNG_HWRAND_IF)		+= lrng_interface_hwrand.o
 diff --git a/drivers/char/lrng/lrng_definitions.h b/drivers/char/lrng/lrng_definitions.h
 new file mode 100644
-index 0000000000000..50f87c40f701a
+index 000000000000..50f87c40f701
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_definitions.h
 @@ -0,0 +1,151 @@
@@ -1410,7 +1391,7 @@ index 0000000000000..50f87c40f701a
 +#endif /* _LRNG_DEFINITIONS_H */
 diff --git a/drivers/char/lrng/lrng_drng_atomic.c b/drivers/char/lrng/lrng_drng_atomic.c
 new file mode 100644
-index 0000000000000..c112366677b63
+index 000000000000..c112366677b6
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_drng_atomic.c
 @@ -0,0 +1,171 @@
@@ -1587,7 +1568,7 @@ index 0000000000000..c112366677b63
 +EXPORT_SYMBOL(lrng_get_random_bytes);
 diff --git a/drivers/char/lrng/lrng_drng_atomic.h b/drivers/char/lrng/lrng_drng_atomic.h
 new file mode 100644
-index 0000000000000..d5d24fc94f2e2
+index 000000000000..d5d24fc94f2e
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_drng_atomic.h
 @@ -0,0 +1,23 @@
@@ -1616,7 +1597,7 @@ index 0000000000000..d5d24fc94f2e2
 +#endif /* _LRNG_DRNG_ATOMIC_H */
 diff --git a/drivers/char/lrng/lrng_drng_chacha20.c b/drivers/char/lrng/lrng_drng_chacha20.c
 new file mode 100644
-index 0000000000000..31be102e30079
+index 000000000000..31be102e3007
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_drng_chacha20.c
 @@ -0,0 +1,195 @@
@@ -1817,7 +1798,7 @@ index 0000000000000..31be102e30079
 +#endif /* CONFIG_LRNG_DFLT_DRNG_CHACHA20 */
 diff --git a/drivers/char/lrng/lrng_drng_chacha20.h b/drivers/char/lrng/lrng_drng_chacha20.h
 new file mode 100644
-index 0000000000000..fee6571281b64
+index 000000000000..fee6571281b6
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_drng_chacha20.h
 @@ -0,0 +1,42 @@
@@ -1865,7 +1846,7 @@ index 0000000000000..fee6571281b64
 +#endif /* _LRNG_CHACHA20_H */
 diff --git a/drivers/char/lrng/lrng_drng_drbg.c b/drivers/char/lrng/lrng_drng_drbg.c
 new file mode 100644
-index 0000000000000..1feec2c095a5e
+index 000000000000..1feec2c095a5
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_drng_drbg.c
 @@ -0,0 +1,179 @@
@@ -2050,7 +2031,7 @@ index 0000000000000..1feec2c095a5e
 +#endif /* CONFIG_LRNG_DFLT_DRNG_DRBG */
 diff --git a/drivers/char/lrng/lrng_drng_drbg.h b/drivers/char/lrng/lrng_drng_drbg.h
 new file mode 100644
-index 0000000000000..b3d556caf294e
+index 000000000000..b3d556caf294
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_drng_drbg.h
 @@ -0,0 +1,13 @@
@@ -2069,7 +2050,7 @@ index 0000000000000..b3d556caf294e
 +#endif /* _LRNG_DRBG_H */
 diff --git a/drivers/char/lrng/lrng_drng_kcapi.c b/drivers/char/lrng/lrng_drng_kcapi.c
 new file mode 100644
-index 0000000000000..a204bcf52a9ac
+index 000000000000..a204bcf52a9a
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_drng_kcapi.c
 @@ -0,0 +1,208 @@
@@ -2283,7 +2264,7 @@ index 0000000000000..a204bcf52a9ac
 +#endif /* CONFIG_LRNG_DFLT_DRNG_KCAPI */
 diff --git a/drivers/char/lrng/lrng_drng_kcapi.h b/drivers/char/lrng/lrng_drng_kcapi.h
 new file mode 100644
-index 0000000000000..5db25aaf830c5
+index 000000000000..5db25aaf830c
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_drng_kcapi.h
 @@ -0,0 +1,13 @@
@@ -2302,10 +2283,10 @@ index 0000000000000..5db25aaf830c5
 +#endif /* _LRNG_KCAPI_DRNG_H */
 diff --git a/drivers/char/lrng/lrng_drng_mgr.c b/drivers/char/lrng/lrng_drng_mgr.c
 new file mode 100644
-index 0000000000000..0171f72c8b4bc
+index 000000000000..e9e08c186530
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_drng_mgr.c
-@@ -0,0 +1,585 @@
+@@ -0,0 +1,657 @@
 +// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 +/*
 + * LRNG DRNG management
@@ -2487,7 +2468,7 @@ index 0000000000000..0171f72c8b4bc
 +	pr_debug("LRNG for general use is available\n");
 +
 +	/* Seed the DRNG with any entropy available */
-+	if (!lrng_pool_trylock()) {
++	if (lrng_pool_trylock()) {
 +		pr_info("Initial DRNG initialized triggering first seeding\n");
 +		lrng_drng_seed_work(NULL);
 +	} else {
@@ -2729,7 +2710,7 @@ index 0000000000000..0171f72c8b4bc
 +
 +		/* In normal operation, check whether to reseed */
 +		if (!pr && lrng_drng_must_reseed(drng)) {
-+			if (lrng_pool_trylock()) {
++			if (!lrng_pool_trylock()) {
 +				drng->force_reseed = true;
 +			} else {
 +				lrng_drng_seed(drng);
@@ -2745,7 +2726,7 @@ index 0000000000000..0171f72c8b4bc
 +				u32 coll_ent_bits;
 +
 +				/* If we cannot get the pool lock, try again. */
-+				if (lrng_pool_trylock()) {
++				if (!lrng_pool_trylock()) {
 +					mutex_unlock(&drng->lock);
 +					continue;
 +				}
@@ -2853,6 +2834,17 @@ index 0000000000000..0171f72c8b4bc
 +
 +/******************* Generic LRNG kernel output interfaces ********************/
 +
++static int lrng_drng_sleep_while_not_all_nodes_seeded(unsigned int nonblock)
++{
++	if (lrng_pool_all_numa_nodes_seeded_get())
++		return 0;
++	if (nonblock)
++		return -EAGAIN;
++	wait_event_interruptible(lrng_init_wait,
++				 lrng_pool_all_numa_nodes_seeded_get());
++	return 0;
++}
++
 +int lrng_drng_sleep_while_nonoperational(int nonblock)
 +{
 +	if (likely(lrng_state_operational()))
@@ -2869,6 +2861,67 @@ index 0000000000000..0171f72c8b4bc
 +		return 0;
 +	return wait_event_interruptible(lrng_init_wait,
 +					lrng_state_min_seeded());
++}
++
++ssize_t lrng_get_seed(u64 *buf, size_t nbytes, unsigned int flags)
++{
++	struct entropy_buf *eb = (struct entropy_buf *)(buf + 2);
++	u64 buflen = sizeof(struct entropy_buf) + 2 * sizeof(u64);
++	u64 collected_bits = 0;
++	int ret;
++
++	/* Ensure buffer is aligned as required */
++	BUILD_BUG_ON(sizeof(buflen) < LRNG_KCAPI_ALIGN);
++	if (nbytes < sizeof(buflen))
++		return -EINVAL;
++
++	/* Write buffer size into first word */
++	buf[0] = buflen;
++	if (nbytes < buflen)
++		return -EMSGSIZE;
++
++	ret = lrng_drng_sleep_while_not_all_nodes_seeded(
++		flags & LRNG_GET_SEED_NONBLOCK);
++	if (ret)
++		return ret;
++
++	/* Try to get the pool lock and sleep on it to get it. */
++	lrng_pool_lock();
++
++	/* If an LRNG DRNG becomes unseeded, give this DRNG precedence. */
++	if (!lrng_pool_all_numa_nodes_seeded_get()) {
++		lrng_pool_unlock();
++		return 0;
++	}
++
++	/*
++	 * Try to get seed data - a rarely used busyloop is cheaper than a wait
++	 * queue that is constantly woken up by the hot code path of
++	 * lrng_init_ops.
++	 */
++	for (;;) {
++		lrng_fill_seed_buffer(eb,
++			lrng_get_seed_entropy_osr(flags &
++						  LRNG_GET_SEED_FULLY_SEEDED));
++		collected_bits = lrng_entropy_rate_eb(eb);
++
++		/* Break the collection loop if we got entropy, ... */
++		if (collected_bits ||
++		    /* ... a DRNG becomes unseeded, give DRNG precedence, ... */
++		    !lrng_pool_all_numa_nodes_seeded_get() ||
++		    /* ... if the caller does not want a blocking behavior. */
++		    (flags & LRNG_GET_SEED_NONBLOCK))
++			break;
++
++		schedule();
++	}
++
++	lrng_pool_unlock();
++
++	/* Write collected entropy size into second word */
++	buf[1] = collected_bits;
++
++	return (ssize_t)buflen;
 +}
 +
 +void lrng_get_random_bytes_full(void *buf, int nbytes)
@@ -2893,7 +2946,7 @@ index 0000000000000..0171f72c8b4bc
 +EXPORT_SYMBOL(lrng_get_random_bytes_pr);
 diff --git a/drivers/char/lrng/lrng_drng_mgr.h b/drivers/char/lrng/lrng_drng_mgr.h
 new file mode 100644
-index 0000000000000..ec120e4980b5f
+index 000000000000..ec120e4980b5
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_drng_mgr.h
 @@ -0,0 +1,86 @@
@@ -2985,7 +3038,7 @@ index 0000000000000..ec120e4980b5f
 +#endif /* _LRNG_DRNG_H */
 diff --git a/drivers/char/lrng/lrng_es_aux.c b/drivers/char/lrng/lrng_es_aux.c
 new file mode 100644
-index 0000000000000..245bc829998be
+index 000000000000..245bc829998b
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_aux.c
 @@ -0,0 +1,335 @@
@@ -3326,7 +3379,7 @@ index 0000000000000..245bc829998be
 +};
 diff --git a/drivers/char/lrng/lrng_es_aux.h b/drivers/char/lrng/lrng_es_aux.h
 new file mode 100644
-index 0000000000000..bc41e6474aad2
+index 000000000000..bc41e6474aad
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_aux.h
 @@ -0,0 +1,44 @@
@@ -3376,7 +3429,7 @@ index 0000000000000..bc41e6474aad2
 +#endif /* _LRNG_ES_AUX_H */
 diff --git a/drivers/char/lrng/lrng_es_cpu.c b/drivers/char/lrng/lrng_es_cpu.c
 new file mode 100644
-index 0000000000000..3910108cfd088
+index 000000000000..3910108cfd08
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_cpu.c
 @@ -0,0 +1,275 @@
@@ -3657,7 +3710,7 @@ index 0000000000000..3910108cfd088
 +};
 diff --git a/drivers/char/lrng/lrng_es_cpu.h b/drivers/char/lrng/lrng_es_cpu.h
 new file mode 100644
-index 0000000000000..8dbb4d9a2926c
+index 000000000000..8dbb4d9a2926
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_cpu.h
 @@ -0,0 +1,17 @@
@@ -3680,7 +3733,7 @@ index 0000000000000..8dbb4d9a2926c
 +#endif /* _LRNG_ES_CPU_H */
 diff --git a/drivers/char/lrng/lrng_es_irq.c b/drivers/char/lrng/lrng_es_irq.c
 new file mode 100644
-index 0000000000000..97c5c1d264471
+index 000000000000..97c5c1d26447
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_irq.c
 @@ -0,0 +1,727 @@
@@ -4413,7 +4466,7 @@ index 0000000000000..97c5c1d264471
 +};
 diff --git a/drivers/char/lrng/lrng_es_irq.h b/drivers/char/lrng/lrng_es_irq.h
 new file mode 100644
-index 0000000000000..2cd746611cf0c
+index 000000000000..2cd746611cf0
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_irq.h
 @@ -0,0 +1,24 @@
@@ -4443,7 +4496,7 @@ index 0000000000000..2cd746611cf0c
 +#endif /* _LRNG_ES_IRQ_H */
 diff --git a/drivers/char/lrng/lrng_es_jent.c b/drivers/char/lrng/lrng_es_jent.c
 new file mode 100644
-index 0000000000000..dbb2fce591f08
+index 000000000000..dbb2fce591f0
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_jent.c
 @@ -0,0 +1,136 @@
@@ -4585,7 +4638,7 @@ index 0000000000000..dbb2fce591f08
 +};
 diff --git a/drivers/char/lrng/lrng_es_jent.h b/drivers/char/lrng/lrng_es_jent.h
 new file mode 100644
-index 0000000000000..32882d4bdf99b
+index 000000000000..32882d4bdf99
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_jent.h
 @@ -0,0 +1,17 @@
@@ -4608,7 +4661,7 @@ index 0000000000000..32882d4bdf99b
 +#endif /* _LRNG_ES_JENT_H */
 diff --git a/drivers/char/lrng/lrng_es_krng.c b/drivers/char/lrng/lrng_es_krng.c
 new file mode 100644
-index 0000000000000..0ef88e6c8d562
+index 000000000000..0ef88e6c8d56
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_krng.c
 @@ -0,0 +1,121 @@
@@ -4735,7 +4788,7 @@ index 0000000000000..0ef88e6c8d562
 +};
 diff --git a/drivers/char/lrng/lrng_es_krng.h b/drivers/char/lrng/lrng_es_krng.h
 new file mode 100644
-index 0000000000000..cf982b9eea053
+index 000000000000..cf982b9eea05
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_krng.h
 @@ -0,0 +1,17 @@
@@ -4758,10 +4811,10 @@ index 0000000000000..cf982b9eea053
 +#endif /* _LRNG_ES_RANDOM_H */
 diff --git a/drivers/char/lrng/lrng_es_mgr.c b/drivers/char/lrng/lrng_es_mgr.c
 new file mode 100644
-index 0000000000000..5bec39d9ef912
+index 000000000000..49eb2ea4f91a
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_mgr.c
-@@ -0,0 +1,433 @@
+@@ -0,0 +1,446 @@
 +// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 +/*
 + * LRNG Entropy sources management
@@ -4804,14 +4857,15 @@ index 0000000000000..5bec39d9ef912
 +	 */
 +
 +	atomic_t boot_entropy_thresh;	/* Reseed threshold */
-+	atomic_t reseed_in_progress;	/* Flag for on executing reseed */
++	struct mutex reseed_in_progress;	/* Flag for on executing reseed */
 +	struct work_struct lrng_seed_work;	/* (re)seed work queue */
 +};
 +
 +static struct lrng_state lrng_state = {
 +	false, false, false, false, false, false,
 +	.boot_entropy_thresh	= ATOMIC_INIT(LRNG_INIT_ENTROPY_BITS),
-+	.reseed_in_progress	= ATOMIC_INIT(0),
++	.reseed_in_progress	=
++		__MUTEX_INITIALIZER(lrng_state.reseed_in_progress),
 +};
 +
 +/*
@@ -4871,12 +4925,17 @@ index 0000000000000..5bec39d9ef912
 + */
 +int lrng_pool_trylock(void)
 +{
-+	return atomic_cmpxchg(&lrng_state.reseed_in_progress, 0, 1);
++	return mutex_trylock(&lrng_state.reseed_in_progress);
++}
++
++void lrng_pool_lock(void)
++{
++	mutex_lock(&lrng_state.reseed_in_progress);
 +}
 +
 +void lrng_pool_unlock(void)
 +{
-+	atomic_set(&lrng_state.reseed_in_progress, 0);
++	mutex_unlock(&lrng_state.reseed_in_progress);
 +}
 +
 +/* Set new entropy threshold for reseeding during boot */
@@ -4908,6 +4967,13 @@ index 0000000000000..5bec39d9ef912
 +void lrng_pool_all_numa_nodes_seeded(bool set)
 +{
 +	lrng_state.all_online_numa_node_seeded = set;
++	if (set)
++		wake_up_all(&lrng_init_wait);
++}
++
++bool lrng_pool_all_numa_nodes_seeded_get(void)
++{
++	return lrng_state.all_online_numa_node_seeded;
 +}
 +
 +/* Return boolean whether LRNG reached minimally seed level */
@@ -5148,7 +5214,7 @@ index 0000000000000..5bec39d9ef912
 +		return;
 +
 +	/* Ensure that the seeding only occurs once at any given time. */
-+	if (lrng_pool_trylock())
++	if (!lrng_pool_trylock())
 +		return;
 +
 +	/* Seed the DRNG with any available noise. */
@@ -5197,10 +5263,10 @@ index 0000000000000..5bec39d9ef912
 +}
 diff --git a/drivers/char/lrng/lrng_es_mgr.h b/drivers/char/lrng/lrng_es_mgr.h
 new file mode 100644
-index 0000000000000..877698dbadffb
+index 000000000000..f9bbd4863120
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_mgr.h
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,51 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 +/*
 + * Copyright (C) 2022, Stephan Mueller <smueller@chronox.de>
@@ -5226,6 +5292,7 @@ index 0000000000000..877698dbadffb
 +#define for_each_lrng_es(ctr)		\
 +	for ((ctr) = 0; (ctr) < lrng_ext_es_last; (ctr)++)
 +
++bool lrng_pool_all_numa_nodes_seeded_get(void);
 +bool lrng_state_min_seeded(void);
 +void lrng_debug_report_seedlevel(const char *name);
 +int lrng_rand_initialize(void);
@@ -5240,6 +5307,7 @@ index 0000000000000..877698dbadffb
 +bool lrng_state_fully_seeded(void);
 +
 +int lrng_pool_trylock(void);
++void lrng_pool_lock(void);
 +void lrng_pool_unlock(void);
 +void lrng_pool_all_numa_nodes_seeded(bool set);
 +
@@ -5252,7 +5320,7 @@ index 0000000000000..877698dbadffb
 +#endif /* _LRNG_ES_MGR_H */
 diff --git a/drivers/char/lrng/lrng_es_mgr_cb.h b/drivers/char/lrng/lrng_es_mgr_cb.h
 new file mode 100644
-index 0000000000000..08b24e1b7766e
+index 000000000000..08b24e1b7766
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_mgr_cb.h
 @@ -0,0 +1,87 @@
@@ -5345,7 +5413,7 @@ index 0000000000000..08b24e1b7766e
 +#endif /* _LRNG_ES_MGR_CB_H */
 diff --git a/drivers/char/lrng/lrng_es_sched.c b/drivers/char/lrng/lrng_es_sched.c
 new file mode 100644
-index 0000000000000..c3abaa7ff3108
+index 000000000000..c3abaa7ff310
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_sched.c
 @@ -0,0 +1,562 @@
@@ -5913,7 +5981,7 @@ index 0000000000000..c3abaa7ff3108
 +};
 diff --git a/drivers/char/lrng/lrng_es_sched.h b/drivers/char/lrng/lrng_es_sched.h
 new file mode 100644
-index 0000000000000..f1e596dd89d9f
+index 000000000000..f1e596dd89d9
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_sched.h
 @@ -0,0 +1,20 @@
@@ -5939,7 +6007,7 @@ index 0000000000000..f1e596dd89d9f
 +#endif /* _LRNG_ES_SCHED_H */
 diff --git a/drivers/char/lrng/lrng_es_timer_common.c b/drivers/char/lrng/lrng_es_timer_common.c
 new file mode 100644
-index 0000000000000..70f3ff074fe6e
+index 000000000000..70f3ff074fe6
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_timer_common.c
 @@ -0,0 +1,144 @@
@@ -6089,7 +6157,7 @@ index 0000000000000..70f3ff074fe6e
 +core_initcall(lrng_init_time_source);
 diff --git a/drivers/char/lrng/lrng_es_timer_common.h b/drivers/char/lrng/lrng_es_timer_common.h
 new file mode 100644
-index 0000000000000..b45b9f683dea1
+index 000000000000..b45b9f683dea
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_es_timer_common.h
 @@ -0,0 +1,83 @@
@@ -6179,7 +6247,7 @@ index 0000000000000..b45b9f683dea1
 \ No newline at end of file
 diff --git a/drivers/char/lrng/lrng_hash_kcapi.c b/drivers/char/lrng/lrng_hash_kcapi.c
 new file mode 100644
-index 0000000000000..13e62db9b6c8e
+index 000000000000..13e62db9b6c8
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_hash_kcapi.c
 @@ -0,0 +1,140 @@
@@ -6325,7 +6393,7 @@ index 0000000000000..13e62db9b6c8e
 +MODULE_DESCRIPTION("Entropy Source and DRNG Manager - Kernel crypto API hash backend");
 diff --git a/drivers/char/lrng/lrng_health.c b/drivers/char/lrng/lrng_health.c
 new file mode 100644
-index 0000000000000..a60c8378eea5d
+index 000000000000..a60c8378eea5
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_health.c
 @@ -0,0 +1,420 @@
@@ -6751,7 +6819,7 @@ index 0000000000000..a60c8378eea5d
 +}
 diff --git a/drivers/char/lrng/lrng_health.h b/drivers/char/lrng/lrng_health.h
 new file mode 100644
-index 0000000000000..4f9f5033fc307
+index 000000000000..4f9f5033fc30
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_health.h
 @@ -0,0 +1,42 @@
@@ -6799,7 +6867,7 @@ index 0000000000000..4f9f5033fc307
 +#endif /* _LRNG_HEALTH_H */
 diff --git a/drivers/char/lrng/lrng_interface_aux.c b/drivers/char/lrng/lrng_interface_aux.c
 new file mode 100644
-index 0000000000000..0eb49bd6b48f6
+index 000000000000..0eb49bd6b48f
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_interface_aux.c
 @@ -0,0 +1,126 @@
@@ -6931,7 +6999,7 @@ index 0000000000000..0eb49bd6b48f6
 +}
 diff --git a/drivers/char/lrng/lrng_interface_dev.c b/drivers/char/lrng/lrng_interface_dev.c
 new file mode 100644
-index 0000000000000..e60060d402b30
+index 000000000000..e60060d402b3
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_interface_dev.c
 @@ -0,0 +1,35 @@
@@ -6972,10 +7040,10 @@ index 0000000000000..e60060d402b30
 +device_initcall(lrng_dev_if_mod_init);
 diff --git a/drivers/char/lrng/lrng_interface_dev_common.c b/drivers/char/lrng/lrng_interface_dev_common.c
 new file mode 100644
-index 0000000000000..c366b29feb99c
+index 000000000000..09d0563074a4
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_interface_dev_common.c
-@@ -0,0 +1,297 @@
+@@ -0,0 +1,314 @@
 +// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 +/*
 + * LRNG User and kernel space interfaces
@@ -7056,6 +7124,23 @@ index 0000000000000..c366b29feb99c
 +}
 +
 +/************************ LRNG user output interfaces *************************/
++
++ssize_t lrng_read_seed(char __user *buf, size_t nbytes, unsigned int flags)
++{
++	ssize_t ret = 0;
++	u64 t[(sizeof(struct entropy_buf) + 3 * sizeof(u64) - 1) / sizeof(u64)];
++
++	memset(t, 0, sizeof(t));
++	ret = lrng_get_seed(t, min_t(size_t, nbytes, sizeof(t)), flags);
++	if (ret == -EMSGSIZE && copy_to_user(buf, t, sizeof(u64))) {
++		ret = -EFAULT;
++	} else if (ret > 0 && copy_to_user(buf, t, ret)) {
++		ret = -EFAULT;
++	}
++	memzero_explicit(t, sizeof(t));
++
++	return ret;
++}
 +
 +ssize_t lrng_read_common(char __user *buf, size_t nbytes, bool pr)
 +{
@@ -7275,10 +7360,10 @@ index 0000000000000..c366b29feb99c
 +}
 diff --git a/drivers/char/lrng/lrng_interface_dev_common.h b/drivers/char/lrng/lrng_interface_dev_common.h
 new file mode 100644
-index 0000000000000..8bc289224e97d
+index 000000000000..9e6603ad8af4
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_interface_dev_common.h
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,51 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 +/*
 + * Copyright (C) 2022, Stephan Mueller <smueller@chronox.de>
@@ -7323,6 +7408,7 @@ index 0000000000000..8bc289224e97d
 +			       char __user *buf, size_t nbytes);
 +ssize_t lrng_drng_read_block(struct file *file, char __user *buf, size_t nbytes,
 +			     loff_t *ppos);
++ssize_t lrng_read_seed(char __user *buf, size_t nbytes, unsigned int flags);
 +ssize_t lrng_read_common(char __user *buf, size_t nbytes, bool pr);
 +bool lrng_need_entropy(void);
 +
@@ -7331,7 +7417,7 @@ index 0000000000000..8bc289224e97d
 +#endif /* _LRNG_INTERFACE_DEV_COMMON_H */
 diff --git a/drivers/char/lrng/lrng_interface_hwrand.c b/drivers/char/lrng/lrng_interface_hwrand.c
 new file mode 100644
-index 0000000000000..e841eea133482
+index 000000000000..e841eea13348
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_interface_hwrand.c
 @@ -0,0 +1,68 @@
@@ -7405,7 +7491,7 @@ index 0000000000000..e841eea133482
 +MODULE_DESCRIPTION("Entropy Source and DRNG Manager HW-Random Interface");
 diff --git a/drivers/char/lrng/lrng_interface_kcapi.c b/drivers/char/lrng/lrng_interface_kcapi.c
 new file mode 100644
-index 0000000000000..4cb511f8088e0
+index 000000000000..4cb511f8088e
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_interface_kcapi.c
 @@ -0,0 +1,129 @@
@@ -7540,7 +7626,7 @@ index 0000000000000..4cb511f8088e0
 +MODULE_ALIAS_CRYPTO("stdrng");
 diff --git a/drivers/char/lrng/lrng_interface_random_kernel.c b/drivers/char/lrng/lrng_interface_random_kernel.c
 new file mode 100644
-index 0000000000000..ec6310884865b
+index 000000000000..ec6310884865
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_interface_random_kernel.c
 @@ -0,0 +1,207 @@
@@ -7753,7 +7839,7 @@ index 0000000000000..ec6310884865b
 +EXPORT_SYMBOL(rng_is_initialized);
 diff --git a/drivers/char/lrng/lrng_interface_random_kernel.h b/drivers/char/lrng/lrng_interface_random_kernel.h
 new file mode 100644
-index 0000000000000..f4d09d1fbb140
+index 000000000000..f4d09d1fbb14
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_interface_random_kernel.h
 @@ -0,0 +1,15 @@
@@ -7774,10 +7860,10 @@ index 0000000000000..f4d09d1fbb140
 +#endif /* _LRNG_INTERFACE_RANDOM_H */
 diff --git a/drivers/char/lrng/lrng_interface_random_user.c b/drivers/char/lrng/lrng_interface_random_user.c
 new file mode 100644
-index 0000000000000..2d49ebb83539b
+index 000000000000..d12e883804d9
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_interface_random_user.c
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,104 @@
 +// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 +/*
 + * LRNG Common user space interfaces compliant to random(4), random(7) and
@@ -7826,10 +7912,29 @@ index 0000000000000..2d49ebb83539b
 +	.llseek = noop_llseek,
 +};
 +
++/*
++ * GRND_SEED
++ *
++ * This flag requests to provide the data directly from the entropy sources.
++ *
++ * The behavior of the call is exactly as outlined for the function
++ * lrng_get_seed in lrng.h.
++ */
++#define GRND_SEED		0x0010
++
++/*
++ * GRND_FULLY_SEEDED
++ *
++ * This flag indicates whether the caller wants to reseed a DRNG that is already
++ * fully seeded. See esdm_get_seed in lrng.h for details.
++ */
++#define GRND_FULLY_SEEDED	0x0020
++
 +SYSCALL_DEFINE3(getrandom, char __user *, buf, size_t, count,
 +		unsigned int, flags)
 +{
-+	if (flags & ~(GRND_NONBLOCK|GRND_RANDOM|GRND_INSECURE))
++	if (flags & ~(GRND_NONBLOCK|GRND_RANDOM|GRND_INSECURE|
++		      GRND_SEED|GRND_FULLY_SEEDED))
 +		return -EINVAL;
 +
 +	/*
@@ -7839,19 +7944,33 @@ index 0000000000000..2d49ebb83539b
 +	if ((flags &
 +	     (GRND_INSECURE|GRND_RANDOM)) == (GRND_INSECURE|GRND_RANDOM))
 +		return -EINVAL;
++	if ((flags &
++	     (GRND_INSECURE|GRND_SEED)) == (GRND_INSECURE|GRND_SEED))
++		return -EINVAL;
++	if ((flags &
++	     (GRND_RANDOM|GRND_SEED)) == (GRND_RANDOM|GRND_SEED))
++		return -EINVAL;
 +
 +	if (count > INT_MAX)
 +		count = INT_MAX;
 +
-+	if (flags & GRND_INSECURE)
++	if (flags & GRND_INSECURE) {
 +		return lrng_drng_read(NULL, buf, count, NULL);
++	} else if (flags & GRND_SEED) {
++		unsigned int seed_flags = (flags & GRND_NONBLOCK) ?
++					  LRNG_GET_SEED_NONBLOCK : 0;
++
++		seed_flags |= (flags & GRND_FULLY_SEEDED) ?
++			      LRNG_GET_SEED_FULLY_SEEDED : 0;
++		return lrng_read_seed(buf, count, seed_flags);
++	}
 +
 +	return lrng_read_common_block(flags & GRND_NONBLOCK,
 +				      flags & GRND_RANDOM, buf, count);
 +}
 diff --git a/drivers/char/lrng/lrng_numa.c b/drivers/char/lrng/lrng_numa.c
 new file mode 100644
-index 0000000000000..d74dd8df28437
+index 000000000000..d74dd8df2843
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_numa.c
 @@ -0,0 +1,124 @@
@@ -7981,7 +8100,7 @@ index 0000000000000..d74dd8df28437
 +late_initcall(lrng_numa_init);
 diff --git a/drivers/char/lrng/lrng_numa.h b/drivers/char/lrng/lrng_numa.h
 new file mode 100644
-index 0000000000000..dc8dff9816eeb
+index 000000000000..dc8dff9816ee
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_numa.h
 @@ -0,0 +1,15 @@
@@ -8002,7 +8121,7 @@ index 0000000000000..dc8dff9816eeb
 +#endif /* _LRNG_NUMA_H */
 diff --git a/drivers/char/lrng/lrng_proc.c b/drivers/char/lrng/lrng_proc.c
 new file mode 100644
-index 0000000000000..92329cc6ef28c
+index 000000000000..92329cc6ef28
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_proc.c
 @@ -0,0 +1,74 @@
@@ -8082,7 +8201,7 @@ index 0000000000000..92329cc6ef28c
 +module_init(lrng_proc_type_init);
 diff --git a/drivers/char/lrng/lrng_proc.h b/drivers/char/lrng/lrng_proc.h
 new file mode 100644
-index 0000000000000..c653274f19547
+index 000000000000..c653274f1954
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_proc.h
 @@ -0,0 +1,15 @@
@@ -8103,7 +8222,7 @@ index 0000000000000..c653274f19547
 +#endif /* _LRNG_PROC_H */
 diff --git a/drivers/char/lrng/lrng_selftest.c b/drivers/char/lrng/lrng_selftest.c
 new file mode 100644
-index 0000000000000..15f1e4a2a719a
+index 000000000000..15f1e4a2a719
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_selftest.c
 @@ -0,0 +1,397 @@
@@ -8506,7 +8625,7 @@ index 0000000000000..15f1e4a2a719a
 +module_init(lrng_selftest_init);
 diff --git a/drivers/char/lrng/lrng_sha.h b/drivers/char/lrng/lrng_sha.h
 new file mode 100644
-index 0000000000000..d2f134f547737
+index 000000000000..d2f134f54773
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_sha.h
 @@ -0,0 +1,14 @@
@@ -8526,7 +8645,7 @@ index 0000000000000..d2f134f547737
 +#endif /* _LRNG_SHA_H */
 diff --git a/drivers/char/lrng/lrng_sha1.c b/drivers/char/lrng/lrng_sha1.c
 new file mode 100644
-index 0000000000000..9cbc7a6fee49a
+index 000000000000..9cbc7a6fee49
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_sha1.c
 @@ -0,0 +1,88 @@
@@ -8620,7 +8739,7 @@ index 0000000000000..9cbc7a6fee49a
 +};
 diff --git a/drivers/char/lrng/lrng_sha256.c b/drivers/char/lrng/lrng_sha256.c
 new file mode 100644
-index 0000000000000..50705351a71cc
+index 000000000000..50705351a71c
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_sha256.c
 @@ -0,0 +1,72 @@
@@ -8698,7 +8817,7 @@ index 0000000000000..50705351a71cc
 +};
 diff --git a/drivers/char/lrng/lrng_switch.c b/drivers/char/lrng/lrng_switch.c
 new file mode 100644
-index 0000000000000..aae75594926f0
+index 000000000000..aae75594926f
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_switch.c
 @@ -0,0 +1,286 @@
@@ -8990,7 +9109,7 @@ index 0000000000000..aae75594926f0
 +EXPORT_SYMBOL(lrng_set_hash_cb);
 diff --git a/drivers/char/lrng/lrng_sysctl.c b/drivers/char/lrng/lrng_sysctl.c
 new file mode 100644
-index 0000000000000..ecdd96a842b41
+index 000000000000..ecdd96a842b4
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_sysctl.c
 @@ -0,0 +1,140 @@
@@ -9136,7 +9255,7 @@ index 0000000000000..ecdd96a842b41
 +device_initcall(random_sysctls_init);
 diff --git a/drivers/char/lrng/lrng_sysctl.h b/drivers/char/lrng/lrng_sysctl.h
 new file mode 100644
-index 0000000000000..4b487e5077ed9
+index 000000000000..4b487e5077ed
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_sysctl.h
 @@ -0,0 +1,15 @@
@@ -9157,7 +9276,7 @@ index 0000000000000..4b487e5077ed9
 +#endif /* _LRNG_SYSCTL_H */
 diff --git a/drivers/char/lrng/lrng_testing.c b/drivers/char/lrng/lrng_testing.c
 new file mode 100644
-index 0000000000000..101140085d818
+index 000000000000..101140085d81
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_testing.c
 @@ -0,0 +1,901 @@
@@ -10064,7 +10183,7 @@ index 0000000000000..101140085d818
 +module_init(lrng_raw_init);
 diff --git a/drivers/char/lrng/lrng_testing.h b/drivers/char/lrng/lrng_testing.h
 new file mode 100644
-index 0000000000000..672a7fca45956
+index 000000000000..672a7fca4595
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_testing.h
 @@ -0,0 +1,85 @@
@@ -10154,7 +10273,7 @@ index 0000000000000..672a7fca45956
 +
 +#endif /* _LRNG_TESTING_H */
 diff --git a/include/crypto/drbg.h b/include/crypto/drbg.h
-index af5ad51d3eef8..b12ae9bdebf43 100644
+index af5ad51d3eef..b12ae9bdebf4 100644
 --- a/include/crypto/drbg.h
 +++ b/include/crypto/drbg.h
 @@ -283,4 +283,11 @@ enum drbg_prefixes {
@@ -10175,10 +10294,10 @@ rename from crypto/jitterentropy.h
 rename to include/crypto/internal/jitterentropy.h
 diff --git a/include/linux/lrng.h b/include/linux/lrng.h
 new file mode 100644
-index 0000000000000..8ec50ac7d83c5
+index 000000000000..c0d31a03d51f
 --- /dev/null
 +++ b/include/linux/lrng.h
-@@ -0,0 +1,177 @@
+@@ -0,0 +1,251 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 +/*
 + * Copyright (C) 2022, Stephan Mueller <smueller@chronox.de>
@@ -10355,9 +10474,83 @@ index 0000000000000..8ec50ac7d83c5
 +int lrng_get_random_bytes_pr(void *buf, int nbytes);
 +#endif
 +
++/*
++ * lrng_get_seed() - Fill buffer with data from entropy sources
++ *
++ * This call allows accessing the entropy sources directly and fill the buffer
++ * with data from all available entropy sources. This filled buffer is
++ * identical to the temporary seed buffer used by the LRNG to seed its DRNGs.
++ *
++ * The call is to allows users to seed their DRNG directly from the entropy
++ * sources in case the caller does not want to use the LRNG's DRNGs. This
++ * buffer can be directly used to seed the caller's DRNG from.
++ *
++ * The call blocks as long as one LRNG DRNG is not yet fully seeded. If
++ * LRNG_GET_SEED_NONBLOCK is specified, it does not block in this case, but
++ * returns with an error.
++ *
++ * Considering SP800-90C, there is a differentiation between the seeding
++ * requirements during instantiating a DRNG and at runtime of the DRNG. When
++ * specifying LRNG_GET_SEED_FULLY_SEEDED the caller indicates the DRNG was
++ * already fully seeded and the regular amount of entropy is requested.
++ * Otherwise, the LRNG will obtain the entropy rate required for initial
++ * seeding. The following minimum entropy rates will be obtained:
++ *
++ * * FIPS mode:
++ *	* Initial seeding: 384 bits of entropy
++ *	* Runtime seeding: 256 bits of entropy
++ * * Non-FIPS mode:
++ *	* 128 bits of entropy in any case
++ *
++ * Albeit these are minimum entropy rates, the LRNG tries to request the
++ * given amount of entropy from each entropy source individually. If the
++ * minimum amount of entropy cannot be obtained collectively by all entropy
++ * sources, the LRNG will not fill the buffer.
++ *
++ * The return data in buf is structurally equivalent to the following
++ * definition:
++ *
++ * struct {
++ *	u64 seedlen;
++ *	u64 entropy_rate;
++ *	struct entropy_buf seed;
++ * } __attribute((__packed__));
++ *
++ * As struct entropy_buf is not known outsize of the LRNG, the LRNG fills
++ * seedlen first with the size of struct entropy_buf. If the caller-provided
++ * buffer buf is smaller than u64, then -EINVAL is returned
++ * and buf is not touched. If it is u64 or larger but smaller
++ * than the size of the structure above, -EMSGSIZE is returned and seedlen
++ * is filled with the size of the buffer. Finally, if buf is large
++ * enough to hold all data, it is filled with the seed data and the seedlen
++ * is set to sizeof(struct entropy_buf). The entropy rate is returned with
++ * the variable entropy_rate and provides the value in bits.
++ *
++ * The seed buffer is the data that should be handed to the caller's DRNG as
++ * seed data.
++ *
++ * @buf [out] Buffer to be filled with data from the entropy sources - note, the
++ *	      buffer is marked as u64 to ensure it is aligned to 64 bits.
++ * @nbytes [in] Size of the buffer allocated by the caller - this value
++ *		provides size of @param buf in bytes.
++ * @flags [in] Flags field to adjust the behavior
++ *
++ * @return -EINVAL or -EMSGSIZE indicating the buffer is too small, -EAGAIN when
++ *	   the call would block, but NONBLOCK is specified, > 0 the size of
++ *	   the filled buffer.
++ */
++#ifdef CONFIG_LRNG
++enum lrng_get_seed_flags {
++	LRNG_GET_SEED_NONBLOCK = 0x0001, /**< Do not block the call */
++	LRNG_GET_SEED_FULLY_SEEDED = 0x0002, /**< DRNG is fully seeded */
++};
++
++ssize_t lrng_get_seed(u64 *buf, size_t nbytes, unsigned int flags);
++#endif
++
 +#endif /* _LRNG_H */
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 5555e49c4e120..f60c0c26fdf0b 100644
+index 3890cd2b4326..187441a2e32c 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
 @@ -6,6 +6,7 @@
