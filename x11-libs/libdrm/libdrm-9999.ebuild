@@ -46,7 +46,7 @@ multilib_src_configure() {
 	local emesonargs=(
 		# Udev is only used by tests now.
 		-Dudev=false
-		-Dcairo-tests=false
+		-Dcairo-tests=disabled
 		$(meson_use video_cards_amdgpu amdgpu)
 		$(meson_use video_cards_exynos exynos)
 		$(meson_use video_cards_freedreno freedreno)
