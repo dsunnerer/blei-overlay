@@ -3,7 +3,7 @@
 
 EAPI="6"
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="18"
+K_GENPATCHES_VER="24"
 UNIPATCH_STRICTORDER="1"
 K_SECURITY_UNSUPPORTED="1"
 K_NOSETEXTRAVERSION="1"
@@ -33,7 +33,8 @@ UNIPATCH_LIST_DEFAULT=""
 						${FILESDIR}/cachy-patches/5.18/0011-rcu.patch
 						${FILESDIR}/cachy-patches/5.18/0013-fs-patches.patch
 						${FILESDIR}/cachy-patches/5.18/0014-perf.patch
-						${FILESDIR}/maple-tree-v2-5.18.patch"
+						${FILESDIR}/9001-clang-pgo-kees.patch
+						${FILESDIR}/maple-jun21.patch"
 
 	kernel-2-src-prepare-overlay_src_unpack
 
