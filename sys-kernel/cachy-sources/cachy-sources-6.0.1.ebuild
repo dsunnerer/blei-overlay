@@ -22,6 +22,7 @@ SRC_URI="
 
 src_unpack() {
 UNIPATCH_LIST_DEFAULT=""
+						#${FILESDIR}/btrfs-6.1.patch
 		CACHY_PATCHES="${FILESDIR}/cachy-patches/6.0/all/0001-cachyos-base-all.patch
 						${FILESDIR}/cachy-patches/6.0/sched/0001-tt-cachy.patch"
 
