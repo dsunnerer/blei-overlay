@@ -1,4 +1,4 @@
-From 558304790996af10c1bbe4917049467940c3f3a5 Mon Sep 17 00:00:00 2001
+From 988833cb0b0bad93fba9e480fe83d754ac32857c Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Wed, 28 Sep 2022 00:26:01 +0200
 Subject: [PATCH 07/18] mm/demotion: Memory tiers and demotion
@@ -1878,5 +1878,5 @@ index 4b85d3d5f7d77..33091a67627e2 100644
  	proc_create_seq("buddyinfo", 0444, NULL, &fragmentation_op);
  	proc_create_seq("pagetypeinfo", 0400, NULL, &pagetypeinfo_op);
 -- 
-2.38.1.143.g1fc3c0ad40
+2.38.1.280.g63bba4fdd8
 

@@ -1,4 +1,4 @@
-From 9035e67a6be31ad3e9e58235aae0c7a99286fa3e Mon Sep 17 00:00:00 2001
+From b59cdf735d96d5e68559d78093ae217ef7944786 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Mon, 26 Sep 2022 00:19:51 +0200
 Subject: [PATCH 12/18] kallsyms
@@ -1137,5 +1137,5 @@ index f18e6dfc68c58..40a6fe6d14ef0 100644
  		}
  }
 -- 
-2.38.1.143.g1fc3c0ad40
+2.38.1.280.g63bba4fdd8
 

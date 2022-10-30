@@ -1,4 +1,4 @@
-From 523cadf509d325e5f9123b1a3d2d222ed30b5f4f Mon Sep 17 00:00:00 2001
+From df02fd6b51a96446414647afe681630885bb654f Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Mon, 17 Oct 2022 17:13:59 +0200
 Subject: [PATCH 06/18] Introducing the Maple Tree
@@ -85,6 +85,9 @@ will also be reduced in number at a later date.  These exist to catch
 things such as out-of-range accesses which would crash anyways.
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
+
+# Conflicts:
+#	fs/proc/task_mmu.c
 ---
  Documentation/core-api/index.rst              |     1 +
  Documentation/core-api/maple_tree.rst         |   217 +
@@ -1194,7 +1197,7 @@ index 06a80f78433d8..f03000764ce52 100644
  #ifdef CONFIG_NUMA
  	struct mempolicy *task_mempolicy;
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 4e0023643f8be..72a02b563e641 100644
+index 1e7bbc0873a42..72a02b563e641 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -1,6 +1,5 @@
@@ -1333,7 +1336,7 @@ index 4e0023643f8be..72a02b563e641 100644
 -	}
 +	} while ((vma = mas_find(&mas, ULONG_MAX)) != NULL);
  
--	show_vma_header_prefix(m, priv->mm->mmap->vm_start,
+-	show_vma_header_prefix(m, priv->mm->mmap ? priv->mm->mmap->vm_start : 0,
 -			       last_vma_end, 0, 0, 0, 0);
 +empty_set:
 +	show_vma_header_prefix(m, vma_start, last_vma_end, 0, 0, 0, 0);
@@ -53939,5 +53942,5 @@ index 0000000000000..97d0e1ddcf08e
 +#define trace_ma_read(a, b) do {} while (0)
 +#define trace_ma_write(a, b, c, d) do {} while (0)
 -- 
-2.38.1.143.g1fc3c0ad40
+2.38.1.280.g63bba4fdd8
 

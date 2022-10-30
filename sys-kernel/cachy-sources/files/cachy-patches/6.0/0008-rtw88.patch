@@ -1,4 +1,4 @@
-From 673249de6f3ed768a37453ea4343f885c551ee80 Mon Sep 17 00:00:00 2001
+From 70a6cb085d0b50fd2bddbf615718a44ba6d918ba Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Fri, 19 Aug 2022 17:06:47 +0200
 Subject: [PATCH 08/18] rtw88
@@ -2484,5 +2484,5 @@ index 0c23b5069be0b..dc89655254002 100644
  {
  	__le16 fc = hdr->frame_control;
 -- 
-2.38.1.143.g1fc3c0ad40
+2.38.1.280.g63bba4fdd8
 

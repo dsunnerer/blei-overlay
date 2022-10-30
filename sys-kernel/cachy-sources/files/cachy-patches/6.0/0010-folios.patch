@@ -1,4 +1,4 @@
-From 391a08b0df4d6a0a5c75086241da5898f12fdfee Mon Sep 17 00:00:00 2001
+From 2b0e1d7967f19b80af8814ef16a7a77f8909e076 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Mon, 19 Sep 2022 14:40:14 +0200
 Subject: [PATCH 10/18] folios
@@ -607,10 +607,10 @@ index dcf701b05cc1c..33dbe55b08bee 100644
  			}
  		}
 diff --git a/fs/cifs/file.c b/fs/cifs/file.c
-index 7d756721e1a68..68d72fab6cef7 100644
+index 5c045dd697846..786a3a1f8e95f 100644
 --- a/fs/cifs/file.c
 +++ b/fs/cifs/file.c
-@@ -2517,14 +2517,41 @@ wdata_alloc_and_fillpages(pgoff_t tofind, struct address_space *mapping,
+@@ -2520,14 +2520,41 @@ wdata_alloc_and_fillpages(pgoff_t tofind, struct address_space *mapping,
  			  unsigned int *found_pages)
  {
  	struct cifs_writedata *wdata;
@@ -2010,5 +2010,5 @@ index 027943b341a0a..29bf97746da0d 100644
   * Perform any setup for the swap system
   */
 -- 
-2.38.1.143.g1fc3c0ad40
+2.38.1.280.g63bba4fdd8
 

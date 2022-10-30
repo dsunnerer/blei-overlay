@@ -1,4 +1,4 @@
-From 02725e3867593de658cc62f97b5ca99b94cd6a67 Mon Sep 17 00:00:00 2001
+From 17cf683886f9b32a74775207e7f493364d387a19 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Tue, 25 Oct 2022 18:35:21 +0200
 Subject: [PATCH 18/18] zstd-1.5.2
@@ -14987,5 +14987,5 @@ index 65548a4bb9341..04e1b5c01d9b6 100644
  EXPORT_SYMBOL(zstd_reset_cstream);
  
 -- 
-2.38.1.143.g1fc3c0ad40
+2.38.1.280.g63bba4fdd8
 

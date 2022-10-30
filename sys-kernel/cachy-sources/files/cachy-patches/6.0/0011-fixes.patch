@@ -1,4 +1,4 @@
-From 23089a18c7f459a76c6dae59b8d3b3d5e6fc503f Mon Sep 17 00:00:00 2001
+From 7265ae22f47850e1ed54173dfac8c1a65d1dbaa5 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Wed, 26 Oct 2022 14:26:09 +0200
 Subject: [PATCH 11/18] fixes
@@ -9,7 +9,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  .../testing/sysfs-class-led-trigger-blkdev    |   78 ++
  Documentation/leds/index.rst                  |    1 +
  Documentation/leds/ledtrig-blkdev.rst         |  158 +++
- arch/x86/Kconfig                              |   11 +-
+ arch/x86/Kconfig                              |   10 +
  arch/x86/boot/compressed/Makefile             |    5 +-
  arch/x86/boot/compressed/head_64.S            |    8 +-
  arch/x86/boot/compressed/misc.c               |   35 +-
@@ -39,7 +39,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  scripts/Makefile.lib                          |    5 +
  scripts/pahole-flags.sh                       |    4 +
  tools/objtool/check.c                         |    3 -
- 34 files changed, 1674 insertions(+), 49 deletions(-)
+ 34 files changed, 1674 insertions(+), 48 deletions(-)
  create mode 100644 Documentation/ABI/testing/sysfs-class-led-trigger-blkdev
  create mode 100644 Documentation/leds/ledtrig-blkdev.rst
  create mode 100644 drivers/leds/trigger/ledtrig-blkdev.c
@@ -326,7 +326,7 @@ index 0000000000000..9ff5b99de4514
 +  A device can be associated with multiple LEDs, and an LED can be associated
 +  with multiple devices.
 diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 5636e3b185cf5..143f8076c2951 100644
+index 23f6225789509..143f8076c2951 100644
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
 @@ -221,6 +221,7 @@ config X86
@@ -337,15 +337,7 @@ index 5636e3b185cf5..143f8076c2951 100644
  	select HAVE_KPROBES
  	select HAVE_KPROBES_ON_FTRACE
  	select HAVE_FUNCTION_ERROR_INJECTION
-@@ -1962,7 +1963,6 @@ config EFI
- config EFI_STUB
- 	bool "EFI stub support"
- 	depends on EFI
--	depends on $(cc-option,-mabi=ms) || X86_32
- 	select RELOCATABLE
- 	help
- 	  This kernel feature allows a bzImage to be loaded directly
-@@ -2048,6 +2048,15 @@ config KEXEC_BZIMAGE_VERIFY_SIG
+@@ -2047,6 +2048,15 @@ config KEXEC_BZIMAGE_VERIFY_SIG
  	help
  	  Enable bzImage signature verification support.
  
@@ -2353,5 +2345,5 @@ index e55fdf952a3a1..445741f36d6d0 100644
  	}
  
 -- 
-2.38.1.143.g1fc3c0ad40
+2.38.1.280.g63bba4fdd8
 

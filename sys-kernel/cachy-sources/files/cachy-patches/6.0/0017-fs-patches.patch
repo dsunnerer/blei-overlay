@@ -1,4 +1,4 @@
-From b2e484a85d9b429f6ecfeba24d55af89f5d534f9 Mon Sep 17 00:00:00 2001
+From 6ab174000c0d165be003e159ed84a43c080a8570 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Fri, 21 Oct 2022 14:55:14 +0200
 Subject: [PATCH 17/18] fs-patches
@@ -78,10 +78,10 @@ index 4c559e08d11ee..5740d85439ff5 100644
          The maximum number of extents the multiblock allocator will search to
          find the best extent.
 diff --git a/fs/btrfs/backref.c b/fs/btrfs/backref.c
-index d385357e19b61..dce3a16996b95 100644
+index ccc818b409774..04f5036c9cb35 100644
 --- a/fs/btrfs/backref.c
 +++ b/fs/btrfs/backref.c
-@@ -1511,16 +1511,118 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
+@@ -1525,16 +1525,118 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
  	return ret;
  }
  
@@ -208,7 +208,7 @@ index d385357e19b61..dce3a16996b95 100644
   * circuit as soon as it finds a root or inode that doesn't match the
   * one passed in. This provides a significant performance benefit for
   * callers (such as fiemap) which want to know whether the extent is
-@@ -1531,8 +1633,10 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
+@@ -1545,8 +1647,10 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
   *
   * Return: 0 if extent is not shared, 1 if it is shared, < 0 on error.
   */
@@ -221,15 +221,15 @@ index d385357e19b61..dce3a16996b95 100644
  {
  	struct btrfs_fs_info *fs_info = root->fs_info;
  	struct btrfs_trans_handle *trans;
-@@ -1545,6 +1649,7 @@ int btrfs_check_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
- 		.inum = inum,
+@@ -1560,6 +1664,7 @@ int btrfs_check_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
  		.share_count = 0,
+ 		.have_delayed_delete_refs = false,
  	};
 +	int level;
  
  	ulist_init(roots);
  	ulist_init(tmp);
-@@ -1561,22 +1666,52 @@ int btrfs_check_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
+@@ -1576,22 +1681,52 @@ int btrfs_check_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
  		btrfs_get_tree_mod_seq(fs_info, &elem);
  	}
  
@@ -280,8 +280,8 @@ index d385357e19b61..dce3a16996b95 100644
 +			break;
 +		}
  		shared.share_count = 0;
+ 		shared.have_delayed_delete_refs = false;
  		cond_resched();
- 	}
 diff --git a/fs/btrfs/backref.h b/fs/btrfs/backref.h
 index 2759de7d324c8..52ae6957b4142 100644
 --- a/fs/btrfs/backref.h
@@ -6886,5 +6886,5 @@ index 8f20c037a87a0..ef3b960ab5f23 100644
  /**
   * balance_dirty_pages_ratelimited - balance dirty memory state.
 -- 
-2.38.1.143.g1fc3c0ad40
+2.38.1.280.g63bba4fdd8
 

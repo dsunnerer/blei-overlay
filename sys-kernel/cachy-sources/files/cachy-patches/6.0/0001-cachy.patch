@@ -1,6 +1,6 @@
-From 5681af8965ff55fa56802b4b0abac309cfb3d660 Mon Sep 17 00:00:00 2001
+From a2a0baa32f1d0cd04aadb1fa9b85843872a0fe5b Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Wed, 26 Oct 2022 14:21:10 +0200
+Date: Sat, 29 Oct 2022 16:21:02 +0200
 Subject: [PATCH 01/18] cachy
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
@@ -105,7 +105,7 @@ index 83b58eb4ab4d0..d0f0e115013bb 100644
  ``/sys/devices/system/cpu/cpuX/acpi_cppc/``, see :ref:`cppc_sysfs`.
  
 diff --git a/Makefile b/Makefile
-index 62a7398c8d06f..f7e137d88874f 100644
+index e6c10009d413a..917198b628bba 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -756,8 +756,140 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, format-truncation)
@@ -3380,5 +3380,5 @@ index a4c987c23750f..132863cf3183c 100644
  $(dst)/%.ko.gz: $(dst)/%.ko FORCE
  	$(call cmd,gzip)
 -- 
-2.38.1.143.g1fc3c0ad40
+2.38.1.280.g63bba4fdd8
 

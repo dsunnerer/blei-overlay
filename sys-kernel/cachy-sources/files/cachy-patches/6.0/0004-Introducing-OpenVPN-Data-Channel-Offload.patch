@@ -1,4 +1,4 @@
-From c9bc81fda0cf9d995e18c51e6d36b9feab65bce9 Mon Sep 17 00:00:00 2001
+From e5d5b4bd44d884ebd938bed121411d7ee5df2ffd Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Fri, 5 Aug 2022 19:33:47 +0200
 Subject: [PATCH 04/18] Introducing-OpenVPN-Data-Channel-Offload
@@ -6163,5 +6163,5 @@ index 4828794efcf86..8008c762e6b8d 100644
  
  #endif /* _UAPI_LINUX_UDP_H */
 -- 
-2.38.1.143.g1fc3c0ad40
+2.38.1.280.g63bba4fdd8
 

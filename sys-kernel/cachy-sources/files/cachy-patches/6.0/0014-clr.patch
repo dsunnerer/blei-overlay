@@ -1,4 +1,4 @@
-From 955934e7a1bc033603e0ec51a8abc2c1d78f043e Mon Sep 17 00:00:00 2001
+From 6d467385d01c0666b6f14eb07714aaabd7301128 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Tue, 4 Oct 2022 14:06:15 +0200
 Subject: [PATCH 14/18] clr
@@ -477,7 +477,7 @@ index f82ad74195082..5e8faa70aad6a 100644
  /* fake multicast ability */
  static void set_multicast_list(struct net_device *dev)
 diff --git a/drivers/nvme/host/core.c b/drivers/nvme/host/core.c
-index 59e4b188fc71c..29b03ad790c4f 100644
+index ed47c256dbd27..77113be9597b5 100644
 --- a/drivers/nvme/host/core.c
 +++ b/drivers/nvme/host/core.c
 @@ -58,7 +58,7 @@ static u8 nvme_max_retries = 5;
@@ -1118,5 +1118,5 @@ index 35333f0b2fd9e..dbe2da4f71809 100644
  	init_net.ipv4.sysctl_tcp_wmem[0] = PAGE_SIZE;
  	init_net.ipv4.sysctl_tcp_wmem[1] = 16*1024;
 -- 
-2.38.1.143.g1fc3c0ad40
+2.38.1.280.g63bba4fdd8
 

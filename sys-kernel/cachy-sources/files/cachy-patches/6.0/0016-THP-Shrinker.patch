@@ -1,4 +1,4 @@
-From 8fb40c7c9d28758c4095379f9e6a54b49d976f0e Mon Sep 17 00:00:00 2001
+From 2f4738697fed77e32a6f9744abf707d889ada9e1 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Tue, 11 Oct 2022 23:12:15 +0200
 Subject: [PATCH 16/18] THP Shrinker
@@ -1185,5 +1185,5 @@ index 2e512bd57ae14..00b92ccef20d0 100644
 +uint64_t rss_anon(void);
  uint64_t check_huge(void *addr);
 -- 
-2.38.1.143.g1fc3c0ad40
+2.38.1.280.g63bba4fdd8
 
