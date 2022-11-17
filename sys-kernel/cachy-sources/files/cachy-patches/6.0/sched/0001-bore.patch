@@ -1,8 +1,9 @@
-From 53919fce4eb52d9dba3ca2cf8f8baade44b689b1 Mon Sep 17 00:00:00 2001
-From: Masahito S <firelzrd@gmail.com>
-Date: Sat, 5 Nov 2022 00:32:14 +0900
-Subject: [PATCH] linux6.0.y-bore1.6.34.0
+From 530a72968f0d210b1e99dcab1af57e5f09f55325 Mon Sep 17 00:00:00 2001
+From: Peter Jung <admin@ptr1337.dev>
+Date: Mon, 14 Nov 2022 14:49:54 +0100
+Subject: [PATCH] bore
 
+Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
  include/linux/sched.h   |  4 ++
  init/Kconfig            | 21 +++++++++++
@@ -13,7 +14,7 @@ Subject: [PATCH] linux6.0.y-bore1.6.34.0
  6 files changed, 173 insertions(+), 3 deletions(-)
 
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 8d82d6d32..3bf65fca2 100644
+index 8d82d6d32670..3bf65fca2c70 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
 @@ -547,6 +547,10 @@ struct sched_entity {
@@ -28,7 +29,7 @@ index 8d82d6d32..3bf65fca2 100644
  #ifdef CONFIG_FAIR_GROUP_SCHED
  	int				depth;
 diff --git a/init/Kconfig b/init/Kconfig
-index 532362fcf..d85483488 100644
+index 532362fcfe31..d85483488230 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
 @@ -1272,6 +1272,27 @@ config CHECKPOINT_RESTORE
@@ -60,7 +61,7 @@ index 532362fcf..d85483488 100644
  	bool "Automatic process group scheduling"
  	select CGROUPS
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index ee28253c9..44220021c 100644
+index ee28253c9ac0..44220021c0c0 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
 @@ -4328,6 +4328,15 @@ int wake_up_state(struct task_struct *p, unsigned int state)
@@ -91,7 +92,7 @@ index ee28253c9..44220021c 100644
  
  #ifdef CONFIG_FAIR_GROUP_SCHED
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 914096c5b..9d912dc16 100644
+index 914096c5b1ae..9d912dc16209 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
 @@ -19,6 +19,9 @@
@@ -260,7 +261,7 @@ index 914096c5b..9d912dc16 100644
  	/*
  	 * Are we the only task in the tree?
 diff --git a/kernel/sched/features.h b/kernel/sched/features.h
-index ee7f23c76..3115bde98 100644
+index ee7f23c76bd3..3115bde98211 100644
 --- a/kernel/sched/features.h
 +++ b/kernel/sched/features.h
 @@ -4,7 +4,11 @@
@@ -288,7 +289,7 @@ index ee7f23c76..3115bde98 100644
  /*
   * Prefer to schedule the task that ran last (when we did
 diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 205d605ca..f62e26765 100644
+index 205d605cacc5..f62e2676554f 100644
 --- a/kernel/sysctl.c
 +++ b/kernel/sysctl.c
 @@ -94,8 +94,16 @@ static const int six_hundred_forty_kb = 640 * 1024;
@@ -355,5 +356,5 @@ index 205d605ca..f62e26765 100644
  		.procname	= "panic_on_warn",
  		.data		= &panic_on_warn,
 -- 
-2.30.2
+2.38.1.420.g319605f8f0
 
