@@ -1,0 +1,283 @@
+From d82b0dc5ac94f569487cb66a68d64e77ce85ded8 Mon Sep 17 00:00:00 2001
+From: Peter Jung <admin@ptr1337.dev>
+Date: Mon, 12 Dec 2022 10:52:47 +0100
+Subject: [PATCH 08/19] fs-patches
+
+Signed-off-by: Peter Jung <admin@ptr1337.dev>
+---
+ fs/btrfs/block-group.c | 111 +++++++++++++++++++++++++++++++----------
+ fs/btrfs/block-group.h |   6 +++
+ fs/btrfs/ctree.h       |   1 +
+ fs/btrfs/disk-io.c     |  14 ++++++
+ fs/btrfs/super.c       |   2 +
+ fs/btrfs/volumes.c     |   3 ++
+ fs/btrfs/volumes.h     |   2 +
+ 7 files changed, 113 insertions(+), 26 deletions(-)
+
+diff --git a/fs/btrfs/block-group.c b/fs/btrfs/block-group.c
+index deebc8ddbd93..adb8ae1b472e 100644
+--- a/fs/btrfs/block-group.c
++++ b/fs/btrfs/block-group.c
+@@ -1527,6 +1527,30 @@ static inline bool btrfs_should_reclaim(struct btrfs_fs_info *fs_info)
+ 	return true;
+ }
+ 
++static bool should_reclaim_block_group(struct btrfs_block_group *bg, u64 bytes_freed)
++{
++	const struct btrfs_space_info *space_info = bg->space_info;
++	const int reclaim_thresh = READ_ONCE(space_info->bg_reclaim_threshold);
++	const u64 new_val = bg->used;
++	const u64 old_val = new_val + bytes_freed;
++	u64 thresh;
++
++	if (reclaim_thresh == 0)
++		return false;
++
++	thresh = div_factor_fine(bg->length, reclaim_thresh);
++
++	/*
++	 * If we were below the threshold before don't reclaim, we are likely a
++	 * brand new block group and we don't want to relocate new block groups.
++	 */
++	if (old_val < thresh)
++		return false;
++	if (new_val >= thresh)
++		return false;
++	return true;
++}
++
+ void btrfs_reclaim_bgs_work(struct work_struct *work)
+ {
+ 	struct btrfs_fs_info *fs_info =
+@@ -1594,6 +1618,40 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
+ 			up_write(&space_info->groups_sem);
+ 			goto next;
+ 		}
++		if (bg->used == 0) {
++			/*
++			 * It is possible that we trigger relocation on a block
++			 * group as its extents are deleted and it first goes
++			 * below the threshold, then shortly after goes empty.
++			 *
++			 * In this case, relocating it does delete it, but has
++			 * some overhead in relocation specific metadata, looking
++			 * for the non-existent extents and running some extra
++			 * transactions, which we can avoid by using one of the
++			 * other mechanisms for dealing with empty block groups.
++			 */
++			if (!btrfs_test_opt(fs_info, DISCARD_ASYNC))
++				btrfs_mark_bg_unused(bg);
++			spin_unlock(&bg->lock);
++			up_write(&space_info->groups_sem);
++			goto next;
++
++		}
++		/*
++		 * The block group might no longer meet the reclaim condition by
++		 * the time we get around to reclaiming it, so to avoid
++		 * reclaiming overly full block_groups, skip reclaiming them.
++		 *
++		 * Since the decision making process also depends on the amount
++		 * being freed, pass in a fake giant value to skip that extra
++		 * check, which is more meaningful when adding to the list in
++		 * the first place.
++		 */
++		if (!should_reclaim_block_group(bg, bg->length)) {
++			spin_unlock(&bg->lock);
++			up_write(&space_info->groups_sem);
++			goto next;
++		}
+ 		spin_unlock(&bg->lock);
+ 
+ 		/* Get out fast, in case we're unmounting the filesystem */
+@@ -2001,6 +2059,7 @@ static int read_one_block_group(struct btrfs_fs_info *info,
+ 
+ 	cache->length = key->offset;
+ 	cache->used = btrfs_stack_block_group_used(bgi);
++	cache->commit_used = cache->used;
+ 	cache->flags = btrfs_stack_block_group_flags(bgi);
+ 	cache->global_root_id = btrfs_stack_block_group_chunk_objectid(bgi);
+ 
+@@ -2692,6 +2751,25 @@ static int update_block_group_item(struct btrfs_trans_handle *trans,
+ 	struct extent_buffer *leaf;
+ 	struct btrfs_block_group_item bgi;
+ 	struct btrfs_key key;
++	u64 old_commit_used;
++	u64 used;
++
++	/*
++	 * Block group items update can be triggered out of commit transaction
++	 * critical section, thus we need a consistent view of used bytes.
++	 * We cannot use cache->used directly outside of the spin lock, as it
++	 * may be changed.
++	 */
++	spin_lock(&cache->lock);
++	old_commit_used = cache->commit_used;
++	used = cache->used;
++	/* No change in used bytes, can safely skip it. */
++	if (cache->commit_used == used) {
++		spin_unlock(&cache->lock);
++		return 0;
++	}
++	cache->commit_used = used;
++	spin_unlock(&cache->lock);
+ 
+ 	key.objectid = cache->start;
+ 	key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
+@@ -2706,7 +2784,7 @@ static int update_block_group_item(struct btrfs_trans_handle *trans,
+ 
+ 	leaf = path->nodes[0];
+ 	bi = btrfs_item_ptr_offset(leaf, path->slots[0]);
+-	btrfs_set_stack_block_group_used(&bgi, cache->used);
++	btrfs_set_stack_block_group_used(&bgi, used);
+ 	btrfs_set_stack_block_group_chunk_objectid(&bgi,
+ 						   cache->global_root_id);
+ 	btrfs_set_stack_block_group_flags(&bgi, cache->flags);
+@@ -2714,6 +2792,12 @@ static int update_block_group_item(struct btrfs_trans_handle *trans,
+ 	btrfs_mark_buffer_dirty(leaf);
+ fail:
+ 	btrfs_release_path(path);
++	/* We didn't update the block group item, need to revert @commit_used. */
++	if (ret < 0) {
++		spin_lock(&cache->lock);
++		cache->commit_used = old_commit_used;
++		spin_unlock(&cache->lock);
++	}
+ 	return ret;
+ 
+ }
+@@ -3211,31 +3295,6 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans)
+ 	return ret;
+ }
+ 
+-static inline bool should_reclaim_block_group(struct btrfs_block_group *bg,
+-					      u64 bytes_freed)
+-{
+-	const struct btrfs_space_info *space_info = bg->space_info;
+-	const int reclaim_thresh = READ_ONCE(space_info->bg_reclaim_threshold);
+-	const u64 new_val = bg->used;
+-	const u64 old_val = new_val + bytes_freed;
+-	u64 thresh;
+-
+-	if (reclaim_thresh == 0)
+-		return false;
+-
+-	thresh = div_factor_fine(bg->length, reclaim_thresh);
+-
+-	/*
+-	 * If we were below the threshold before don't reclaim, we are likely a
+-	 * brand new block group and we don't want to relocate new block groups.
+-	 */
+-	if (old_val < thresh)
+-		return false;
+-	if (new_val >= thresh)
+-		return false;
+-	return true;
+-}
+-
+ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
+ 			     u64 bytenr, u64 num_bytes, bool alloc)
+ {
+diff --git a/fs/btrfs/block-group.h b/fs/btrfs/block-group.h
+index 8fb14b99a1d1..e83eef195a89 100644
+--- a/fs/btrfs/block-group.h
++++ b/fs/btrfs/block-group.h
+@@ -99,6 +99,12 @@ struct btrfs_block_group {
+ 	u64 cache_generation;
+ 	u64 global_root_id;
+ 
++	/*
++	 * The last committed used bytes of this block group, if the above @used
++	 * is still the same as @commit_used, we don't need to update block
++	 * group item of this block group.
++	 */
++	u64 commit_used;
+ 	/*
+ 	 * If the free space extent count exceeds this number, convert the block
+ 	 * group to bitmaps.
+diff --git a/fs/btrfs/ctree.h b/fs/btrfs/ctree.h
+index 9e6d48ff4597..07599c85260e 100644
+--- a/fs/btrfs/ctree.h
++++ b/fs/btrfs/ctree.h
+@@ -1619,6 +1619,7 @@ enum {
+ 	BTRFS_MOUNT_DISCARD_ASYNC		= (1UL << 28),
+ 	BTRFS_MOUNT_IGNOREBADROOTS		= (1UL << 29),
+ 	BTRFS_MOUNT_IGNOREDATACSUMS		= (1UL << 30),
++	BTRFS_MOUNT_NODISCARD			= (1UL << 31),
+ };
+ 
+ #define BTRFS_DEFAULT_COMMIT_INTERVAL	(30)
+diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
+index d99bf7c64611..5e7a841dc824 100644
+--- a/fs/btrfs/disk-io.c
++++ b/fs/btrfs/disk-io.c
+@@ -3742,6 +3742,20 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
+ 		btrfs_set_and_info(fs_info, SSD, "enabling ssd optimizations");
+ 	}
+ 
++	/*
++	 * For devices supporting discard turn on discard=async automatically,
++	 * unless it's already set or disabled. This could be turned off by
++	 * nodiscard for the same mount.
++	 */
++	if (!(btrfs_test_opt(fs_info, DISCARD_SYNC) ||
++	      btrfs_test_opt(fs_info, DISCARD_ASYNC) ||
++	      btrfs_test_opt(fs_info, NODISCARD)) &&
++	    fs_info->fs_devices->discardable) {
++		btrfs_set_and_info(fs_info, DISCARD_ASYNC,
++				   "auto enabling async discard");
++		btrfs_clear_opt(fs_info->mount_opt, NODISCARD);
++	}
++
+ 	/*
+ 	 * Mount does not set all options immediately, we can do it now and do
+ 	 * not have to wait for transaction commit
+diff --git a/fs/btrfs/super.c b/fs/btrfs/super.c
+index 5942b9384088..842ec49841aa 100644
+--- a/fs/btrfs/super.c
++++ b/fs/btrfs/super.c
+@@ -918,12 +918,14 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
+ 				ret = -EINVAL;
+ 				goto out;
+ 			}
++			btrfs_clear_opt(info->mount_opt, NODISCARD);
+ 			break;
+ 		case Opt_nodiscard:
+ 			btrfs_clear_and_info(info, DISCARD_SYNC,
+ 					     "turning off discard");
+ 			btrfs_clear_and_info(info, DISCARD_ASYNC,
+ 					     "turning off async discard");
++			btrfs_set_opt(info->mount_opt, NODISCARD);
+ 			break;
+ 		case Opt_space_cache:
+ 		case Opt_space_cache_version:
+diff --git a/fs/btrfs/volumes.c b/fs/btrfs/volumes.c
+index 635f45f1a2ef..796e9f5ff8f8 100644
+--- a/fs/btrfs/volumes.c
++++ b/fs/btrfs/volumes.c
+@@ -641,6 +641,9 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
+ 	if (!bdev_nonrot(bdev))
+ 		fs_devices->rotating = true;
+ 
++	if (bdev_max_discard_sectors(bdev))
++		fs_devices->discardable = true;
++
+ 	device->bdev = bdev;
+ 	clear_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
+ 	device->mode = flags;
+diff --git a/fs/btrfs/volumes.h b/fs/btrfs/volumes.h
+index 099def5613b8..a20ee7d57831 100644
+--- a/fs/btrfs/volumes.h
++++ b/fs/btrfs/volumes.h
+@@ -354,6 +354,8 @@ struct btrfs_fs_devices {
+ 	 * nonrot flag set
+ 	 */
+ 	bool rotating;
++	/* Devices support TRIM/discard commands */
++	bool discardable;
+ 
+ 	struct btrfs_fs_info *fs_info;
+ 	/* sysfs kobjects */
+-- 
+2.39.0.rc2.1.gbd5df96b79
+
