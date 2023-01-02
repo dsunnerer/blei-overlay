@@ -1,43 +1,51 @@
-From 69b32f129516560fbde5139029e7460587a2983b Mon Sep 17 00:00:00 2001
+From 9570fb3cfbe9486cd32e6bcae0ebc4c7daeccdc8 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Fri, 2 Dec 2022 11:29:35 +0100
+Date: Sun, 1 Jan 2023 13:54:04 +0100
 Subject: [PATCH 18/21] rtw88
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
- drivers/net/wireless/realtek/rtw88/Kconfig    |  47 +
- drivers/net/wireless/realtek/rtw88/Makefile   |  15 +
- drivers/net/wireless/realtek/rtw88/coex.c     |   3 +-
- drivers/net/wireless/realtek/rtw88/debug.c    |  15 +
- drivers/net/wireless/realtek/rtw88/fw.c       |  13 +-
- drivers/net/wireless/realtek/rtw88/hci.h      |   9 +-
- drivers/net/wireless/realtek/rtw88/mac.c      |   3 +
- drivers/net/wireless/realtek/rtw88/mac80211.c |   2 +-
- drivers/net/wireless/realtek/rtw88/main.c     |  12 +-
- drivers/net/wireless/realtek/rtw88/main.h     |  12 +-
- drivers/net/wireless/realtek/rtw88/phy.c      |   6 +-
- drivers/net/wireless/realtek/rtw88/ps.c       |   2 +-
- drivers/net/wireless/realtek/rtw88/reg.h      |   1 +
- drivers/net/wireless/realtek/rtw88/rtw8723d.c |  28 +
- drivers/net/wireless/realtek/rtw88/rtw8723d.h |  13 +-
- .../net/wireless/realtek/rtw88/rtw8723du.c    |  36 +
- drivers/net/wireless/realtek/rtw88/rtw8821c.c |  18 +
- drivers/net/wireless/realtek/rtw88/rtw8821c.h |  21 +
- .../net/wireless/realtek/rtw88/rtw8821cu.c    |  50 +
- drivers/net/wireless/realtek/rtw88/rtw8822b.c |  19 +
- .../net/wireless/realtek/rtw88/rtw8822bu.c    |  90 ++
- drivers/net/wireless/realtek/rtw88/rtw8822c.c |  24 +
- .../net/wireless/realtek/rtw88/rtw8822cu.c    |  44 +
- drivers/net/wireless/realtek/rtw88/tx.h       |  31 +
- drivers/net/wireless/realtek/rtw88/usb.c      | 911 ++++++++++++++++++
- drivers/net/wireless/realtek/rtw88/usb.h      | 107 ++
- drivers/net/wireless/realtek/rtw88/util.c     | 103 ++
- drivers/net/wireless/realtek/rtw88/util.h     |  12 +-
- 28 files changed, 1609 insertions(+), 38 deletions(-)
+ drivers/net/wireless/realtek/rtw88/Kconfig    |   47 +
+ drivers/net/wireless/realtek/rtw88/Makefile   |   14 +
+ drivers/net/wireless/realtek/rtw88/coex.c     |    3 +-
+ drivers/net/wireless/realtek/rtw88/debug.c    |   15 +
+ drivers/net/wireless/realtek/rtw88/fw.c       |   13 +-
+ drivers/net/wireless/realtek/rtw88/hci.h      |    9 +-
+ drivers/net/wireless/realtek/rtw88/mac.c      |    3 +
+ drivers/net/wireless/realtek/rtw88/mac80211.c |    2 +-
+ drivers/net/wireless/realtek/rtw88/main.c     |    9 +-
+ drivers/net/wireless/realtek/rtw88/main.h     |   11 +-
+ drivers/net/wireless/realtek/rtw88/phy.c      |    6 +-
+ drivers/net/wireless/realtek/rtw88/ps.c       |    2 +-
+ drivers/net/wireless/realtek/rtw88/reg.h      |    1 +
+ drivers/net/wireless/realtek/rtw88/rtw8723d.c |   19 +
+ drivers/net/wireless/realtek/rtw88/rtw8723d.h |    1 +
+ .../net/wireless/realtek/rtw88/rtw8723du.c    |   40 +
+ .../net/wireless/realtek/rtw88/rtw8723du.h    |   13 +
+ drivers/net/wireless/realtek/rtw88/rtw8821c.c |   23 +
+ drivers/net/wireless/realtek/rtw88/rtw8821c.h |   21 +
+ .../net/wireless/realtek/rtw88/rtw8821cu.c    |   69 ++
+ .../net/wireless/realtek/rtw88/rtw8821cu.h    |   15 +
+ drivers/net/wireless/realtek/rtw88/rtw8822b.c |   19 +
+ .../net/wireless/realtek/rtw88/rtw8822bu.c    |   62 +
+ .../net/wireless/realtek/rtw88/rtw8822bu.h    |   15 +
+ drivers/net/wireless/realtek/rtw88/rtw8822c.c |   24 +
+ .../net/wireless/realtek/rtw88/rtw8822cu.c    |   40 +
+ .../net/wireless/realtek/rtw88/rtw8822cu.h    |   15 +
+ drivers/net/wireless/realtek/rtw88/tx.h       |   31 +
+ drivers/net/wireless/realtek/rtw88/usb.c      | 1051 +++++++++++++++++
+ drivers/net/wireless/realtek/rtw88/usb.h      |  109 ++
+ drivers/net/wireless/realtek/rtw88/util.c     |   92 ++
+ drivers/net/wireless/realtek/rtw88/util.h     |   12 +-
+ 32 files changed, 1770 insertions(+), 36 deletions(-)
  create mode 100644 drivers/net/wireless/realtek/rtw88/rtw8723du.c
+ create mode 100644 drivers/net/wireless/realtek/rtw88/rtw8723du.h
  create mode 100644 drivers/net/wireless/realtek/rtw88/rtw8821cu.c
+ create mode 100644 drivers/net/wireless/realtek/rtw88/rtw8821cu.h
  create mode 100644 drivers/net/wireless/realtek/rtw88/rtw8822bu.c
+ create mode 100644 drivers/net/wireless/realtek/rtw88/rtw8822bu.h
  create mode 100644 drivers/net/wireless/realtek/rtw88/rtw8822cu.c
+ create mode 100644 drivers/net/wireless/realtek/rtw88/rtw8822cu.h
  create mode 100644 drivers/net/wireless/realtek/rtw88/usb.c
  create mode 100644 drivers/net/wireless/realtek/rtw88/usb.h
 
@@ -128,10 +136,10 @@ index e3d7cb6c1290..651ab56d9c6b 100644
  	bool "Realtek rtw88 debug support"
  	depends on RTW88_CORE
 diff --git a/drivers/net/wireless/realtek/rtw88/Makefile b/drivers/net/wireless/realtek/rtw88/Makefile
-index 834c66ec0af9..fe7293ee87b4 100644
+index 834c66ec0af9..e0950dbc2565 100644
 --- a/drivers/net/wireless/realtek/rtw88/Makefile
 +++ b/drivers/net/wireless/realtek/rtw88/Makefile
-@@ -26,23 +26,38 @@ rtw88_8822b-objs		:= rtw8822b.o rtw8822b_table.o
+@@ -26,23 +26,37 @@ rtw88_8822b-objs		:= rtw8822b.o rtw8822b_table.o
  obj-$(CONFIG_RTW88_8822BE)	+= rtw88_8822be.o
  rtw88_8822be-objs		:= rtw8822be.o
  
@@ -166,9 +174,8 @@ index 834c66ec0af9..fe7293ee87b4 100644
 +rtw88_8821cu-objs		:= rtw8821cu.o
 +
  obj-$(CONFIG_RTW88_PCI)		+= rtw88_pci.o
- rtw88_pci-objs			:= pci.o
-+
 +obj-$(CONFIG_RTW88_USB)		+= rtw88_usb.o
+ rtw88_pci-objs			:= pci.o
 +rtw88_usb-objs			:= usb.o
 diff --git a/drivers/net/wireless/realtek/rtw88/coex.c b/drivers/net/wireless/realtek/rtw88/coex.c
 index 6276ad624299..38697237ee5f 100644
@@ -389,28 +396,10 @@ index 07578ccc4bab..776a9a9884b5 100644
  	mutex_unlock(&rtwdev->mutex);
  
 diff --git a/drivers/net/wireless/realtek/rtw88/main.c b/drivers/net/wireless/realtek/rtw88/main.c
-index 67151dbf8384..888427cf3bdf 100644
+index 67151dbf8384..e257071f8020 100644
 --- a/drivers/net/wireless/realtek/rtw88/main.c
 +++ b/drivers/net/wireless/realtek/rtw88/main.c
-@@ -1731,7 +1731,8 @@ static void rtw_load_firmware_cb(const struct firmware *firmware, void *context)
- 	update_firmware_info(rtwdev, fw);
- 	complete_all(&fw->completion);
- 
--	rtw_info(rtwdev, "Firmware version %u.%u.%u, H2C version %u\n",
-+	rtw_info(rtwdev, "%sFirmware version %u.%u.%u, H2C version %u\n",
-+		 fw->type == RTW_WOWLAN_FW ? "WOW " : "",
- 		 fw->version, fw->sub_version, fw->sub_index, fw->h2c_version);
- }
- 
-@@ -1757,6 +1758,7 @@ static int rtw_load_firmware(struct rtw_dev *rtwdev, enum rtw_fw_type type)
- 		return -ENOENT;
- 	}
- 
-+	fw->type = type;
- 	fw->rtwdev = rtwdev;
- 	init_completion(&fw->completion);
- 
-@@ -1781,6 +1783,10 @@ static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
+@@ -1781,6 +1781,10 @@ static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
  		rtwdev->hci.rpwm_addr = 0x03d9;
  		rtwdev->hci.cpwm_addr = 0x03da;
  		break;
@@ -421,7 +410,7 @@ index 67151dbf8384..888427cf3bdf 100644
  	default:
  		rtw_err(rtwdev, "unsupported hci type\n");
  		return -EINVAL;
-@@ -2065,13 +2071,10 @@ int rtw_core_init(struct rtw_dev *rtwdev)
+@@ -2065,13 +2069,10 @@ int rtw_core_init(struct rtw_dev *rtwdev)
  	skb_queue_head_init(&rtwdev->coex.queue);
  	skb_queue_head_init(&rtwdev->tx_report.queue);
  
@@ -435,7 +424,7 @@ index 67151dbf8384..888427cf3bdf 100644
  	mutex_init(&rtwdev->hal.tx_power_mutex);
  
  	init_waitqueue_head(&rtwdev->coex.wait);
-@@ -2143,7 +2146,6 @@ void rtw_core_deinit(struct rtw_dev *rtwdev)
+@@ -2143,7 +2144,6 @@ void rtw_core_deinit(struct rtw_dev *rtwdev)
  	}
  
  	mutex_destroy(&rtwdev->mutex);
@@ -443,8 +432,16 @@ index 67151dbf8384..888427cf3bdf 100644
  	mutex_destroy(&rtwdev->hal.tx_power_mutex);
  }
  EXPORT_SYMBOL(rtw_core_deinit);
+@@ -2184,6 +2184,7 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
+ 	hw->wiphy->available_antennas_rx = hal->antenna_rx;
+ 
+ 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
++			    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
+ 			    WIPHY_FLAG_TDLS_EXTERNAL_SETUP;
+ 
+ 	hw->wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 diff --git a/drivers/net/wireless/realtek/rtw88/main.h b/drivers/net/wireless/realtek/rtw88/main.h
-index bccd7b28f60c..165f299e8e1f 100644
+index bccd7b28f60c..3b2f9b653d5c 100644
 --- a/drivers/net/wireless/realtek/rtw88/main.h
 +++ b/drivers/net/wireless/realtek/rtw88/main.h
 @@ -871,6 +871,10 @@ struct rtw_chip_ops {
@@ -467,15 +464,7 @@ index bccd7b28f60c..165f299e8e1f 100644
  	struct sk_buff_head queue;
  	wait_queue_head_t wait;
  
-@@ -1851,6 +1853,7 @@ struct rtw_fw_state {
- 	u16 h2c_version;
- 	u32 feature;
- 	u32 feature_ext;
-+	enum rtw_fw_type type;
- };
- 
- enum rtw_sar_sources {
-@@ -1994,9 +1997,6 @@ struct rtw_dev {
+@@ -1994,9 +1996,6 @@ struct rtw_dev {
  	/* ensures exclusive access from mac80211 callbacks */
  	struct mutex mutex;
  
@@ -485,7 +474,7 @@ index bccd7b28f60c..165f299e8e1f 100644
  	/* watch dog every 2 sec */
  	struct delayed_work watch_dog_work;
  	u32 watch_dog_cnt;
-@@ -2022,8 +2022,6 @@ struct rtw_dev {
+@@ -2022,8 +2021,6 @@ struct rtw_dev {
  	struct {
  		/* incicate the mail box to use with fw */
  		u8 last_box_num;
@@ -551,7 +540,7 @@ index 03bd8dc53f72..8852b24d6c2a 100644
  #define BIT_MASK_TXDMA_BEQ_MAP	0x3
  #define BIT_TXDMA_BEQ_MAP(x)                                                   \
 diff --git a/drivers/net/wireless/realtek/rtw88/rtw8723d.c b/drivers/net/wireless/realtek/rtw88/rtw8723d.c
-index 0a4f770fcbb7..2d2f768bae2e 100644
+index 0a4f770fcbb7..710c50898239 100644
 --- a/drivers/net/wireless/realtek/rtw88/rtw8723d.c
 +++ b/drivers/net/wireless/realtek/rtw88/rtw8723d.c
 @@ -210,6 +210,12 @@ static void rtw8723de_efuse_parsing(struct rtw_efuse *efuse,
@@ -577,7 +566,7 @@ index 0a4f770fcbb7..2d2f768bae2e 100644
  	default:
  		/* unsupported now */
  		return -ENOTSUPP;
-@@ -1945,6 +1954,24 @@ static void rtw8723d_pwr_track(struct rtw_dev *rtwdev)
+@@ -1945,6 +1954,15 @@ static void rtw8723d_pwr_track(struct rtw_dev *rtwdev)
  	dm_info->pwr_trk_triggered = false;
  }
  
@@ -586,23 +575,14 @@ index 0a4f770fcbb7..2d2f768bae2e 100644
 +					  u8 *txdesc)
 +{
 +	size_t words = 32 / 2; /* calculate the first 32 bytes (16 words) */
-+	__le16 chksum = 0;
-+	__le16 *data = (__le16 *)(txdesc);
 +
-+	SET_TX_DESC_TXDESC_CHECKSUM(txdesc, 0x0000);
-+
-+	while (words--)
-+		chksum ^= *data++;
-+
-+	chksum = ~chksum;
-+
-+	SET_TX_DESC_TXDESC_CHECKSUM(txdesc, __le16_to_cpu(chksum));
++	fill_txdesc_checksum_common(txdesc, words);
 +}
 +
  static struct rtw_chip_ops rtw8723d_ops = {
  	.phy_set_param		= rtw8723d_phy_set_param,
  	.read_efuse		= rtw8723d_read_efuse,
-@@ -1965,6 +1992,7 @@ static struct rtw_chip_ops rtw8723d_ops = {
+@@ -1965,6 +1983,7 @@ static struct rtw_chip_ops rtw8723d_ops = {
  	.config_bfee		= NULL,
  	.set_gid_table		= NULL,
  	.cfg_csi_rate		= NULL,
@@ -611,42 +591,23 @@ index 0a4f770fcbb7..2d2f768bae2e 100644
  	.coex_set_init		= rtw8723d_coex_cfg_init,
  	.coex_set_ant_switch	= NULL,
 diff --git a/drivers/net/wireless/realtek/rtw88/rtw8723d.h b/drivers/net/wireless/realtek/rtw88/rtw8723d.h
-index 4641f6e047b4..a356318a5c15 100644
+index 4641f6e047b4..7d9fc3dde97d 100644
 --- a/drivers/net/wireless/realtek/rtw88/rtw8723d.h
 +++ b/drivers/net/wireless/realtek/rtw88/rtw8723d.h
-@@ -41,6 +41,14 @@ struct rtw8723de_efuse {
- 	u8 sub_device_id[2];
- };
- 
-+struct rtw8723du_efuse {
-+	u8 res4[48];                    /* 0xd0 */
-+	u8 vender_id[2];                /* 0x100 */
-+	u8 product_id[2];               /* 0x102 */
-+	u8 usb_option;                  /* 0x104 */
-+	u8 mac_addr[ETH_ALEN];          /* 0x107 */
-+};
-+
- struct rtw8723d_efuse {
- 	__le16 rtl_id;
- 	u8 rsvd[2];
-@@ -69,7 +77,10 @@ struct rtw8723d_efuse {
- 	u8 rfe_option;
+@@ -70,6 +70,7 @@ struct rtw8723d_efuse {
  	u8 country_code[2];
  	u8 res[3];
--	struct rtw8723de_efuse e;
-+	union {
-+		struct rtw8723de_efuse e;
-+		struct rtw8723du_efuse u;
-+	};
+ 	struct rtw8723de_efuse e;
++	struct rtw8723de_efuse u;
  };
  
  extern const struct rtw_chip_info rtw8723d_hw_spec;
 diff --git a/drivers/net/wireless/realtek/rtw88/rtw8723du.c b/drivers/net/wireless/realtek/rtw88/rtw8723du.c
 new file mode 100644
-index 000000000000..322a805da76b
+index 000000000000..910f64c16813
 --- /dev/null
 +++ b/drivers/net/wireless/realtek/rtw88/rtw8723du.c
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,40 @@
 +// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 +/* Copyright(c) 2018-2019  Realtek Corporation
 + */
@@ -654,20 +615,24 @@ index 000000000000..322a805da76b
 +#include <linux/module.h>
 +#include <linux/usb.h>
 +#include "main.h"
-+#include "rtw8723d.h"
++#include "rtw8723du.h"
 +#include "usb.h"
 +
 +static const struct usb_device_id rtw_8723du_id_table[] = {
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xd723, 0xff, 0xff, 0xff),
++	/*
++	 * ULLI :
++	 * ID found in rtw8822bu sources
++	 */
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
++					0xD723,
++					0xff, 0xff, 0xff),
 +	  .driver_info = (kernel_ulong_t)&(rtw8723d_hw_spec) }, /* 8723DU 1*1 */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0xd611, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8723d_hw_spec) }, /* Edimax EW-7611ULB V2 */
 +	{ },
 +};
 +MODULE_DEVICE_TABLE(usb, rtw_8723du_id_table);
 +
 +static int rtw8723du_probe(struct usb_interface *intf,
-+			   const struct usb_device_id *id)
++			    const struct usb_device_id *id)
 +{
 +	return rtw_usb_probe(intf, id);
 +}
@@ -683,8 +648,27 @@ index 000000000000..322a805da76b
 +MODULE_AUTHOR("Hans Ulli Kroll <linux@ulli-kroll.de>");
 +MODULE_DESCRIPTION("Realtek 802.11n wireless 8723du driver");
 +MODULE_LICENSE("Dual BSD/GPL");
+diff --git a/drivers/net/wireless/realtek/rtw88/rtw8723du.h b/drivers/net/wireless/realtek/rtw88/rtw8723du.h
+new file mode 100644
+index 000000000000..2e069f65c055
+--- /dev/null
++++ b/drivers/net/wireless/realtek/rtw88/rtw8723du.h
+@@ -0,0 +1,13 @@
++/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
++/* Copyright(c) 2018-2019  Realtek Corporation
++ */
++
++#ifndef __RTW_8723DU_H_
++#define __RTW_8723DU_H_
++
++/* USB Vendor/Product IDs */
++#define RTW_USB_VENDOR_ID_REALTEK		0x0BDA
++
++extern struct rtw_chip_info rtw8723d_hw_spec;
++
++#endif
 diff --git a/drivers/net/wireless/realtek/rtw88/rtw8821c.c b/drivers/net/wireless/realtek/rtw88/rtw8821c.c
-index 9afdc5ce86b4..17f800f6efbd 100644
+index 9afdc5ce86b4..8d2973b930c9 100644
 --- a/drivers/net/wireless/realtek/rtw88/rtw8821c.c
 +++ b/drivers/net/wireless/realtek/rtw88/rtw8821c.c
 @@ -26,6 +26,12 @@ static void rtw8821ce_efuse_parsing(struct rtw_efuse *efuse,
@@ -710,7 +694,7 @@ index 9afdc5ce86b4..17f800f6efbd 100644
  	default:
  		/* unsupported now */
  		return -ENOTSUPP;
-@@ -1148,6 +1157,13 @@ static void rtw8821c_phy_cck_pd_set(struct rtw_dev *rtwdev, u8 new_lvl)
+@@ -1148,6 +1157,18 @@ static void rtw8821c_phy_cck_pd_set(struct rtw_dev *rtwdev, u8 new_lvl)
  			 dm_info->cck_pd_default + new_lvl * 2);
  }
  
@@ -718,13 +702,18 @@ index 9afdc5ce86b4..17f800f6efbd 100644
 +					  struct rtw_tx_pkt_info *pkt_info,
 +					  u8 *txdesc)
 +{
-+	fill_txdesc_checksum_common(txdesc, 16);
++	struct rtw_chip_info *chip = rtwdev->chip;
++	size_t words;
++
++	words = (pkt_info->pkt_offset * 8 + chip->tx_pkt_desc_sz) / 2;
++
++	fill_txdesc_checksum_common(txdesc, words);
 +}
 +
  static struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8821c[] = {
  	{0x0086,
  	 RTW_PWR_CUT_ALL_MSK,
-@@ -1521,6 +1537,7 @@ static const struct rtw_rfe_def rtw8821c_rfe_defs[] = {
+@@ -1521,6 +1542,7 @@ static const struct rtw_rfe_def rtw8821c_rfe_defs[] = {
  	[2] = RTW_DEF_RFE_EXT(8821c, 0, 0, 2),
  	[4] = RTW_DEF_RFE_EXT(8821c, 0, 0, 2),
  	[6] = RTW_DEF_RFE(8821c, 0, 0),
@@ -732,7 +721,7 @@ index 9afdc5ce86b4..17f800f6efbd 100644
  };
  
  static struct rtw_hw_reg rtw8821c_dig[] = {
-@@ -1595,6 +1612,7 @@ static struct rtw_chip_ops rtw8821c_ops = {
+@@ -1595,6 +1617,7 @@ static struct rtw_chip_ops rtw8821c_ops = {
  	.config_bfee		= rtw8821c_bf_config_bfee,
  	.set_gid_table		= rtw_bf_set_gid_table,
  	.cfg_csi_rate		= rtw_bf_cfg_csi_rate,
@@ -741,7 +730,7 @@ index 9afdc5ce86b4..17f800f6efbd 100644
  	.coex_set_init		= rtw8821c_coex_cfg_init,
  	.coex_set_ant_switch	= rtw8821c_coex_cfg_ant_switch,
 diff --git a/drivers/net/wireless/realtek/rtw88/rtw8821c.h b/drivers/net/wireless/realtek/rtw88/rtw8821c.h
-index 2698801fc35d..1c81260f3a54 100644
+index 2698801fc35d..71ce01623d49 100644
 --- a/drivers/net/wireless/realtek/rtw88/rtw8821c.h
 +++ b/drivers/net/wireless/realtek/rtw88/rtw8821c.h
 @@ -9,6 +9,26 @@
@@ -749,23 +738,23 @@ index 2698801fc35d..1c81260f3a54 100644
  #define RCR_VHT_ACK		BIT(26)
  
 +struct rtw8821cu_efuse {
-+	u8 res4[4];			/* 0xd0 */
-+	u8 usb_optional_function;
-+	u8 res5[0x1e];
-+	u8 res6[2];
-+	u8 serial[0x0b];		/* 0xf5 */
-+	u8 vid;				/* 0x100 */
-+	u8 res7;
-+	u8 pid;
-+	u8 res8[4];
-+	u8 mac_addr[ETH_ALEN];		/* 0x107 */
-+	u8 res9[2];
-+	u8 vendor_name[0x07];
-+	u8 res10[2];
-+	u8 device_name[0x14];
-+	u8 res11[0xcf];
-+	u8 package_type;		/* 0x1fb */
-+	u8 res12[0x4];
++        u8 res4[4];                     /* 0xd0 */
++        u8 usb_optional_function;
++        u8 res5[0x1e];
++        u8 res6[2];
++        u8 serial[0x0b];                /* 0xf5 */
++        u8 vid;                         /* 0x100 */
++        u8 res7;
++        u8 pid;
++        u8 res8[4];
++        u8 mac_addr[ETH_ALEN];          /* 0x107 */
++        u8 res9[2];
++        u8 vendor_name[0x07];
++        u8 res10[2];
++        u8 device_name[0x14];
++        u8 res11[0xcf];
++        u8 package_type;                /* 0x1fb */
++        u8 res12[0x4];
 +};
 +
  struct rtw8821ce_efuse {
@@ -781,10 +770,10 @@ index 2698801fc35d..1c81260f3a54 100644
  
 diff --git a/drivers/net/wireless/realtek/rtw88/rtw8821cu.c b/drivers/net/wireless/realtek/rtw88/rtw8821cu.c
 new file mode 100644
-index 000000000000..7a5cbdc31ef7
+index 000000000000..e6710c5ebdfc
 --- /dev/null
 +++ b/drivers/net/wireless/realtek/rtw88/rtw8821cu.c
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,69 @@
 +// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 +/* Copyright(c) 2018-2019  Realtek Corporation
 + */
@@ -792,28 +781,47 @@ index 000000000000..7a5cbdc31ef7
 +#include <linux/module.h>
 +#include <linux/usb.h>
 +#include "main.h"
-+#include "rtw8821c.h"
++#include "rtw8821cu.h"
 +#include "usb.h"
 +
 +static const struct usb_device_id rtw_8821cu_id_table[] = {
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xb82b, 0xff, 0xff, 0xff),
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
++					0xb82b,
++					0xff, 0xff, 0xff),
 +	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xb820, 0xff, 0xff, 0xff),
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
++					0xb820,
++					0xff, 0xff, 0xff),
++	 .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
++					0xC821,
++					0xff, 0xff, 0xff),
++	 .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
++					0xC820,
++					0xff, 0xff, 0xff),
++	 .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
++					0xC82A,
++					0xff, 0xff, 0xff),
++	 .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
++					0xC82B,
++					0xff, 0xff, 0xff),
 +	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc821, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc820, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc82a, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc82b, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8821CU */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc811, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8811CU */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0x8811, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8811CU */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0x2006, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* TOTOLINK A650UA v3 */
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
++					0xC811,
++					0xff, 0xff, 0xff),
++	 .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8811CU */
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
++					0x8811,
++					0xff, 0xff, 0xff),
++	.driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* 8811CU */
++	/*=== Customer ID ===*/
++	{ USB_DEVICE(0x0bda, 0x2006),
++	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* Totolink */
++	{ USB_DEVICE(0x0bda, 0xc811),
++	  .driver_info = (kernel_ulong_t)&(rtw8821c_hw_spec) }, /* Simplecom NW602 */
 +	{},
 +};
 +MODULE_DEVICE_TABLE(usb, rtw_8821cu_id_table);
@@ -835,6 +843,27 @@ index 000000000000..7a5cbdc31ef7
 +MODULE_AUTHOR("Hans Ulli Kroll <linux@ulli-kroll.de>");
 +MODULE_DESCRIPTION("Realtek 802.11ac wireless 8821cu driver");
 +MODULE_LICENSE("Dual BSD/GPL");
+diff --git a/drivers/net/wireless/realtek/rtw88/rtw8821cu.h b/drivers/net/wireless/realtek/rtw88/rtw8821cu.h
+new file mode 100644
+index 000000000000..bddbd96aa45f
+--- /dev/null
++++ b/drivers/net/wireless/realtek/rtw88/rtw8821cu.h
+@@ -0,0 +1,15 @@
++/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
++/* Copyright(c) 2018-2019  Realtek Corporation
++ */
++
++#ifndef __RTW_8821CU_H_
++#define __RTW_8821CU_H_
++
++/* USB Vendor/Product IDs */
++#define RTW_USB_VENDOR_ID_REALTEK		0x0BDA
++#define RTW_USB_PRODUCT_ID_REALTEK_8811C	0xC811
++#define RTW_USB_PRODUCT_ID_REALTEK_8821C	0xC81C
++
++extern struct rtw_chip_info rtw8821c_hw_spec;
++
++#endif
 diff --git a/drivers/net/wireless/realtek/rtw88/rtw8822b.c b/drivers/net/wireless/realtek/rtw88/rtw8822b.c
 index 690e35c98f6e..74dfb89b2c94 100644
 --- a/drivers/net/wireless/realtek/rtw88/rtw8822b.c
@@ -888,10 +917,10 @@ index 690e35c98f6e..74dfb89b2c94 100644
  	.coex_set_ant_switch	= rtw8822b_coex_cfg_ant_switch,
 diff --git a/drivers/net/wireless/realtek/rtw88/rtw8822bu.c b/drivers/net/wireless/realtek/rtw88/rtw8822bu.c
 new file mode 100644
-index 000000000000..ab620a0b1dfc
+index 000000000000..5becebdc3247
 --- /dev/null
 +++ b/drivers/net/wireless/realtek/rtw88/rtw8822bu.c
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,62 @@
 +// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 +/* Copyright(c) 2018-2019  Realtek Corporation
 + */
@@ -899,74 +928,46 @@ index 000000000000..ab620a0b1dfc
 +#include <linux/module.h>
 +#include <linux/usb.h>
 +#include "main.h"
-+#include "rtw8822b.h"
++#include "rtw8822bu.h"
 +#include "usb.h"
 +
++#define RTW_USB_VENDER_ID_EDIMAX	0x7392
++
 +static const struct usb_device_id rtw_8822bu_id_table[] = {
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xb812, 0xff, 0xff, 0xff),
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
++				       RTW_USB_PRODUCT_ID_REALTEK_8812B,
++				       0xff, 0xff, 0xff),
 +	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) },
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xb82c, 0xff, 0xff, 0xff),
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
++				       RTW_USB_PRODUCT_ID_REALTEK_8822B,
++				       0xff, 0xff, 0xff),
 +	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) },
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0x2102, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* CCNC */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0xb822, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* Edimax EW-7822ULC */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0xc822, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* Edimax EW-7822UTC */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0xd822, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* Edimax */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0xe822, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* Edimax */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0xf822, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* Edimax EW-7822UAD */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xb81a, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* Default ID */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0b05, 0x1841, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* ASUS AC1300 USB-AC55 B1 */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0b05, 0x184c, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* ASUS U2 */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0B05, 0x19aa, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* ASUS - USB-AC58 rev A1 */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0B05, 0x1870, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* ASUS */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0B05, 0x1874, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* ASUS */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x2001, 0x331e, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* Dlink - DWA-181 */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x2001, 0x331c, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* Dlink - DWA-182 - D1 */
-+	{USB_DEVICE_AND_INTERFACE_INFO(0x2001, 0x331f, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec)}, /* Dlink - DWA-183 D Ver */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x13b1, 0x0043, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* Linksys WUSB6400M */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x13b1, 0x0045, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* Linksys WUSB3600 v2 */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x2357, 0x012d, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* TP-Link Archer T3U v1 */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x2357, 0x0138, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* TP-Link Archer T3U Plus v1 */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x2357, 0x0115, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* TP-Link Archer T4U V3 */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x2357, 0x012e, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* TP-LINK */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x2357, 0x0116, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* TP-LINK */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x2357, 0x0117, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* TP-LINK */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0846, 0x9055, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* Netgear A6150 */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0e66, 0x0025, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* Hawking HW12ACU */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x04ca, 0x8602, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* LiteOn */
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x20f4, 0x808a, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) }, /* TRENDnet TEW-808UBM */
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDER_ID_EDIMAX,
++					0xB822,
++					0xff, 0xff, 0xff),
++	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) },
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDER_ID_EDIMAX,
++					0xC822,
++					0xff, 0xff, 0xff),
++	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) },
++	{ USB_DEVICE(0x0b05, 0x184c),	/* ASUS AC53 Nano */
++	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) },
++	{ USB_DEVICE(0x0b05, 0x1841),	/* ASUS AC55 B1 */
++	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) },
++	{ USB_DEVICE(0x2001, 0x331c),	/* D-Link DWA-182 rev D1 */
++	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) },
++	{ USB_DEVICE(0x13b1, 0x0043),	/* Linksys WUSB6400M */
++	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) },
++	{ USB_DEVICE(0x2357, 0x012D),	/* TP-Link AC1300 T3U */
++	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) },
++	{ USB_DEVICE(0x2357, 0x0138),	/* TP-Link AC1300 T3U */
++	  .driver_info = (kernel_ulong_t)&(rtw8822b_hw_spec) },
 +	{},
 +};
 +MODULE_DEVICE_TABLE(usb, rtw_8822bu_id_table);
 +
 +static int rtw8822bu_probe(struct usb_interface *intf,
-+			   const struct usb_device_id *id)
++			    const struct usb_device_id *id)
 +{
 +	return rtw_usb_probe(intf, id);
 +}
@@ -982,8 +983,29 @@ index 000000000000..ab620a0b1dfc
 +MODULE_AUTHOR("Realtek Corporation");
 +MODULE_DESCRIPTION("Realtek 802.11ac wireless 8822bu driver");
 +MODULE_LICENSE("Dual BSD/GPL");
+diff --git a/drivers/net/wireless/realtek/rtw88/rtw8822bu.h b/drivers/net/wireless/realtek/rtw88/rtw8822bu.h
+new file mode 100644
+index 000000000000..20f01ecd7441
+--- /dev/null
++++ b/drivers/net/wireless/realtek/rtw88/rtw8822bu.h
+@@ -0,0 +1,15 @@
++/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
++/* Copyright(c) 2018-2019  Realtek Corporation
++ */
++
++#ifndef __RTW_8822BU_H_
++#define __RTW_8822BU_H_
++
++/* USB Vendor/Product IDs */
++#define RTW_USB_VENDOR_ID_REALTEK		0x0BDA
++#define RTW_USB_PRODUCT_ID_REALTEK_8812B	0xB812
++#define RTW_USB_PRODUCT_ID_REALTEK_8822B	0xB82C
++
++extern struct rtw_chip_info rtw8822b_hw_spec;
++
++#endif
 diff --git a/drivers/net/wireless/realtek/rtw88/rtw8822c.c b/drivers/net/wireless/realtek/rtw88/rtw8822c.c
-index fccb15dfb959..964e27887fe2 100644
+index fccb15dfb959..7cd4b1602b4a 100644
 --- a/drivers/net/wireless/realtek/rtw88/rtw8822c.c
 +++ b/drivers/net/wireless/realtek/rtw88/rtw8822c.c
 @@ -29,6 +29,12 @@ static void rtw8822ce_efuse_parsing(struct rtw_efuse *efuse,
@@ -1017,7 +1039,7 @@ index fccb15dfb959..964e27887fe2 100644
 +					  struct rtw_tx_pkt_info *pkt_info,
 +					  u8 *txdesc)
 +{
-+	const struct rtw_chip_info *chip = rtwdev->chip;
++	struct rtw_chip_info *chip = rtwdev->chip;
 +	size_t words;
 +
 +	words = (pkt_info->pkt_offset * 8 + chip->tx_pkt_desc_sz) / 2;
@@ -1047,10 +1069,10 @@ index fccb15dfb959..964e27887fe2 100644
  	.coex_set_ant_switch	= NULL,
 diff --git a/drivers/net/wireless/realtek/rtw88/rtw8822cu.c b/drivers/net/wireless/realtek/rtw88/rtw8822cu.c
 new file mode 100644
-index 000000000000..af28ca09d41f
+index 000000000000..36dc734f76eb
 --- /dev/null
 +++ b/drivers/net/wireless/realtek/rtw88/rtw8822cu.c
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,40 @@
 +// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 +/* Copyright(c) 2018-2019  Realtek Corporation
 + */
@@ -1058,28 +1080,24 @@ index 000000000000..af28ca09d41f
 +#include <linux/module.h>
 +#include <linux/usb.h>
 +#include "main.h"
-+#include "rtw8822c.h"
++#include "rtw8822cu.h"
 +#include "usb.h"
 +
 +static const struct usb_device_id rtw_8822cu_id_table[] = {
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc82c, 0xff, 0xff, 0xff),
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
++					RTW_USB_PRODUCT_ID_REALTEK_8822C,
++					0xff, 0xff, 0xff),
 +	  .driver_info = (kernel_ulong_t)&(rtw8822c_hw_spec) },
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc812, 0xff, 0xff, 0xff),
++	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK,
++					RTW_USB_PRODUCT_ID_REALTEK_8812C,
++					0xff, 0xff, 0xff),
 +	  .driver_info = (kernel_ulong_t)&(rtw8822c_hw_spec) },
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xc82e, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822c_hw_spec) },
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xd820, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822c_hw_spec) },
-+	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xd82b, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822c_hw_spec) },
-+	{ USB_DEVICE_AND_INTERFACE_INFO(0x13b1, 0x0043, 0xff, 0xff, 0xff),
-+	  .driver_info = (kernel_ulong_t)&(rtw8822c_hw_spec) }, /* Alpha - Alpha */
 +	{},
 +};
 +MODULE_DEVICE_TABLE(usb, rtw_8822cu_id_table);
 +
 +static int rtw8822bu_probe(struct usb_interface *intf,
-+			   const struct usb_device_id *id)
++			    const struct usb_device_id *id)
 +{
 +	return rtw_usb_probe(intf, id);
 +}
@@ -1095,21 +1113,42 @@ index 000000000000..af28ca09d41f
 +MODULE_AUTHOR("Realtek Corporation");
 +MODULE_DESCRIPTION("Realtek 802.11ac wireless 8822cu driver");
 +MODULE_LICENSE("Dual BSD/GPL");
+diff --git a/drivers/net/wireless/realtek/rtw88/rtw8822cu.h b/drivers/net/wireless/realtek/rtw88/rtw8822cu.h
+new file mode 100644
+index 000000000000..16afe22a8216
+--- /dev/null
++++ b/drivers/net/wireless/realtek/rtw88/rtw8822cu.h
+@@ -0,0 +1,15 @@
++/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
++/* Copyright(c) 2018-2019  Realtek Corporation
++ */
++
++#ifndef __RTW_8822CU_H_
++#define __RTW_8822CU_H_
++
++/* USB Vendor/Product IDs */
++#define RTW_USB_VENDOR_ID_REALTEK		0x0BDA
++#define RTW_USB_PRODUCT_ID_REALTEK_8812C	0xC812
++#define RTW_USB_PRODUCT_ID_REALTEK_8822C	0xC82C
++
++extern struct rtw_chip_info rtw8822c_hw_spec;
++
++#endif
 diff --git a/drivers/net/wireless/realtek/rtw88/tx.h b/drivers/net/wireless/realtek/rtw88/tx.h
-index 8419603adce4..a2f3ac326041 100644
+index 8419603adce4..d283bb05d1dd 100644
 --- a/drivers/net/wireless/realtek/rtw88/tx.h
 +++ b/drivers/net/wireless/realtek/rtw88/tx.h
 @@ -71,6 +71,14 @@
  	le32p_replace_bits((__le32 *)(txdesc) + 0x03, value, BIT(15))
  #define SET_TX_DESC_BT_NULL(txdesc, value)				       \
  	le32p_replace_bits((__le32 *)(txdesc) + 0x02, value, BIT(23))
-+#define SET_TX_DESC_TXDESC_CHECKSUM(txdesc, value)				\
++#define SET_TX_DESC_TXDESC_CHECKSUM(txdesc, value)                             \
 +	le32p_replace_bits((__le32 *)(txdesc) + 0x07, value, GENMASK(15, 0))
-+#define SET_TX_DESC_DMA_TXAGG_NUM(txdesc, value)				\
++#define SET_TX_DESC_DMA_TXAGG_NUM(txdesc, value)                             \
 +	le32p_replace_bits((__le32 *)(txdesc) + 0x07, value, GENMASK(31, 24))
-+#define GET_TX_DESC_PKT_OFFSET(txdesc)						\
++#define GET_TX_DESC_PKT_OFFSET(txdesc)                                  \
 +	le32_get_bits(*((__le32 *)(txdesc) + 0x01), GENMASK(28, 24))
-+#define GET_TX_DESC_QSEL(txdesc)						\
++#define GET_TX_DESC_QSEL(txdesc)                                        \
 +	le32_get_bits(*((__le32 *)(txdesc) + 0x01), GENMASK(12, 8))
  
  enum rtw_tx_desc_queue_select {
@@ -1136,7 +1175,7 @@ index 8419603adce4..a2f3ac326041 100644
 +					       struct rtw_tx_pkt_info *pkt_info,
 +					       u8 *txdesc)
 +{
-+	const struct rtw_chip_info *chip = rtwdev->chip;
++	struct rtw_chip_info *chip = rtwdev->chip;
 +
 +	chip->ops->fill_txdesc_checksum(rtwdev, pkt_info, txdesc);
 +}
@@ -1144,10 +1183,10 @@ index 8419603adce4..a2f3ac326041 100644
  #endif
 diff --git a/drivers/net/wireless/realtek/rtw88/usb.c b/drivers/net/wireless/realtek/rtw88/usb.c
 new file mode 100644
-index 000000000000..4ef38279b64c
+index 000000000000..7641ea6f6ad1
 --- /dev/null
 +++ b/drivers/net/wireless/realtek/rtw88/usb.c
-@@ -0,0 +1,911 @@
+@@ -0,0 +1,1051 @@
 +// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 +/* Copyright(c) 2018-2019  Realtek Corporation
 + */
@@ -1164,7 +1203,7 @@ index 000000000000..4ef38279b64c
 +#include "ps.h"
 +#include "usb.h"
 +
-+#define RTW_USB_MAX_RXQ_LEN	512
++#define RTW_USB_MAX_RXQ_LEN	128
 +
 +struct rtw_usb_txcb {
 +	struct rtw_dev *rtwdev;
@@ -1182,90 +1221,141 @@ index 000000000000..4ef38279b64c
 +	rtw_tx_fill_txdesc_checksum(rtwdev, &pkt_info, skb->data);
 +}
 +
-+static u32 rtw_usb_read(struct rtw_dev *rtwdev, u32 addr, u16 len)
++static void usbctrl_async_callback(struct urb *urb)
++{
++	/* free dr */
++	kfree(urb->setup_packet);
++	/* free databuf */
++	kfree(urb->transfer_buffer);
++}
++
++static int usbctrl_vendorreq_async_write(struct usb_device *udev, u8 request,
++					  u16 value, u16 index, void *pdata,
++					  u16 len)
++{
++	int rc;
++	unsigned int pipe;
++	u8 reqtype;
++	struct usb_ctrlrequest *dr;
++	struct urb *urb;
++	const u16 databuf_maxlen = RTW_USB_VENQT_MAX_BUF_SIZE;
++	u8 *databuf;
++
++	if (WARN_ON_ONCE(len > databuf_maxlen))
++		len = databuf_maxlen;
++
++	pipe = usb_sndctrlpipe(udev, 0); /* write_out */
++	reqtype = RTW_USB_CMD_WRITE;
++
++	dr = kzalloc(sizeof(*dr), GFP_ATOMIC);
++	if (!dr)
++		return -ENOMEM;
++
++	databuf = kmemdup(pdata, len, GFP_ATOMIC);
++	if (!databuf) {
++		kfree(dr);
++		return -ENOMEM;
++	}
++
++	urb = usb_alloc_urb(0, GFP_ATOMIC);
++	if (!urb) {
++		kfree(databuf);
++		kfree(dr);
++		return -ENOMEM;
++	}
++
++	dr->bRequestType = reqtype;
++	dr->bRequest = request;
++	dr->wValue = cpu_to_le16(value);
++	dr->wIndex = cpu_to_le16(index);
++	dr->wLength = cpu_to_le16(len);
++
++	usb_fill_control_urb(urb, udev, pipe,
++			     (unsigned char *)dr, databuf, len,
++			     usbctrl_async_callback, NULL);
++	rc = usb_submit_urb(urb, GFP_ATOMIC);
++	if (rc < 0) {
++		kfree(databuf);
++		kfree(dr);
++	}
++
++	usb_free_urb(urb);
++
++	return rc;
++}
++
++static u32 rtw_usb_read_sync(struct rtw_dev *rtwdev, u32 addr, u16 len)
 +{
 +	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
 +	struct usb_device *udev = rtwusb->udev;
 +	__le32 *data;
 +	unsigned long flags;
-+	int idx, ret;
++	int ret;
 +	static int count;
 +
 +	spin_lock_irqsave(&rtwusb->usb_lock, flags);
 +
-+	idx = rtwusb->usb_data_index;
-+	rtwusb->usb_data_index = (idx + 1) & (RTW_USB_MAX_RXTX_COUNT - 1);
++	if (++rtwusb->usb_data_index >= RTW_USB_MAX_RX_COUNT)
++		rtwusb->usb_data_index = 0;
++	data = &rtwusb->usb_data[rtwusb->usb_data_index];
 +
 +	spin_unlock_irqrestore(&rtwusb->usb_lock, flags);
 +
-+	data = &rtwusb->usb_data[idx];
-+
 +	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
-+			      RTW_USB_CMD_REQ, RTW_USB_CMD_READ, addr,
-+			      RTW_USB_VENQT_CMD_IDX, data, len, 1000);
++				 RTW_USB_CMD_REQ, RTW_USB_CMD_READ, addr,
++				 RTW_USB_VENQT_CMD_IDX, data, len, 1000);
 +	if (ret < 0 && ret != -ENODEV && count++ < 4)
-+		rtw_err(rtwdev, "read register 0x%x failed with %d\n",
++		rtw_err(rtwdev, "reg 0x%x, usbctrl_vendorreq failed with %d\n",
 +			addr, ret);
 +
 +	return le32_to_cpu(*data);
 +}
 +
-+static u8 rtw_usb_read8(struct rtw_dev *rtwdev, u32 addr)
++static u8 rtw_usb_read8_sync(struct rtw_dev *rtwdev, u32 addr)
 +{
-+	return (u8)rtw_usb_read(rtwdev, addr, 1);
++	return (u8)rtw_usb_read_sync(rtwdev, addr, 1);
 +}
 +
-+static u16 rtw_usb_read16(struct rtw_dev *rtwdev, u32 addr)
++static u16 rtw_usb_read16_sync(struct rtw_dev *rtwdev, u32 addr)
 +{
-+	return (u16)rtw_usb_read(rtwdev, addr, 2);
++	return (u16)rtw_usb_read_sync(rtwdev, addr, 2);
 +}
 +
-+static u32 rtw_usb_read32(struct rtw_dev *rtwdev, u32 addr)
++static u32 rtw_usb_read32_sync(struct rtw_dev *rtwdev, u32 addr)
 +{
-+	return (u32)rtw_usb_read(rtwdev, addr, 4);
++	return (u32)rtw_usb_read_sync(rtwdev, addr, 4);
 +}
 +
-+static void rtw_usb_write(struct rtw_dev *rtwdev, u32 addr, u32 val, int len)
++static void rtw_usb_write_async(struct rtw_dev *rtwdev, u32 addr, u32 val,
++				u16 len)
 +{
-+	struct rtw_usb *rtwusb = (struct rtw_usb *)rtwdev->priv;
++	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
 +	struct usb_device *udev = rtwusb->udev;
-+	unsigned long flags;
-+	__le32 *data;
-+	int idx, ret;
-+	static int count;
++	u8 request;
++	u16 wvalue;
++	u16 index;
++	__le32 data;
 +
-+	spin_lock_irqsave(&rtwusb->usb_lock, flags);
-+
-+	idx = rtwusb->usb_data_index;
-+	rtwusb->usb_data_index = (idx + 1) & (RTW_USB_MAX_RXTX_COUNT - 1);
-+
-+	spin_unlock_irqrestore(&rtwusb->usb_lock, flags);
-+
-+	data = &rtwusb->usb_data[idx];
-+
-+	*data = cpu_to_le32(val);
-+
-+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-+			      RTW_USB_CMD_REQ, RTW_USB_CMD_WRITE,
-+			      addr, 0, data, len, 30000);
-+	if (ret < 0 && ret != -ENODEV && count++ < 4)
-+		rtw_err(rtwdev, "write register 0x%x failed with %d\n",
-+			addr, ret);
++	request = RTW_USB_CMD_REQ;
++	index = RTW_USB_VENQT_CMD_IDX; /* n/a */
++	wvalue = (u16)(addr & 0x0000ffff);
++	data = cpu_to_le32(val);
++	usbctrl_vendorreq_async_write(udev, request, wvalue, index, &data, len);
 +}
 +
-+static void rtw_usb_write8(struct rtw_dev *rtwdev, u32 addr, u8 val)
++static void rtw_usb_write8_async(struct rtw_dev *rtwdev, u32 addr, u8 val)
 +{
-+	rtw_usb_write(rtwdev, addr, val, 1);
++	rtw_usb_write_async(rtwdev, addr, val, 1);
 +}
 +
-+static void rtw_usb_write16(struct rtw_dev *rtwdev, u32 addr, u16 val)
++static void rtw_usb_write16_async(struct rtw_dev *rtwdev, u32 addr, u16 val)
 +{
-+	rtw_usb_write(rtwdev, addr, val, 2);
++	rtw_usb_write_async(rtwdev, addr, val, 2);
 +}
 +
-+static void rtw_usb_write32(struct rtw_dev *rtwdev, u32 addr, u32 val)
++static void rtw_usb_write32_async(struct rtw_dev *rtwdev, u32 addr, u32 val)
 +{
-+	rtw_usb_write(rtwdev, addr, val, 4);
++	rtw_usb_write_async(rtwdev, addr, val, 4);
 +}
 +
 +static int rtw_usb_parse(struct rtw_dev *rtwdev,
@@ -1342,8 +1432,8 @@ index 000000000000..4ef38279b64c
 +		rtwusb->qsel_to_ep[TX_DESC_QSEL_TID3] = 2;
 +		rtwusb->qsel_to_ep[TX_DESC_QSEL_TID4] = 1;
 +		rtwusb->qsel_to_ep[TX_DESC_QSEL_TID5] = 1;
-+		rtwusb->qsel_to_ep[TX_DESC_QSEL_TID6] = 0;
-+		rtwusb->qsel_to_ep[TX_DESC_QSEL_TID7] = 0;
++		rtwusb->qsel_to_ep[TX_DESC_QSEL_TID6] = 1;
++		rtwusb->qsel_to_ep[TX_DESC_QSEL_TID7] = 1;
 +		break;
 +	case 2:
 +		rtwusb->qsel_to_ep[TX_DESC_QSEL_TID0] = 1;
@@ -1361,48 +1451,88 @@ index 000000000000..4ef38279b64c
 +	return 0;
 +}
 +
++static void rtw_usb_txcb_enqueue(struct rtw_usb_txcb *txcb, struct sk_buff *skb)
++{
++	skb_queue_tail(&txcb->tx_ack_queue, skb);
++}
++
++static void rtw_usb_tx_agg_skb(struct rtw_usb *rtwusb, struct sk_buff_head *list,
++			       struct sk_buff *skb_head, struct sk_buff *skb,
++			       struct rtw_usb_txcb *txcb)
++{
++	struct sk_buff *skb_iter;
++	unsigned long flags;
++	u8 *data_ptr;
++	int agg_num = 0, len, max_len;
++
++	data_ptr = skb_head->data;
++	skb_iter = skb;
++
++	while (skb_iter) {
++		memcpy(data_ptr, skb_iter->data, skb_iter->len);
++		len = ALIGN(skb_iter->len, 8);
++		skb_put(skb_head, len);
++		data_ptr += len;
++		agg_num++;
++
++		rtw_usb_txcb_enqueue(txcb, skb_iter);
++
++		spin_lock_irqsave(&list->lock, flags);
++
++		skb_iter = skb_peek(list);
++		max_len = RTW_USB_MAX_XMITBUF_SZ - skb_head->len;
++
++		if (skb_iter && skb_iter->len < max_len)
++			__skb_unlink(skb_iter, list);
++		else
++			skb_iter = NULL;
++		spin_unlock_irqrestore(&list->lock, flags);
++	}
++
++	if (agg_num > 1)
++		rtw_usb_fill_tx_checksum(rtwusb, skb_head, agg_num);
++}
++
++static void rtw_usb_indicate_tx_status(struct rtw_dev *rtwdev,
++				       struct sk_buff *skb)
++{
++	struct ieee80211_hw *hw = rtwdev->hw;
++	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
++	struct rtw_usb_tx_data *tx_data = rtw_usb_get_tx_data(skb);
++
++	/* enqueue to wait for tx report */
++	if (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS) {
++		rtw_tx_report_enqueue(rtwdev, skb, tx_data->sn);
++		return;
++	}
++
++	/* always ACK for others, then they won't be marked as drop */
++	ieee80211_tx_info_clear_status(info);
++	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
++		info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
++	else
++		info->flags |= IEEE80211_TX_STAT_ACK;
++
++	ieee80211_tx_status_irqsafe(hw, skb);
++}
++
 +static void rtw_usb_write_port_tx_complete(struct urb *urb)
 +{
 +	struct rtw_usb_txcb *txcb = urb->context;
 +	struct rtw_dev *rtwdev = txcb->rtwdev;
-+	struct ieee80211_hw *hw = rtwdev->hw;
 +
 +	while (true) {
 +		struct sk_buff *skb = skb_dequeue(&txcb->tx_ack_queue);
-+		struct ieee80211_tx_info *info;
-+		struct rtw_usb_tx_data *tx_data;
-+
 +		if (!skb)
 +			break;
 +
-+		info = IEEE80211_SKB_CB(skb);
-+		tx_data = rtw_usb_get_tx_data(skb);
-+
-+		/* enqueue to wait for tx report */
-+		if (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS) {
-+			rtw_tx_report_enqueue(rtwdev, skb, tx_data->sn);
-+			continue;
-+		}
-+
-+		/* always ACK for others, then they won't be marked as drop */
-+		ieee80211_tx_info_clear_status(info);
-+		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
-+			info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
++		if (GET_TX_DESC_QSEL(skb->data) <= TX_DESC_QSEL_TID7)
++			rtw_usb_indicate_tx_status(rtwdev, skb);
 +		else
-+			info->flags |= IEEE80211_TX_STAT_ACK;
-+
-+		ieee80211_tx_status_irqsafe(hw, skb);
++			dev_kfree_skb_any(skb);
 +	}
 +
 +	kfree(txcb);
-+}
-+
-+static int qsel_to_ep(struct rtw_usb *rtwusb, unsigned int qsel)
-+{
-+	if (qsel >= ARRAY_SIZE(rtwusb->qsel_to_ep))
-+		return 0;
-+
-+	return rtwusb->qsel_to_ep[qsel];
 +}
 +
 +static int rtw_usb_write_port(struct rtw_dev *rtwdev, u8 qsel, struct sk_buff *skb,
@@ -1413,7 +1543,7 @@ index 000000000000..4ef38279b64c
 +	struct urb *urb;
 +	unsigned int pipe;
 +	int ret;
-+	int ep = qsel_to_ep(rtwusb, qsel);
++	int ep = rtwusb->qsel_to_ep[qsel];
 +
 +	pipe = usb_sndbulkpipe(usbd, rtwusb->out_ep[ep]);
 +	urb = usb_alloc_urb(0, GFP_ATOMIC);
@@ -1428,83 +1558,68 @@ index 000000000000..4ef38279b64c
 +	return ret;
 +}
 +
-+static bool rtw_usb_tx_agg_skb(struct rtw_usb *rtwusb, struct sk_buff_head *list)
++static struct sk_buff *rtw_usb_tx_agg_check(struct rtw_usb *rtwusb,
++					    struct sk_buff *skb,
++					    int index,
++					    struct rtw_usb_txcb *txcb)
++{
++	struct sk_buff_head *list;
++	struct sk_buff *skb_head;
++
++	list = &rtwusb->tx_queue[index];
++	if (skb_queue_empty(list))
++		return NULL;
++
++	skb_head = dev_alloc_skb(RTW_USB_MAX_XMITBUF_SZ);
++	if (!skb_head)
++		return NULL;
++
++	rtw_usb_tx_agg_skb(rtwusb, list, skb_head, skb, txcb);
++
++	return skb_head;
++}
++
++static void rtw_usb_tx_agg(struct rtw_usb *rtwusb, struct sk_buff *skb, int index)
 +{
 +	struct rtw_dev *rtwdev = rtwusb->rtwdev;
-+	struct rtw_usb_txcb *txcb;
 +	struct sk_buff *skb_head;
-+	struct sk_buff *skb_iter;
-+	int agg_num = 0;
-+	unsigned int align_next = 0;
-+
-+	if (skb_queue_empty(list))
-+		return false;
++	struct rtw_usb_txcb *txcb;
++	u8 qsel;
 +
 +	txcb = kmalloc(sizeof(*txcb), GFP_ATOMIC);
 +	if (!txcb)
-+		return false;
++		return;
 +
 +	txcb->rtwdev = rtwdev;
 +	skb_queue_head_init(&txcb->tx_ack_queue);
 +
-+	skb_iter = skb_dequeue(list);
-+
-+	if (skb_queue_empty(list)) {
-+		skb_head = skb_iter;
-+		goto queue;
-+	}
-+
-+	skb_head = dev_alloc_skb(RTW_USB_MAX_XMITBUF_SZ);
++	skb_head = rtw_usb_tx_agg_check(rtwusb, skb, index, txcb);
 +	if (!skb_head) {
-+		skb_head = skb_iter;
-+		goto queue;
++		skb_head = skb;
++		rtw_usb_txcb_enqueue(txcb, skb);
 +	}
 +
-+	while (skb_iter) {
-+		unsigned long flags;
++	qsel = GET_TX_DESC_QSEL(skb->data);
 +
-+		skb_put(skb_head, align_next);
-+		skb_put_data(skb_head, skb_iter->data, skb_iter->len);
-+
-+		align_next = ALIGN(skb_iter->len, 8) - skb_iter->len;
-+
-+		agg_num++;
-+
-+		skb_queue_tail(&txcb->tx_ack_queue, skb_iter);
-+
-+		spin_lock_irqsave(&list->lock, flags);
-+
-+		skb_iter = skb_peek(list);
-+
-+		if (skb_iter && skb_iter->len + skb_head->len <= RTW_USB_MAX_XMITBUF_SZ)
-+			__skb_unlink(skb_iter, list);
-+		else
-+			skb_iter = NULL;
-+		spin_unlock_irqrestore(&list->lock, flags);
-+	}
-+
-+	if (agg_num > 1)
-+		rtw_usb_fill_tx_checksum(rtwusb, skb_head, agg_num);
-+
-+queue:
-+	skb_queue_tail(&txcb->tx_ack_queue, skb_head);
-+
-+	rtw_usb_write_port(rtwdev, GET_TX_DESC_QSEL(skb_head->data), skb_head,
++	rtw_usb_write_port(rtwdev, qsel, skb_head,
 +			   rtw_usb_write_port_tx_complete, txcb);
 +
-+	return true;
++	if (skb_head != skb)
++		dev_kfree_skb(skb_head);
 +}
 +
 +static void rtw_usb_tx_handler(struct work_struct *work)
 +{
 +	struct rtw_usb *rtwusb = container_of(work, struct rtw_usb, tx_work);
-+	int i, limit;
++	struct sk_buff *skb;
++	int index, limit;
 +
-+	for (i = ARRAY_SIZE(rtwusb->tx_queue) - 1; i >= 0; i--) {
++	for (index = ARRAY_SIZE(rtwusb->tx_queue) - 1; index >= 0; index--) {
 +		for (limit = 0; limit < 200; limit++) {
-+			struct sk_buff_head *list = &rtwusb->tx_queue[i];
-+
-+			if (!rtw_usb_tx_agg_skb(rtwusb, list))
++			skb = skb_dequeue(&rtwusb->tx_queue[index]);
++			if (skb)
++				rtw_usb_tx_agg(rtwusb, skb, index);
++			else
 +				break;
 +		}
 +	}
@@ -1529,7 +1644,7 @@ index 000000000000..4ef38279b64c
 +			      struct rtw_tx_pkt_info *pkt_info,
 +			      u8 *buf)
 +{
-+	const struct rtw_chip_info *chip = rtwdev->chip;
++	struct rtw_chip_info *chip = rtwdev->chip;
 +	struct sk_buff *skb;
 +	unsigned int desclen, headsize, size;
 +	u8 qsel;
@@ -1562,12 +1677,17 @@ index 000000000000..4ef38279b64c
 +static int rtw_usb_write_data_rsvd_page(struct rtw_dev *rtwdev, u8 *buf,
 +					u32 size)
 +{
-+	const struct rtw_chip_info *chip = rtwdev->chip;
++	struct rtw_chip_info *chip = rtwdev->chip;
 +	struct rtw_usb *rtwusb;
 +	struct rtw_tx_pkt_info pkt_info = {0};
 +	u32 len, desclen;
 +
++	if (unlikely(!rtwdev))
++		return -EINVAL;
++
 +	rtwusb = rtw_get_usb_priv(rtwdev);
++	if (unlikely(!rtwusb))
++		return -EINVAL;
 +
 +	pkt_info.tx_pkt_size = size;
 +	pkt_info.qsel = TX_DESC_QSEL_BEACON;
@@ -1616,7 +1736,7 @@ index 000000000000..4ef38279b64c
 +			    struct sk_buff *skb)
 +{
 +	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
-+	const struct rtw_chip_info *chip = rtwdev->chip;
++	struct rtw_chip_info *chip = rtwdev->chip;
 +	struct rtw_usb_tx_data *tx_data;
 +	u8 *pkt_desc;
 +	int ep;
@@ -1624,7 +1744,7 @@ index 000000000000..4ef38279b64c
 +	pkt_desc = skb_push(skb, chip->tx_pkt_desc_sz);
 +	memset(pkt_desc, 0, chip->tx_pkt_desc_sz);
 +	pkt_info->qsel = rtw_usb_tx_queue_mapping_to_qsel(skb);
-+	ep = qsel_to_ep(rtwusb, pkt_info->qsel);
++	ep = rtwusb->qsel_to_ep[pkt_info->qsel];
 +	rtw_tx_fill_tx_desc(pkt_info, skb);
 +	rtw_tx_fill_txdesc_checksum(rtwdev, pkt_info, skb->data);
 +	tx_data = rtw_usb_get_tx_data(skb);
@@ -1646,7 +1766,7 @@ index 000000000000..4ef38279b64c
 +{
 +	struct rtw_usb *rtwusb = container_of(work, struct rtw_usb, rx_work);
 +	struct rtw_dev *rtwdev = rtwusb->rtwdev;
-+	const struct rtw_chip_info *chip = rtwdev->chip;
++	struct rtw_chip_info *chip = rtwdev->chip;
 +	struct rtw_rx_pkt_stat pkt_stat;
 +	struct ieee80211_rx_status rx_status;
 +	struct sk_buff *skb;
@@ -1668,7 +1788,8 @@ index 000000000000..4ef38279b64c
 +
 +		if (pkt_stat.is_c2h) {
 +			skb_put(skb, pkt_stat.pkt_len + pkt_offset);
-+			rtw_fw_c2h_cmd_rx_irqsafe(rtwdev, pkt_offset, skb);
++			rtw_fw_c2h_cmd_rx_irqsafe(rtwdev, pkt_offset,
++						  skb);
 +			continue;
 +		}
 +
@@ -1685,29 +1806,14 @@ index 000000000000..4ef38279b64c
 +	}
 +}
 +
-+static void rtw_usb_read_port_complete(struct urb *urb);
-+
-+static void rtw_usb_rx_resubmit(struct rtw_usb *rtwusb, struct rx_usb_ctrl_block *rxcb)
++static void rtw_usb_rx_data_put(struct rtw_usb *rtwusb,
++				struct rx_usb_ctrl_block *rxcb)
 +{
-+	struct rtw_dev *rtwdev = rtwusb->rtwdev;
-+	int error;
++	unsigned long flags;
 +
-+	rxcb->rx_skb = alloc_skb(RTW_USB_MAX_RECVBUF_SZ, GFP_ATOMIC);
-+	if (!rxcb->rx_skb)
-+		return;
-+
-+	usb_fill_bulk_urb(rxcb->rx_urb, rtwusb->udev,
-+			  usb_rcvbulkpipe(rtwusb->udev, rtwusb->pipe_in),
-+			  rxcb->rx_skb->data, RTW_USB_MAX_RECVBUF_SZ,
-+			  rtw_usb_read_port_complete, rxcb);
-+
-+	error = usb_submit_urb(rxcb->rx_urb, GFP_ATOMIC);
-+	if (error) {
-+		kfree_skb(rxcb->rx_skb);
-+		if (error != -ENODEV)
-+			rtw_err(rtwdev, "Err sending rx data urb %d\n",
-+				error);
-+	}
++	spin_lock_irqsave(&rtwusb->rx_data_list_lock, flags);
++	list_move(&rxcb->list, &rtwusb->rx_data_free);
++	spin_unlock_irqrestore(&rtwusb->rx_data_list_lock, flags);
 +}
 +
 +static void rtw_usb_read_port_complete(struct urb *urb)
@@ -1728,7 +1834,9 @@ index 000000000000..4ef38279b64c
 +			skb_queue_tail(&rtwusb->rx_queue, skb);
 +			queue_work(rtwusb->rxwq, &rtwusb->rx_work);
 +		}
-+		rtw_usb_rx_resubmit(rtwusb, rxcb);
++
++		rtw_usb_rx_data_put(rtwusb, rxcb);
++		queue_work(rtwusb->rxwq, &rtwusb->rx_refill_work);
 +	} else {
 +		switch (urb->status) {
 +		case -EINVAL:
@@ -1744,7 +1852,7 @@ index 000000000000..4ef38279b64c
 +		case -EINPROGRESS:
 +			break;
 +		default:
-+			rtw_err(rtwdev, "status %d\n", urb->status);
++			rtw_err(rtwdev, "status unknown=%d\n", urb->status);
 +			break;
 +		}
 +		if (skb)
@@ -1752,29 +1860,96 @@ index 000000000000..4ef38279b64c
 +	}
 +}
 +
++static void rtw_usb_rx_refill_work(struct work_struct *work)
++{
++	struct rtw_usb *rtwusb = container_of(work, struct rtw_usb, rx_refill_work);
++	struct rtw_dev *rtwdev = rtwusb->rtwdev;
++	struct rx_usb_ctrl_block *rxcb;
++	unsigned long flags;
++	int error;
++
++	do {
++		spin_lock_irqsave(&rtwusb->rx_data_list_lock, flags);
++
++		rxcb = list_first_entry_or_null(&rtwusb->rx_data_free,
++						struct rx_usb_ctrl_block, list);
++
++		spin_unlock_irqrestore(&rtwusb->rx_data_list_lock, flags);
++		if (!rxcb)
++			return;
++
++		rxcb->rx_skb = alloc_skb(RTW_USB_MAX_RECVBUF_SZ, GFP_KERNEL);
++		if (!rxcb->rx_skb) {
++			rtw_err(rtwdev, "could not allocate rx skbuff\n");
++			return;
++		}
++
++		usb_fill_bulk_urb(rxcb->rx_urb, rtwusb->udev,
++				  usb_rcvbulkpipe(rtwusb->udev, rtwusb->pipe_in),
++				  rxcb->rx_skb->data, RTW_USB_MAX_RECVBUF_SZ,
++				  rtw_usb_read_port_complete, rxcb);
++
++		spin_lock_irqsave(&rtwusb->rx_data_list_lock, flags);
++		list_move(&rxcb->list, &rtwusb->rx_data_used);
++		spin_unlock_irqrestore(&rtwusb->rx_data_list_lock, flags);
++
++		error = usb_submit_urb(rxcb->rx_urb, GFP_KERNEL);
++		if (error) {
++			kfree_skb(rxcb->rx_skb);
++			if (error != -ENODEV)
++				rtw_err(rtwdev, "Err sending rx data urb %d\n",
++					   error);
++			rtw_usb_rx_data_put(rtwusb, rxcb);
++
++			return;
++		}
++	} while (true);
++}
++
 +static void rtw_usb_cancel_rx_bufs(struct rtw_usb *rtwusb)
 +{
 +	struct rx_usb_ctrl_block *rxcb;
-+	int i;
++	unsigned long flags;
 +
-+	for (i = 0; i < RTW_USB_RXCB_NUM; i++) {
-+		rxcb = &rtwusb->rx_cb[i];
-+		if (rxcb->rx_urb)
-+			usb_kill_urb(rxcb->rx_urb);
++	spin_lock_irqsave(&rtwusb->rx_data_list_lock, flags);
++
++	while (true) {
++		rxcb = list_first_entry_or_null(&rtwusb->rx_data_used,
++						struct rx_usb_ctrl_block, list);
++
++		spin_unlock_irqrestore(&rtwusb->rx_data_list_lock, flags);
++
++		if (!rxcb)
++			break;
++
++		usb_kill_urb(rxcb->rx_urb);
++
++		spin_lock_irqsave(&rtwusb->rx_data_list_lock, flags);
++		list_move(&rxcb->list, &rtwusb->rx_data_free);
 +	}
 +}
 +
 +static void rtw_usb_free_rx_bufs(struct rtw_usb *rtwusb)
 +{
 +	struct rx_usb_ctrl_block *rxcb;
-+	int i;
++	unsigned long flags;
 +
-+	for (i = 0; i < RTW_USB_RXCB_NUM; i++) {
-+		rxcb = &rtwusb->rx_cb[i];
-+		if (rxcb->rx_urb) {
-+			usb_kill_urb(rxcb->rx_urb);
-+			usb_free_urb(rxcb->rx_urb);
-+		}
++	rtw_usb_cancel_rx_bufs(rtwusb);
++
++	spin_lock_irqsave(&rtwusb->rx_data_list_lock, flags);
++
++	while (true) {
++		rxcb = list_first_entry_or_null(&rtwusb->rx_data_free, struct rx_usb_ctrl_block, list);
++
++		spin_unlock_irqrestore(&rtwusb->rx_data_list_lock, flags);
++
++		if (!rxcb)
++			break;
++
++		usb_free_urb(rxcb->rx_urb);
++
++		spin_lock_irqsave(&rtwusb->rx_data_list_lock, flags);
++		list_del(&rxcb->list);
 +	}
 +}
 +
@@ -1785,11 +1960,11 @@ index 000000000000..4ef38279b64c
 +	for (i = 0; i < RTW_USB_RXCB_NUM; i++) {
 +		struct rx_usb_ctrl_block *rxcb = &rtwusb->rx_cb[i];
 +
-+		rxcb->n = i;
 +		rxcb->rtwdev = rtwusb->rtwdev;
 +		rxcb->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 +		if (!rxcb->rx_urb)
 +			goto err;
++		list_add_tail(&rxcb->list, &rtwusb->rx_data_free);
 +	}
 +
 +	return 0;
@@ -1806,11 +1981,19 @@ index 000000000000..4ef38279b64c
 +
 +static int rtw_usb_start(struct rtw_dev *rtwdev)
 +{
++	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
++
++	queue_work(rtwusb->rxwq, &rtwusb->rx_refill_work);
++
 +	return 0;
 +}
 +
 +static void rtw_usb_stop(struct rtw_dev *rtwdev)
 +{
++	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
++
++	cancel_work_sync(&rtwusb->rx_refill_work);
++	rtw_usb_cancel_rx_bufs(rtwusb);
 +}
 +
 +static void rtw_usb_deep_ps(struct rtw_dev *rtwdev, bool enter)
@@ -1838,12 +2021,12 @@ index 000000000000..4ef38279b64c
 +	.link_ps = rtw_usb_link_ps,
 +	.interface_cfg = rtw_usb_interface_cfg,
 +
-+	.write8  = rtw_usb_write8,
-+	.write16 = rtw_usb_write16,
-+	.write32 = rtw_usb_write32,
-+	.read8	= rtw_usb_read8,
-+	.read16 = rtw_usb_read16,
-+	.read32 = rtw_usb_read32,
++	.write8  = rtw_usb_write8_async,
++	.write16 = rtw_usb_write16_async,
++	.write32 = rtw_usb_write32_async,
++	.read8	= rtw_usb_read8_sync,
++	.read16 = rtw_usb_read16_sync,
++	.read32 = rtw_usb_read32_sync,
 +
 +	.write_data_rsvd_page = rtw_usb_write_data_rsvd_page,
 +	.write_data_h2c = rtw_usb_write_data_h2c,
@@ -1852,7 +2035,6 @@ index 000000000000..4ef38279b64c
 +static int rtw_usb_init_rx(struct rtw_dev *rtwdev)
 +{
 +	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
-+	int i;
 +
 +	rtwusb->rxwq = create_singlethread_workqueue("rtw88_usb: rx wq");
 +	if (!rtwusb->rxwq) {
@@ -1863,12 +2045,6 @@ index 000000000000..4ef38279b64c
 +	skb_queue_head_init(&rtwusb->rx_queue);
 +
 +	INIT_WORK(&rtwusb->rx_work, rtw_usb_rx_handler);
-+
-+	for (i = 0; i < RTW_USB_RXCB_NUM; i++) {
-+		struct rx_usb_ctrl_block *rxcb = &rtwusb->rx_cb[i];
-+
-+		rtw_usb_rx_resubmit(rtwusb, rxcb);
-+	}
 +
 +	return 0;
 +}
@@ -1923,7 +2099,7 @@ index 000000000000..4ef38279b64c
 +	if (ret)
 +		return ret;
 +
-+	rtwusb->usb_data = kcalloc(RTW_USB_MAX_RXTX_COUNT, sizeof(u32),
++	rtwusb->usb_data = kcalloc(RTW_USB_MAX_RX_COUNT, sizeof(u32),
 +				   GFP_KERNEL);
 +	if (!rtwusb->usb_data)
 +		return -ENOMEM;
@@ -1967,6 +2143,11 @@ index 000000000000..4ef38279b64c
 +
 +	rtwusb = rtw_get_usb_priv(rtwdev);
 +	rtwusb->rtwdev = rtwdev;
++
++	INIT_WORK(&rtwusb->rx_refill_work, rtw_usb_rx_refill_work);
++	INIT_LIST_HEAD(&rtwusb->rx_data_free);
++	INIT_LIST_HEAD(&rtwusb->rx_data_used);
++	spin_lock_init(&rtwusb->rx_data_list_lock);
 +
 +	ret = rtw_usb_alloc_rx_bufs(rtwusb);
 +	if (ret)
@@ -2039,8 +2220,6 @@ index 000000000000..4ef38279b64c
 +	rtwdev = hw->priv;
 +	rtwusb = rtw_get_usb_priv(rtwdev);
 +
-+	rtw_usb_cancel_rx_bufs(rtwusb);
-+
 +	rtw_unregister_hw(rtwdev, hw);
 +	rtw_usb_deinit_tx(rtwdev);
 +	rtw_usb_deinit_rx(rtwdev);
@@ -2061,10 +2240,10 @@ index 000000000000..4ef38279b64c
 +MODULE_LICENSE("Dual BSD/GPL");
 diff --git a/drivers/net/wireless/realtek/rtw88/usb.h b/drivers/net/wireless/realtek/rtw88/usb.h
 new file mode 100644
-index 000000000000..30647f0dd61c
+index 000000000000..4d714372f265
 --- /dev/null
 +++ b/drivers/net/wireless/realtek/rtw88/usb.h
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,109 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 +/* Copyright(c) 2018-2019  Realtek Corporation
 + */
@@ -2073,9 +2252,9 @@ index 000000000000..30647f0dd61c
 +#define __RTW_USB_H_
 +
 +#define FW_8192C_START_ADDRESS		0x1000
-+#define FW_8192C_END_ADDRESS		0x5fff
++#define FW_8192C_END_ADDRESS            0x5FFF
 +
-+#define RTW_USB_MAX_RXTX_COUNT		128
++#define RTW_USB_MAX_RX_COUNT		100
 +#define RTW_USB_VENQT_MAX_BUF_SIZE	254
 +#define MAX_USBCTRL_VENDORREQ_TIMES	10
 +
@@ -2083,7 +2262,7 @@ index 000000000000..30647f0dd61c
 +#define RTW_USB_CMD_WRITE		0x40
 +#define RTW_USB_CMD_REQ			0x05
 +
-+#define RTW_USB_VENQT_CMD_IDX		0x00
++#define	RTW_USB_VENQT_CMD_IDX		0x00
 +
 +#define RTW_USB_SUPER_SPEED_BULK_SIZE	1024
 +#define RTW_USB_HIGH_SPEED_BULK_SIZE	512
@@ -2100,7 +2279,7 @@ index 000000000000..30647f0dd61c
 +#define RTW_USB_HW_QUEUE_ENTRY		8
 +
 +#define RTW_USB_PACKET_OFFSET_SZ	8
-+#define RTW_USB_MAX_XMITBUF_SZ		(1024 * 20)
++#define RTW_USB_MAX_XMITBUF_SZ		(1592 * 3)
 +#define RTW_USB_MAX_RECVBUF_SZ		32768
 +
 +#define RTW_USB_RECVBUFF_ALIGN_SZ	8
@@ -2114,8 +2293,6 @@ index 000000000000..30647f0dd61c
 +
 +#define TX_DESC_QSEL_MAX		20
 +
-+#define RTW_USB_VENDOR_ID_REALTEK	0x0bda
-+
 +static inline struct rtw_usb *rtw_get_usb_priv(struct rtw_dev *rtwdev)
 +{
 +	return (struct rtw_usb *)rtwdev->priv;
@@ -2125,7 +2302,7 @@ index 000000000000..30647f0dd61c
 +	struct rtw_dev *rtwdev;
 +	struct urb *rx_urb;
 +	struct sk_buff *rx_skb;
-+	int n;
++	struct list_head list;
 +};
 +
 +struct rtw_usb_tx_data {
@@ -2136,10 +2313,14 @@ index 000000000000..30647f0dd61c
 +	struct rtw_dev *rtwdev;
 +	struct usb_device *udev;
 +
-+	/* protects usb_data_index */
++	spinlock_t rx_data_list_lock;
++	struct work_struct rx_refill_work;
++	struct list_head rx_data_free;
++	struct list_head rx_data_used;
++
 +	spinlock_t usb_lock;
 +	__le32 *usb_data;
-+	unsigned int usb_data_index;
++	int usb_data_index;
 +
 +	u32 bulkout_size;
 +	u8 pipe_interrupt;
@@ -2163,7 +2344,7 @@ index 000000000000..30647f0dd61c
 +	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 +
 +	BUILD_BUG_ON(sizeof(struct rtw_usb_tx_data) >
-+		     sizeof(info->status.status_driver_data));
++		sizeof(info->status.status_driver_data));
 +
 +	return (struct rtw_usb_tx_data *)info->status.status_driver_data;
 +}
@@ -2173,10 +2354,10 @@ index 000000000000..30647f0dd61c
 +
 +#endif
 diff --git a/drivers/net/wireless/realtek/rtw88/util.c b/drivers/net/wireless/realtek/rtw88/util.c
-index cdfd66a85075..ff3c269fb1a7 100644
+index cdfd66a85075..27585072ceaa 100644
 --- a/drivers/net/wireless/realtek/rtw88/util.c
 +++ b/drivers/net/wireless/realtek/rtw88/util.c
-@@ -105,3 +105,106 @@ void rtw_desc_to_mcsrate(u16 rate, u8 *mcs, u8 *nss)
+@@ -105,3 +105,95 @@ void rtw_desc_to_mcsrate(u16 rate, u8 *mcs, u8 *nss)
  		*mcs = rate - DESC_RATEMCS0;
  	}
  }
@@ -2191,7 +2372,7 @@ index cdfd66a85075..ff3c269fb1a7 100644
 +	struct list_head list;
 +};
 +
-+static void rtw_collect_sta_iter(void *data, struct ieee80211_sta *sta)
++void rtw_collect_sta_iter(void *data, struct ieee80211_sta *sta)
 +{
 +	struct rtw_iter_stas_data *iter_stas = data;
 +	struct rtw_stas_entry *stas_entry;
@@ -2207,15 +2388,10 @@ index cdfd66a85075..ff3c269fb1a7 100644
 +void rtw_iterate_stas(struct rtw_dev *rtwdev,
 +		      void (*iterator)(void *data,
 +				       struct ieee80211_sta *sta),
-+		      void *data)
++				       void *data)
 +{
 +	struct rtw_iter_stas_data iter_data;
 +	struct rtw_stas_entry *sta_entry, *tmp;
-+
-+	/* &rtwdev->mutex makes sure no stations can be removed between
-+	 * collecting the stations and iterating over them.
-+	 */
-+	lockdep_assert_held(&rtwdev->mutex);
 +
 +	iter_data.rtwdev = rtwdev;
 +	INIT_LIST_HEAD(&iter_data.list);
@@ -2242,7 +2418,7 @@ index cdfd66a85075..ff3c269fb1a7 100644
 +	struct list_head list;
 +};
 +
-+static void rtw_collect_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
++void rtw_collect_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 +{
 +	struct rtw_iter_vifs_data *iter_stas = data;
 +	struct rtw_vifs_entry *vifs_entry;
@@ -2264,17 +2440,11 @@ index cdfd66a85075..ff3c269fb1a7 100644
 +	struct rtw_iter_vifs_data iter_data;
 +	struct rtw_vifs_entry *vif_entry, *tmp;
 +
-+	/* &rtwdev->mutex makes sure no interfaces can be removed between
-+	 * collecting the interfaces and iterating over them.
-+	 */
-+	lockdep_assert_held(&rtwdev->mutex);
-+
 +	iter_data.rtwdev = rtwdev;
 +	INIT_LIST_HEAD(&iter_data.list);
 +
 +	ieee80211_iterate_active_interfaces_atomic(rtwdev->hw,
-+						   IEEE80211_IFACE_ITER_NORMAL,
-+						   rtw_collect_vif_iter, &iter_data);
++			IEEE80211_IFACE_ITER_NORMAL, rtw_collect_vif_iter, &iter_data);
 +
 +	list_for_each_entry_safe(vif_entry, tmp, &iter_data.list,
 +				 list) {
