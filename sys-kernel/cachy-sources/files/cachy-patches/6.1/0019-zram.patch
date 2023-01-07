@@ -1,7 +1,7 @@
-From 6928b621462cd88516f8a8b3491c52d3baa71c14 Mon Sep 17 00:00:00 2001
+From 09b089c31b39e5a842ab41fb848039e73a603324 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Sun, 27 Nov 2022 23:06:26 +0100
-Subject: [PATCH 20/21] zram
+Date: Wed, 4 Jan 2023 12:09:30 +0100
+Subject: [PATCH 19/20] zram
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -225,7 +225,7 @@ index 40f6420f4b2e..cdefdef93da8 100644
  
  struct zcomp_strm *zcomp_stream_get(struct zcomp *comp);
 diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 966aab902d19..655110d6c7d1 100644
+index 966aab902d19..88ca389aa478 100644
 --- a/drivers/block/zram/zram_drv.c
 +++ b/drivers/block/zram/zram_drv.c
 @@ -33,12 +33,15 @@
@@ -492,7 +492,7 @@ index 966aab902d19..655110d6c7d1 100644
 +	while (*args) {
 +		args = next_arg(args, &param, &val);
 +
-+		if (!*val)
++		if (!val || !*val)
 +			return -EINVAL;
 +
 +		if (!strcmp(param, "algo")) {
@@ -1226,7 +1226,7 @@ index 966aab902d19..655110d6c7d1 100644
 +	while (*args) {
 +		args = next_arg(args, &param, &val);
 +
-+		if (!*val)
++		if (!val || !*val)
 +			return -EINVAL;
 +
 +		if (!strcmp(param, "type")) {
@@ -1554,7 +1554,7 @@ index 2a430e713ce5..a48cd0ffe57d 100644
  void zs_pool_stats(struct zs_pool *pool, struct zs_pool_stats *stats);
  #endif
 diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index d03941cace2c..065744b7e9d8 100644
+index 56f58a96b129..90394e3f3892 100644
 --- a/mm/zsmalloc.c
 +++ b/mm/zsmalloc.c
 @@ -1205,6 +1205,27 @@ static bool zspage_full(struct size_class *class, struct zspage *zspage)
