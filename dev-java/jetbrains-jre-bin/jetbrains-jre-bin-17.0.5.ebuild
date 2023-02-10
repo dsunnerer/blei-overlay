@@ -27,6 +27,16 @@ DEPEND=""
 RDEPEND="${DEPEND}"
 BDEPEND=""
 
+src_unpack() {
+  if use fd ; then
+    tar xf "${DISTDIR}/jbr_fd-${MY_PV}-linux-x64-b${_jdk_build}.tar.gz" -C "${WORKDIR}"
+    mv "${WORKDIR}/jbr_fd-${MY_PV}-linux-x64-b${_jdk_build}" "${WORKDIR}/jbr"
+  elif use jcef ; then
+	tar xf "${DISTDIR}/jbr_jcef-${MY_PV}-linux-x64-b${_jdk_build}.tar.gz" -C "${WORKDIR}"
+    mv "${WORKDIR}/jbr_jcef-${MY_PV}-linux-x64-b${_jdk_build}" "${WORKDIR}/jbr"
+  fi
+}
+
 S="${WORKDIR}/jbr"
 
 src_install() {
