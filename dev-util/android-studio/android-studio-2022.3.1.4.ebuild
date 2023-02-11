@@ -6,19 +6,19 @@ inherit desktop
 
 RESTRICT="strip"
 QA_PREBUILT="
-	opt/${PN}-${STUDIO_V}/bin/fsnotifier*
-	opt/${PN}-${STUDIO_V}/bin/libdbm64.so
-	opt/${PN}-${STUDIO_V}/bin/lldb/*
-	opt/${PN}-${STUDIO_V}/lib/pty4j-native/linux/*/libpty.so
-	opt/${PN}-${STUDIO_V}/plugins/android/lib/libwebp_jni*.so
-	opt/${PN}-${STUDIO_V}/plugins/android/resources/installer/*
-	opt/${PN}-${STUDIO_V}/plugins/android/resources/perfetto/*
-	opt/${PN}-${STUDIO_V}/plugins/android/resources/simpleperf/*
-	opt/${PN}-${STUDIO_V}/plugins/android/resources/transport/*
+	opt/${PN}/bin/fsnotifier*
+	opt/${PN}/bin/libdbm64.so
+	opt/${PN}/bin/lldb/*
+	opt/${PN}/lib/pty4j-native/linux/*/libpty.so
+	opt/${PN}/plugins/android/lib/libwebp_jni*.so
+	opt/${PN}/plugins/android/resources/installer/*
+	opt/${PN}/plugins/android/resources/perfetto/*
+	opt/${PN}/plugins/android/resources/simpleperf/*
+	opt/${PN}/plugins/android/resources/transport/*
 "
 
-STUDIO_V=$(ver_cut 1-4)
-BUILD_V=$(ver_cut 1-4)
+STUDIO_V=$(ver_cut 1-5)
+BUILD_V=$(ver_cut 1-5)
 
 
 DESCRIPTION="Dedicated Android IDE"
@@ -28,7 +28,7 @@ SRC_URI="https://dl.google.com/dl/android/studio/ide-zips/${STUDIO_V}/${PN}-${BU
 
 LICENSE="Apache-2.0"
 SLOT="0"
-KEYWORDS="~amd64"
+KEYWORDS="*amd64"
 IUSE="jetbrains-jre selinux system-sdk-update-manager"
 
 DEPEND="" #dev-java/commons-logging:0
@@ -47,9 +47,7 @@ RESTRICT="strip splitdebug mirror"
 
 src_unpack() {
 	default_src_unpack
-
-  P="${PN}-${STUDIO_V}"
-	mv android-studio "${P}"
+	mv "${WORKDIR}/${PN}" "${S}"
 }
 
 src_prepare() {
@@ -60,9 +58,9 @@ src_prepare() {
 	# This is really a bundled jdk not a jre
 	# If jetbrains-jre is not set bundled jre is replaced with system vm/jdk
 	if use jetbrains-jre; then
-		mv -f "${S}/jre" "${S}/custom-jdk" || die "Could not move bundled jdk"
+		mv -f "${S}/jbr" "${S}/custom-jdk" || die "Could not move bundled jdk"
 	else
-		rm -rf "${S}/jre" || die "Could not remove bundled jdk"
+		rm -rf "${S}/jbr" || die "Could not remove bundled jdk"
 	fi
 
 	sed -i \
@@ -77,7 +75,7 @@ src_prepare() {
 }
 
 src_install() {
-	local dir="/opt/${PN}-${STUDIO_V}"
+	local dir="/opt/${PN}"
 
 	insinto "${dir}"
 	doins -r *
@@ -90,11 +88,11 @@ src_install() {
 		dosym "../../etc/java-config-2/current-system-vm" "${dir}/jre"
 	fi
 
-	fperms 755 "${dir}"/bin/{format.sh,studio.sh,inspect.sh,printenv.py,restart.py,fsnotifier{,64}}
+	fperms 755 "${dir}"/bin/{format.sh,studio.sh,inspect.sh,restart.py,fsnotifier,ltedit.sh}
 
 	dosym "${dir}/bin/studio.sh" "/usr/bin/${PN}"
 	dosym "${dir}/bin/studio.png" "/usr/share/pixmaps/${PN}.png"
-	make_desktop_entry "${PN}" "Android Studio" "${PN}" "Development;IDE;" "StartupWMClass=android-studio"
+	make_desktop_entry "${PN}" "Android Studio Preview" "${PN}" "Development;IDE;" "StartupWMClass=android-studio"
 
 	# recommended by: https://confluence.jetbrains.com/display/IDEADEV/Inotify+Watches+Limit
 	mkdir -p "${D}/etc/sysctl.d/" || die
@@ -103,5 +101,5 @@ src_install() {
 
 pkg_postinst() {
   [ "$(use system-sdk-update-manager)" ] && \
-  ewarn "Add your development user to the grou 'android' if you want to manage the toolchain with both SDK updaters."
+  ewarn "Add your development user to the group 'android' if you want to manage the toolchain with both SDK updaters."
 }
