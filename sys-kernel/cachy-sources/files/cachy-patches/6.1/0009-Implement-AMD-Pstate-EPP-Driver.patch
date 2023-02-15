@@ -1,4 +1,4 @@
-From bea3e87e8801662d9e24a4014af6e5d36041c35e Mon Sep 17 00:00:00 2001
+From 31c8a8edbc24b339803740a5f92a59e1af8446ad Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
 Date: Thu, 9 Feb 2023 11:43:59 +0100
 Subject: [PATCH 09/19] Implement AMD Pstate EPP Driver
@@ -1351,5 +1351,5 @@ index 1c4b8659f171..f5f22418e64b 100644
 +};
  #endif /* _LINUX_AMD_PSTATE_H */
 -- 
-2.39.1
+2.39.2
 
