@@ -1,6 +1,6 @@
-From 1068913656de9ee89575e2df6596beebcf83a8a4 Mon Sep 17 00:00:00 2001
+From 6ac262b9b4c0b6704125a8763283c14046e7624e Mon Sep 17 00:00:00 2001
 From: Piotr Gorski <lucjan.lucjanov@gmail.com>
-Date: Thu, 16 Mar 2023 18:26:17 +0100
+Date: Wed, 22 Mar 2023 08:37:28 +0100
 Subject: [PATCH] bcachefs
 
 Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
@@ -9,7 +9,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  MAINTAINERS                                   |   43 +
  arch/arm64/include/asm/spectre.h              |    4 +-
  arch/x86/kernel/amd_gart_64.c                 |    2 +-
- block/bio.c                                   |   18 +-
+ block/bio.c                                   |   19 +-
  block/blk-core.c                              |    1 +
  block/blk-rq-qos.c                            |    5 +-
  block/blk.h                                   |    1 -
@@ -42,7 +42,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  fs/bcachefs/backpointers.c                    | 1080 +++++
  fs/bcachefs/backpointers.h                    |  139 +
  fs/bcachefs/bbpos.h                           |   48 +
- fs/bcachefs/bcachefs.h                        | 1134 +++++
+ fs/bcachefs/bcachefs.h                        | 1139 +++++
  fs/bcachefs/bcachefs_format.h                 | 2188 ++++++++++
  fs/bcachefs/bcachefs_ioctl.h                  |  368 ++
  fs/bcachefs/bkey.c                            | 1063 +++++
@@ -57,7 +57,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  fs/bcachefs/bset.h                            |  541 +++
  fs/bcachefs/btree_cache.c                     | 1267 ++++++
  fs/bcachefs/btree_cache.h                     |  106 +
- fs/bcachefs/btree_gc.c                        | 2132 ++++++++++
+ fs/bcachefs/btree_gc.c                        | 2134 ++++++++++
  fs/bcachefs/btree_gc.h                        |  112 +
  fs/bcachefs/btree_io.c                        | 2262 ++++++++++
  fs/bcachefs/btree_io.h                        |  228 +
@@ -69,10 +69,10 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  fs/bcachefs/btree_locking.h                   |  422 ++
  fs/bcachefs/btree_types.h                     |  736 ++++
  fs/bcachefs/btree_update.h                    |  185 +
- fs/bcachefs/btree_update_interior.c           | 2485 +++++++++++
+ fs/bcachefs/btree_update_interior.c           | 2487 +++++++++++
  fs/bcachefs/btree_update_interior.h           |  327 ++
  fs/bcachefs/btree_update_leaf.c               | 1952 +++++++++
- fs/bcachefs/btree_write_buffer.c              |  339 ++
+ fs/bcachefs/btree_write_buffer.c              |  340 ++
  fs/bcachefs/btree_write_buffer.h              |   14 +
  fs/bcachefs/btree_write_buffer_types.h        |   44 +
  fs/bcachefs/buckets.c                         | 2141 ++++++++++
@@ -92,10 +92,10 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  fs/bcachefs/compress.h                        |   18 +
  fs/bcachefs/counters.c                        |  107 +
  fs/bcachefs/counters.h                        |   17 +
- fs/bcachefs/darray.h                          |   82 +
+ fs/bcachefs/darray.h                          |   87 +
  fs/bcachefs/data_update.c                     |  556 +++
  fs/bcachefs/data_update.h                     |   43 +
- fs/bcachefs/debug.c                           |  933 +++++
+ fs/bcachefs/debug.c                           |  933 ++++
  fs/bcachefs/debug.h                           |   32 +
  fs/bcachefs/dirent.c                          |  565 +++
  fs/bcachefs/dirent.h                          |   67 +
@@ -106,7 +106,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  fs/bcachefs/ec_types.h                        |   41 +
  fs/bcachefs/errcode.c                         |   63 +
  fs/bcachefs/errcode.h                         |  230 +
- fs/bcachefs/error.c                           |  236 ++
+ fs/bcachefs/error.c                           |  236 +
  fs/bcachefs/error.h                           |  212 +
  fs/bcachefs/extent_update.c                   |  173 +
  fs/bcachefs/extent_update.h                   |   12 +
@@ -117,24 +117,24 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  fs/bcachefs/fifo.h                            |  127 +
  fs/bcachefs/fs-common.c                       |  501 +++
  fs/bcachefs/fs-common.h                       |   43 +
- fs/bcachefs/fs-io.c                           | 3730 +++++++++++++++++
+ fs/bcachefs/fs-io.c                           | 3790 +++++++++++++++++
  fs/bcachefs/fs-io.h                           |   54 +
- fs/bcachefs/fs-ioctl.c                        |  555 +++
+ fs/bcachefs/fs-ioctl.c                        |  556 +++
  fs/bcachefs/fs-ioctl.h                        |   81 +
- fs/bcachefs/fs.c                              | 1918 +++++++++
- fs/bcachefs/fs.h                              |  205 +
+ fs/bcachefs/fs.c                              | 1945 +++++++++
+ fs/bcachefs/fs.h                              |  206 +
  fs/bcachefs/fsck.c                            | 2488 +++++++++++
  fs/bcachefs/fsck.h                            |    8 +
- fs/bcachefs/inode.c                           |  898 ++++
+ fs/bcachefs/inode.c                           |  895 ++++
  fs/bcachefs/inode.h                           |  188 +
- fs/bcachefs/io.c                              | 3049 ++++++++++++++
+ fs/bcachefs/io.c                              | 3052 +++++++++++++
  fs/bcachefs/io.h                              |  202 +
  fs/bcachefs/io_types.h                        |  163 +
- fs/bcachefs/journal.c                         | 1399 +++++++
+ fs/bcachefs/journal.c                         | 1447 +++++++
  fs/bcachefs/journal.h                         |  520 +++
  fs/bcachefs/journal_io.c                      | 1862 ++++++++
  fs/bcachefs/journal_io.h                      |   64 +
- fs/bcachefs/journal_reclaim.c                 |  880 ++++
+ fs/bcachefs/journal_reclaim.c                 |  863 ++++
  fs/bcachefs/journal_reclaim.h                 |   86 +
  fs/bcachefs/journal_sb.c                      |  219 +
  fs/bcachefs/journal_sb.h                      |   24 +
@@ -144,14 +144,14 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  fs/bcachefs/keylist.c                         |   52 +
  fs/bcachefs/keylist.h                         |   74 +
  fs/bcachefs/keylist_types.h                   |   16 +
- fs/bcachefs/lru.c                             |  187 +
+ fs/bcachefs/lru.c                             |  188 +
  fs/bcachefs/lru.h                             |   62 +
  fs/bcachefs/migrate.c                         |  183 +
  fs/bcachefs/migrate.h                         |    7 +
- fs/bcachefs/move.c                            | 1193 ++++++
+ fs/bcachefs/move.c                            | 1201 ++++++
  fs/bcachefs/move.h                            |   98 +
  fs/bcachefs/move_types.h                      |   25 +
- fs/bcachefs/movinggc.c                        |  386 ++
+ fs/bcachefs/movinggc.c                        |  394 ++
  fs/bcachefs/movinggc.h                        |   12 +
  fs/bcachefs/nocow_locking.c                   |  123 +
  fs/bcachefs/nocow_locking.h                   |   49 +
@@ -181,7 +181,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  fs/bcachefs/subvolume_types.h                 |    9 +
  fs/bcachefs/super-io.c                        | 1598 +++++++
  fs/bcachefs/super-io.h                        |  126 +
- fs/bcachefs/super.c                           | 1976 +++++++++
+ fs/bcachefs/super.c                           | 1979 +++++++++
  fs/bcachefs/super.h                           |  266 ++
  fs/bcachefs/super_types.h                     |   51 +
  fs/bcachefs/sysfs.c                           | 1058 +++++
@@ -202,7 +202,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  fs/inode.c                                    |  218 +-
  include/asm-generic/codetag.lds.h             |   17 +
  include/asm-generic/vmlinux.lds.h             |    3 +
- include/linux/alloc_tag.h                     |  160 +
+ include/linux/alloc_tag.h                     |  162 +
  include/linux/bio.h                           |    7 +-
  include/linux/blkdev.h                        |    1 +
  .../md/bcache => include/linux}/closure.h     |   46 +-
@@ -234,6 +234,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  include/linux/nodemask.h                      |    2 +-
  include/linux/nodemask_types.h                |    9 +
  include/linux/page_ext.h                      |    1 -
+ include/linux/pagemap.h                       |    9 +-
  include/linux/percpu.h                        |   19 +-
  include/linux/pgalloc_tag.h                   |   87 +
  include/linux/prandom.h                       |    1 -
@@ -251,6 +252,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  include/linux/swait.h                         |   20 +-
  include/linux/time_stats.h                    |   44 +
  include/linux/timekeeping.h                   |    1 +
+ include/linux/uio.h                           |    2 +
  include/linux/vmalloc.h                       |    1 +
  include/linux/wait.h                          |   72 +-
  include/linux/wait_bit.h                      |    7 +-
@@ -268,15 +270,16 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  kernel/sched/wait.c                           |   15 +-
  kernel/stacktrace.c                           |    2 +
  lib/Kconfig                                   |    9 +
- lib/Kconfig.debug                             |   68 +
+ lib/Kconfig.debug                             |   59 +
  lib/Makefile                                  |   13 +-
- lib/alloc_tag.c                               |  416 ++
+ lib/alloc_tag.c                               |  454 ++
  {drivers/md/bcache => lib}/closure.c          |   36 +-
  lib/codetag.c                                 |  524 +++
  lib/codetag_time_stats.c                      |  143 +
  lib/dynamic_fault.c                           |  372 ++
  lib/errname.c                                 |  104 +
  lib/generic-radix-tree.c                      |   76 +-
+ lib/iov_iter.c                                |   53 +-
  lib/lazy-percpu-counter.c                     |  127 +
  lib/math/Kconfig                              |    3 +
  lib/math/Makefile                             |    2 +
@@ -286,10 +289,10 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  lib/stackdepot.c                              |   68 +
  lib/string.c                                  |   19 +
  lib/string_helpers.c                          |    7 +-
- lib/time_stats.c                              |  236 ++
+ lib/time_stats.c                              |  236 +
  mm/Makefile                                   |    2 +-
  mm/compaction.c                               |    9 +-
- mm/filemap.c                                  |    1 +
+ mm/filemap.c                                  |    7 +-
  mm/huge_memory.c                              |    1 +
  mm/kfence/core.c                              |   12 +-
  mm/memcontrol.c                               |   56 +-
@@ -301,7 +304,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  mm/page_owner.c                               |   54 +-
  mm/percpu-internal.h                          |   27 +-
  mm/percpu.c                                   |  121 +-
- {lib => mm}/show_mem.c                        |   20 +
+ {lib => mm}/show_mem.c                        |   27 +
  mm/slab.c                                     |   22 +-
  mm/slab.h                                     |  221 +-
  mm/slab_common.c                              |  147 +-
@@ -312,7 +315,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  mm/vmscan.c                                   |   96 +-
  scripts/kallsyms.c                            |   13 +
  scripts/module.lds.S                          |    7 +
- 307 files changed, 95236 insertions(+), 882 deletions(-)
+ 310 files changed, 95484 insertions(+), 898 deletions(-)
  create mode 100644 fs/bcachefs/Kconfig
  create mode 100644 fs/bcachefs/Makefile
  create mode 100644 fs/bcachefs/acl.c
@@ -505,7 +508,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  create mode 100644 lib/math/mean_and_variance.c
  create mode 100644 lib/math/mean_and_variance_test.c
  create mode 100644 lib/time_stats.c
- rename {lib => mm}/show_mem.c (75%)
+ rename {lib => mm}/show_mem.c (67%)
 
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
 index c8cf7e37713d..330b26f0a4ff 100644
@@ -631,7 +634,7 @@ index 56a917df410d..842a0ec5eaa9 100644
  };
  
 diff --git a/block/bio.c b/block/bio.c
-index 4e7d11672306..3db941ca3dae 100644
+index 4e7d11672306..b1725020157b 100644
 --- a/block/bio.c
 +++ b/block/bio.c
 @@ -607,15 +607,15 @@ struct bio *bio_kmalloc(unsigned short nr_vecs, gfp_t gfp_mask)
@@ -653,7 +656,15 @@ index 4e7d11672306..3db941ca3dae 100644
  
  /**
   * bio_truncate - truncate the bio to small size of @new_size
-@@ -1253,7 +1253,7 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
+@@ -1168,6 +1168,7 @@ bool bio_add_folio(struct bio *bio, struct folio *folio, size_t len,
+ 		return false;
+ 	return bio_add_page(bio, &folio->page, len, off) > 0;
+ }
++EXPORT_SYMBOL(bio_add_folio);
+ 
+ void __bio_release_pages(struct bio *bio, bool mark_dirty)
+ {
+@@ -1253,7 +1254,7 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
  	unsigned int gup_flags = 0;
  	ssize_t size, left;
  	unsigned len, i = 0;
@@ -662,7 +673,7 @@ index 4e7d11672306..3db941ca3dae 100644
  	int ret = 0;
  
  	/*
-@@ -1282,10 +1282,12 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
+@@ -1282,10 +1283,12 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
  
  	nr_pages = DIV_ROUND_UP(offset + size, PAGE_SIZE);
  
@@ -678,7 +689,7 @@ index 4e7d11672306..3db941ca3dae 100644
  	if (unlikely(!size)) {
  		ret = -EFAULT;
  		goto out;
-@@ -1489,6 +1491,7 @@ void bio_set_pages_dirty(struct bio *bio)
+@@ -1489,6 +1492,7 @@ void bio_set_pages_dirty(struct bio *bio)
  			set_page_dirty_lock(bvec->bv_page);
  	}
  }
@@ -686,7 +697,7 @@ index 4e7d11672306..3db941ca3dae 100644
  
  /*
   * bio_check_pages_dirty() will check that all the BIO's pages are still dirty.
-@@ -1548,6 +1551,7 @@ void bio_check_pages_dirty(struct bio *bio)
+@@ -1548,6 +1552,7 @@ void bio_check_pages_dirty(struct bio *bio)
  	spin_unlock_irqrestore(&bio_dirty_lock, flags);
  	schedule_work(&bio_dirty_work);
  }
@@ -723,7 +734,7 @@ index 88f0fe7dcf54..396d5db9143e 100644
  		.rqw = rqw,
  		.cb = acquire_inflight_cb,
 diff --git a/block/blk.h b/block/blk.h
-index 78f1706cddca..7117eac1d500 100644
+index ad384230d0c7..f91363119590 100644
 --- a/block/blk.h
 +++ b/block/blk.h
 @@ -252,7 +252,6 @@ static inline void blk_integrity_del(struct gendisk *disk)
@@ -7621,10 +7632,10 @@ index 000000000000..1fbed1f8378d
 +#endif /* _BCACHEFS_BBPOS_H */
 diff --git a/fs/bcachefs/bcachefs.h b/fs/bcachefs/bcachefs.h
 new file mode 100644
-index 000000000000..348ee8e8c015
+index 000000000000..6822c89fd91e
 --- /dev/null
 +++ b/fs/bcachefs/bcachefs.h
-@@ -0,0 +1,1134 @@
+@@ -0,0 +1,1139 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +#ifndef _BCACHEFS_H
 +#define _BCACHEFS_H
@@ -8564,6 +8575,7 @@ index 000000000000..348ee8e8c015
 +	/* COPYGC */
 +	struct task_struct	*copygc_thread;
 +	struct write_point	copygc_write_point;
++	s64			copygc_wait_at;
 +	s64			copygc_wait;
 +	bool			copygc_running;
 +	wait_queue_head_t	copygc_running_wq;
@@ -8597,6 +8609,10 @@ index 000000000000..348ee8e8c015
 +	u64			reflink_hint;
 +	reflink_gc_table	reflink_gc_table;
 +	size_t			reflink_gc_nr;
++
++	/* fs.c */
++	struct list_head	vfs_inodes_list;
++	struct mutex		vfs_inodes_lock;
 +
 +	/* VFS IO PATH - fs-io.c */
 +	struct bio_set		writepage_bioset;
@@ -17861,10 +17877,10 @@ index 000000000000..4900ed45422e
 +#endif /* _BCACHEFS_BTREE_CACHE_H */
 diff --git a/fs/bcachefs/btree_gc.c b/fs/bcachefs/btree_gc.c
 new file mode 100644
-index 000000000000..a728e9906e9c
+index 000000000000..fb4226aa0255
 --- /dev/null
 +++ b/fs/bcachefs/btree_gc.c
-@@ -0,0 +1,2132 @@
+@@ -0,0 +1,2134 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (C) 2010 Kent Overstreet <kent.overstreet@gmail.com>
@@ -18439,15 +18455,15 @@ index 000000000000..a728e9906e9c
 +		struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
 +		enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, &entry->ptr);
 +
-+		if (c->opts.reconstruct_alloc ||
-+		    fsck_err_on(!g->gen_valid, c,
-+				"bucket %u:%zu data type %s ptr gen %u missing in alloc btree\n"
-+				"while marking %s",
-+				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-+				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
-+				p.ptr.gen,
-+				(printbuf_reset(&buf),
-+				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf))) {
++		if (!g->gen_valid &&
++		    (c->opts.reconstruct_alloc ||
++		     fsck_err(c, "bucket %u:%zu data type %s ptr gen %u missing in alloc btree\n"
++			      "while marking %s",
++			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
++			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
++			      p.ptr.gen,
++			      (printbuf_reset(&buf),
++			       bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))) {
 +			if (!p.ptr.cached) {
 +				g->gen_valid		= true;
 +				g->gen			= p.ptr.gen;
@@ -18456,14 +18472,15 @@ index 000000000000..a728e9906e9c
 +			}
 +		}
 +
-+		if (fsck_err_on(gen_cmp(p.ptr.gen, g->gen) > 0, c,
-+				"bucket %u:%zu data type %s ptr gen in the future: %u > %u\n"
-+				"while marking %s",
-+				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-+				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
-+				p.ptr.gen, g->gen,
-+				(printbuf_reset(&buf),
-+				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf))) {
++		if (gen_cmp(p.ptr.gen, g->gen) > 0 &&
++		    (c->opts.reconstruct_alloc ||
++		     fsck_err(c, "bucket %u:%zu data type %s ptr gen in the future: %u > %u\n"
++			      "while marking %s",
++			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
++			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
++			      p.ptr.gen, g->gen,
++			      (printbuf_reset(&buf),
++			       bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))) {
 +			if (!p.ptr.cached) {
 +				g->gen_valid		= true;
 +				g->gen			= p.ptr.gen;
@@ -18476,25 +18493,26 @@ index 000000000000..a728e9906e9c
 +			}
 +		}
 +
-+		if (fsck_err_on(gen_cmp(g->gen, p.ptr.gen) > BUCKET_GC_GEN_MAX, c,
-+				"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
-+				"while marking %s",
-+				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), g->gen,
-+				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
-+				p.ptr.gen,
-+				(printbuf_reset(&buf),
-+				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))
++		if (gen_cmp(g->gen, p.ptr.gen) > BUCKET_GC_GEN_MAX &&
++		    (c->opts.reconstruct_alloc ||
++		     fsck_err(c, "bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
++			      "while marking %s",
++			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), g->gen,
++			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
++			      p.ptr.gen,
++			      (printbuf_reset(&buf),
++			       bch2_bkey_val_to_text(&buf, c, *k), buf.buf))))
 +			do_update = true;
 +
-+		if (fsck_err_on(!p.ptr.cached &&
-+				gen_cmp(p.ptr.gen, g->gen) < 0, c,
-+				"bucket %u:%zu data type %s stale dirty ptr: %u < %u\n"
-+				"while marking %s",
-+				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-+				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
-+				p.ptr.gen, g->gen,
-+				(printbuf_reset(&buf),
-+				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))
++		if (!p.ptr.cached && gen_cmp(p.ptr.gen, g->gen) < 0 &&
++		    (c->opts.reconstruct_alloc ||
++		     fsck_err(c, "bucket %u:%zu data type %s stale dirty ptr: %u < %u\n"
++			      "while marking %s",
++			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
++			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
++			      p.ptr.gen, g->gen,
++			      (printbuf_reset(&buf),
++			       bch2_bkey_val_to_text(&buf, c, *k), buf.buf))))
 +			do_update = true;
 +
 +		if (data_type != BCH_DATA_btree && p.ptr.gen != g->gen)
@@ -18624,7 +18642,7 @@ index 000000000000..a728e9906e9c
 +		if (level)
 +			bch2_btree_node_update_key_early(trans, btree_id, level - 1, *k, new);
 +
-+		if (c->opts.verbose) {
++		if (0) {
 +			printbuf_reset(&buf);
 +			bch2_bkey_val_to_text(&buf, c, *k);
 +			bch_info(c, "updated %s", buf.buf);
@@ -22619,7 +22637,7 @@ index 000000000000..c43fb60b8c82
 +#endif /* _BCACHEFS_BTREE_IO_H */
 diff --git a/fs/bcachefs/btree_iter.c b/fs/bcachefs/btree_iter.c
 new file mode 100644
-index 000000000000..8f7d37697281
+index 000000000000..f524e4b394c3
 --- /dev/null
 +++ b/fs/bcachefs/btree_iter.c
 @@ -0,0 +1,3200 @@
@@ -25347,11 +25365,11 @@ index 000000000000..8f7d37697281
 +
 +void bch2_trans_iter_exit(struct btree_trans *trans, struct btree_iter *iter)
 +{
-+	if (iter->path)
-+		bch2_path_put(trans, iter->path,
-+			      iter->flags & BTREE_ITER_INTENT);
 +	if (iter->update_path)
 +		bch2_path_put_nokeep(trans, iter->update_path,
++			      iter->flags & BTREE_ITER_INTENT);
++	if (iter->path)
++		bch2_path_put(trans, iter->path,
 +			      iter->flags & BTREE_ITER_INTENT);
 +	if (iter->key_cache_path)
 +		bch2_path_put(trans, iter->key_cache_path,
@@ -30004,10 +30022,10 @@ index 000000000000..46fb4a9ed295
 +#endif /* _BCACHEFS_BTREE_UPDATE_H */
 diff --git a/fs/bcachefs/btree_update_interior.c b/fs/bcachefs/btree_update_interior.c
 new file mode 100644
-index 000000000000..69f0f5da9f1f
+index 000000000000..61c5e72bad88
 --- /dev/null
 +++ b/fs/bcachefs/btree_update_interior.c
-@@ -0,0 +1,2485 @@
+@@ -0,0 +1,2487 @@
 +// SPDX-License-Identifier: GPL-2.0
 +
 +#include "bcachefs.h"
@@ -30021,6 +30039,7 @@ index 000000000000..69f0f5da9f1f
 +#include "btree_iter.h"
 +#include "btree_locking.h"
 +#include "buckets.h"
++#include "clock.h"
 +#include "error.h"
 +#include "extents.h"
 +#include "journal.h"
@@ -30373,6 +30392,7 @@ index 000000000000..69f0f5da9f1f
 +	BUG_ON(ret);
 +
 +	trace_and_count(c, btree_node_alloc, c, b);
++	bch2_increment_clock(c, btree_sectors(c), WRITE);
 +	return b;
 +}
 +
@@ -34786,10 +34806,10 @@ index 000000000000..d22ceb9506fd
 +}
 diff --git a/fs/bcachefs/btree_write_buffer.c b/fs/bcachefs/btree_write_buffer.c
 new file mode 100644
-index 000000000000..80f4b9839bc2
+index 000000000000..9983a47853b9
 --- /dev/null
 +++ b/fs/bcachefs/btree_write_buffer.c
-@@ -0,0 +1,339 @@
+@@ -0,0 +1,340 @@
 +// SPDX-License-Identifier: GPL-2.0
 +
 +#include "bcachefs.h"
@@ -34901,9 +34921,9 @@ index 000000000000..80f4b9839bc2
 +	struct journal *j = &c->journal;
 +	struct btree_write_buffer *wb = &c->btree_write_buffer;
 +	struct journal_entry_pin pin;
-+	struct btree_write_buffered_key *i, *dst, *keys;
++	struct btree_write_buffered_key *i, *keys;
 +	struct btree_iter iter = { NULL };
-+	size_t nr = 0, skipped = 0, fast = 0;
++	size_t nr = 0, skipped = 0, fast = 0, slowpath = 0;
 +	bool write_locked = false;
 +	union btree_write_buffer_state s;
 +	int ret = 0;
@@ -34927,15 +34947,13 @@ index 000000000000..80f4b9839bc2
 +	 *
 +	 * However, since we're not flushing in the order they appear in the
 +	 * journal we won't be able to drop our journal pin until everything is
-+	 * flushed - which means this could deadlock the journal, if we weren't
-+	 * passing BTREE_INSERT_JORUNAL_RECLAIM. This causes the update to fail
++	 * flushed - which means this could deadlock the journal if we weren't
++	 * passing BTREE_INSERT_JOURNAL_RECLAIM. This causes the update to fail
 +	 * if it would block taking a journal reservation.
 +	 *
-+	 * If that happens, we sort them by the order they appeared in the
-+	 * journal - after dropping redundant entries - and then restart
-+	 * flushing, this time dropping journal pins as we go.
++	 * If that happens, simply skip the key so we can optimistically insert
++	 * as many keys as possible in the fast path.
 +	 */
-+
 +	sort(keys, nr, sizeof(keys[0]),
 +	     btree_write_buffered_key_cmp, NULL);
 +
@@ -34944,6 +34962,7 @@ index 000000000000..80f4b9839bc2
 +		    i[0].btree == i[1].btree &&
 +		    bpos_eq(i[0].k.k.p, i[1].k.k.p)) {
 +			skipped++;
++			i->journal_seq = 0;
 +			continue;
 +		}
 +
@@ -34969,8 +34988,14 @@ index 000000000000..80f4b9839bc2
 +				bch2_trans_begin(trans);
 +		} while (bch2_err_matches(ret, BCH_ERR_transaction_restart));
 +
++		if (ret == -BCH_ERR_journal_reclaim_would_deadlock) {
++			slowpath++;
++			continue;
++		}
 +		if (ret)
 +			break;
++
++		i->journal_seq = 0;
 +	}
 +
 +	if (write_locked)
@@ -34979,7 +35004,7 @@ index 000000000000..80f4b9839bc2
 +
 +	trace_write_buffer_flush(trans, nr, skipped, fast, wb->size);
 +
-+	if (ret == -BCH_ERR_journal_reclaim_would_deadlock)
++	if (slowpath)
 +		goto slowpath;
 +
 +	bch2_fs_fatal_err_on(ret, c, "%s: insert error %s", __func__, bch2_err_str(ret));
@@ -34990,23 +35015,19 @@ index 000000000000..80f4b9839bc2
 +slowpath:
 +	trace_write_buffer_flush_slowpath(trans, i - keys, nr);
 +
-+	dst = keys;
-+	for (; i < keys + nr; i++) {
-+		if (i + 1 < keys + nr &&
-+		    i[0].btree == i[1].btree &&
-+		    bpos_eq(i[0].k.k.p, i[1].k.k.p))
-+			continue;
-+
-+		*dst = *i;
-+		dst++;
-+	}
-+	nr = dst - keys;
-+
++	/*
++	 * Now sort the rest by journal seq and bump the journal pin as we go.
++	 * The slowpath zapped the seq of keys that were successfully flushed so
++	 * we can skip those here.
++	 */
 +	sort(keys, nr, sizeof(keys[0]),
 +	     btree_write_buffered_journal_cmp,
 +	     NULL);
 +
 +	for (i = keys; i < keys + nr; i++) {
++		if (!i->journal_seq)
++			continue;
++
 +		if (i->journal_seq > pin.seq) {
 +			struct journal_entry_pin pin2;
 +
@@ -40857,10 +40878,10 @@ index 000000000000..4778aa19bf34
 +#endif // _BCACHEFS_COUNTERS_H
 diff --git a/fs/bcachefs/darray.h b/fs/bcachefs/darray.h
 new file mode 100644
-index 000000000000..978ab7961f1b
+index 000000000000..d4485fa01b2a
 --- /dev/null
 +++ b/fs/bcachefs/darray.h
-@@ -0,0 +1,82 @@
+@@ -0,0 +1,87 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +#ifndef _BCACHEFS_DARRAY_H
 +#define _BCACHEFS_DARRAY_H
@@ -40916,6 +40937,11 @@ index 000000000000..978ab7961f1b
 +})
 +
 +#define darray_push(_d, _item)	darray_push_gfp(_d, _item, GFP_KERNEL)
++
++#define darray_pop(_d)		((_d)->data[--(_d)->nr])
++
++#define darray_first(_d)	((_d).data[0])
++#define darray_last(_d)		((_d).data[(_d).nr - 1])
 +
 +#define darray_insert_item(_d, _pos, _item)				\
 +({									\
@@ -50215,10 +50241,10 @@ index 000000000000..dde237859514
 +#endif /* _BCACHEFS_FS_COMMON_H */
 diff --git a/fs/bcachefs/fs-io.c b/fs/bcachefs/fs-io.c
 new file mode 100644
-index 000000000000..df2f317f5443
+index 000000000000..eb205d5920dd
 --- /dev/null
 +++ b/fs/bcachefs/fs-io.c
-@@ -0,0 +1,3730 @@
+@@ -0,0 +1,3790 @@
 +// SPDX-License-Identifier: GPL-2.0
 +#ifndef NO_BCACHEFS_FS
 +
@@ -50255,6 +50281,26 @@ index 000000000000..df2f317f5443
 +
 +#include <trace/events/bcachefs.h>
 +#include <trace/events/writeback.h>
++
++static inline loff_t folio_end_pos(struct folio *folio)
++{
++	return folio_pos(folio) + folio_size(folio);
++}
++
++static inline loff_t folio_sectors(struct folio *folio)
++{
++	return PAGE_SECTORS << folio_order(folio);
++}
++
++static inline loff_t folio_sector(struct folio *folio)
++{
++	return folio_pos(folio) >> 9;
++}
++
++static inline loff_t folio_end_sector(struct folio *folio)
++{
++	return folio_end_pos(folio) >> 9;
++}
 +
 +struct nocow_flush {
 +	struct closure	*cl;
@@ -50557,7 +50603,7 @@ index 000000000000..df2f317f5443
 +
 +/* stored in page->private: */
 +
-+struct bch_page_sector {
++struct bch_folio_sector {
 +	/* Uncompressed, fully allocated replicas (or on disk reservation): */
 +	unsigned		nr_replicas:4;
 +
@@ -50574,58 +50620,62 @@ index 000000000000..df2f317f5443
 +	}			state:8;
 +};
 +
-+struct bch_page_state {
++struct bch_folio {
 +	spinlock_t		lock;
 +	atomic_t		write_count;
++	/*
++	 * Is the sector state up to date with the btree?
++	 * (Not the data itself)
++	 */
 +	bool			uptodate;
-+	struct bch_page_sector	s[PAGE_SECTORS];
++	struct bch_folio_sector	s[];
 +};
 +
-+static inline struct bch_page_state *__bch2_page_state(struct page *page)
++static inline struct bch_folio *__bch2_folio(struct folio *folio)
 +{
-+	return page_has_private(page)
-+		? (struct bch_page_state *) page_private(page)
++	return folio_has_private(folio)
++		? (struct bch_folio *) folio_get_private(folio)
 +		: NULL;
 +}
 +
-+static inline struct bch_page_state *bch2_page_state(struct page *page)
++static inline struct bch_folio *bch2_folio(struct folio *folio)
 +{
-+	EBUG_ON(!PageLocked(page));
++	EBUG_ON(!folio_test_locked(folio));
 +
-+	return __bch2_page_state(page);
++	return __bch2_folio(folio);
 +}
 +
-+/* for newly allocated pages: */
-+static void __bch2_page_state_release(struct page *page)
++/* for newly allocated folios: */
++static void __bch2_folio_release(struct folio *folio)
 +{
-+	kfree(detach_page_private(page));
++	kfree(folio_detach_private(folio));
 +}
 +
-+static void bch2_page_state_release(struct page *page)
++static void bch2_folio_release(struct folio *folio)
 +{
-+	EBUG_ON(!PageLocked(page));
-+	__bch2_page_state_release(page);
++	EBUG_ON(!folio_test_locked(folio));
++	__bch2_folio_release(folio);
 +}
 +
-+/* for newly allocated pages: */
-+static struct bch_page_state *__bch2_page_state_create(struct page *page,
-+						       gfp_t gfp)
++/* for newly allocated folios: */
++static struct bch_folio *__bch2_folio_create(struct folio *folio, gfp_t gfp)
 +{
-+	struct bch_page_state *s;
++	struct bch_folio *s;
 +
-+	s = kzalloc(sizeof(*s), GFP_NOFS|gfp);
++	s = kzalloc(sizeof(*s) +
++		    sizeof(struct bch_folio_sector) *
++		    folio_sectors(folio), GFP_NOFS|gfp);
 +	if (!s)
 +		return NULL;
 +
 +	spin_lock_init(&s->lock);
-+	attach_page_private(page, s);
++	folio_attach_private(folio, s);
 +	return s;
 +}
 +
-+static struct bch_page_state *bch2_page_state_create(struct page *page,
-+						     gfp_t gfp)
++static struct bch_folio *bch2_folio_create(struct folio *folio, gfp_t gfp)
 +{
-+	return bch2_page_state(page) ?: __bch2_page_state_create(page, gfp);
++	return bch2_folio(folio) ?: __bch2_folio_create(folio, gfp);
 +}
 +
 +static unsigned bkey_to_sector_state(struct bkey_s_c k)
@@ -50637,37 +50687,41 @@ index 000000000000..df2f317f5443
 +	return SECTOR_UNALLOCATED;
 +}
 +
-+static void __bch2_page_state_set(struct page *page,
-+				  unsigned pg_offset, unsigned pg_len,
-+				  unsigned nr_ptrs, unsigned state)
++static void __bch2_folio_set(struct folio *folio,
++			     unsigned pg_offset, unsigned pg_len,
++			     unsigned nr_ptrs, unsigned state)
 +{
-+	struct bch_page_state *s = bch2_page_state_create(page, __GFP_NOFAIL);
-+	unsigned i;
++	struct bch_folio *s = bch2_folio_create(folio, __GFP_NOFAIL);
++	unsigned i, sectors = folio_sectors(folio);
 +
-+	BUG_ON(pg_offset >= PAGE_SECTORS);
-+	BUG_ON(pg_offset + pg_len > PAGE_SECTORS);
++	BUG_ON(pg_offset >= sectors);
++	BUG_ON(pg_offset + pg_len > sectors);
 +
 +	spin_lock(&s->lock);
 +
 +	for (i = pg_offset; i < pg_offset + pg_len; i++) {
-+		s->s[i].nr_replicas = nr_ptrs;
-+		s->s[i].state = state;
++		s->s[i].nr_replicas	= nr_ptrs;
++		s->s[i].state		= state;
 +	}
 +
-+	if (i == PAGE_SECTORS)
++	if (i == sectors)
 +		s->uptodate = true;
 +
 +	spin_unlock(&s->lock);
 +}
 +
-+static int bch2_page_state_set(struct bch_fs *c, subvol_inum inum,
-+			       struct page **pages, unsigned nr_pages)
++/*
++ * Initialize bch_folio state (allocated/unallocated, nr_replicas) from the
++ * extents btree:
++ */
++static int bch2_folio_set(struct bch_fs *c, subvol_inum inum,
++			  struct folio **folios, unsigned nr_folios)
 +{
 +	struct btree_trans trans;
 +	struct btree_iter iter;
 +	struct bkey_s_c k;
-+	u64 offset = pages[0]->index << PAGE_SECTORS_SHIFT;
-+	unsigned pg_idx = 0;
++	u64 offset = folio_sector(folios[0]);
++	unsigned folio_idx = 0;
 +	u32 snapshot;
 +	int ret;
 +
@@ -50685,25 +50739,25 @@ index 000000000000..df2f317f5443
 +		unsigned nr_ptrs = bch2_bkey_nr_ptrs_fully_allocated(k);
 +		unsigned state = bkey_to_sector_state(k);
 +
-+		while (pg_idx < nr_pages) {
-+			struct page *page = pages[pg_idx];
-+			u64 pg_start = page->index << PAGE_SECTORS_SHIFT;
-+			u64 pg_end = (page->index + 1) << PAGE_SECTORS_SHIFT;
-+			unsigned pg_offset = max(bkey_start_offset(k.k), pg_start) - pg_start;
-+			unsigned pg_len = min(k.k->p.offset, pg_end) - pg_offset - pg_start;
++		while (folio_idx < nr_folios) {
++			struct folio *folio = folios[folio_idx];
++			u64 folio_start	= folio_sector(folio);
++			u64 folio_end	= folio_end_sector(folio);
++			unsigned folio_offset = max(bkey_start_offset(k.k), folio_start) - folio_start;
++			unsigned folio_len = min(k.k->p.offset, folio_end) - folio_offset - folio_start;
 +
-+			BUG_ON(k.k->p.offset < pg_start);
-+			BUG_ON(bkey_start_offset(k.k) > pg_end);
++			BUG_ON(k.k->p.offset < folio_start);
++			BUG_ON(bkey_start_offset(k.k) > folio_end);
 +
-+			if (!bch2_page_state_create(page, __GFP_NOFAIL)->uptodate)
-+				__bch2_page_state_set(page, pg_offset, pg_len, nr_ptrs, state);
++			if (!bch2_folio_create(folio, __GFP_NOFAIL)->uptodate)
++				__bch2_folio_set(folio, folio_offset, folio_len, nr_ptrs, state);
 +
-+			if (k.k->p.offset < pg_end)
++			if (k.k->p.offset < folio_end)
 +				break;
-+			pg_idx++;
++			folio_idx++;
 +		}
 +
-+		if (pg_idx == nr_pages)
++		if (folio_idx == nr_folios)
 +			break;
 +	}
 +
@@ -50726,8 +50780,8 @@ index 000000000000..df2f317f5443
 +	unsigned state = bkey_to_sector_state(k);
 +
 +	bio_for_each_segment(bv, bio, iter)
-+		__bch2_page_state_set(bv.bv_page, bv.bv_offset >> 9,
-+				      bv.bv_len >> 9, nr_ptrs, state);
++		__bch2_folio_set(page_folio(bv.bv_page), bv.bv_offset >> 9,
++				 bv.bv_len >> 9, nr_ptrs, state);
 +}
 +
 +static void mark_pagecache_unallocated(struct bch_inode_info *inode,
@@ -50747,22 +50801,20 @@ index 000000000000..df2f317f5443
 +				  &index, end_index, &fbatch)) {
 +		for (i = 0; i < folio_batch_count(&fbatch); i++) {
 +			struct folio *folio = fbatch.folios[i];
-+			u64 pg_start = folio->index << PAGE_SECTORS_SHIFT;
-+			u64 pg_end = (folio->index + 1) << PAGE_SECTORS_SHIFT;
-+			unsigned pg_offset = max(start, pg_start) - pg_start;
-+			unsigned pg_len = min(end, pg_end) - pg_offset - pg_start;
-+			struct bch_page_state *s;
++			u64 folio_start = folio_sector(folio);
++			u64 folio_end = folio_end_sector(folio);
++			unsigned folio_offset = max(start, folio_start) - folio_start;
++			unsigned folio_len = min(end, folio_end) - folio_offset - folio_start;
++			struct bch_folio *s;
 +
-+			BUG_ON(end <= pg_start);
-+			BUG_ON(pg_offset >= PAGE_SECTORS);
-+			BUG_ON(pg_offset + pg_len > PAGE_SECTORS);
++			BUG_ON(end <= folio_start);
 +
 +			folio_lock(folio);
-+			s = bch2_page_state(&folio->page);
++			s = bch2_folio(folio);
 +
 +			if (s) {
 +				spin_lock(&s->lock);
-+				for (j = pg_offset; j < pg_offset + pg_len; j++)
++				for (j = folio_offset; j < folio_offset + folio_len; j++)
 +					s->s[j].nr_replicas = 0;
 +				spin_unlock(&s->lock);
 +			}
@@ -50793,22 +50845,20 @@ index 000000000000..df2f317f5443
 +				  &index, end_index, &fbatch)) {
 +		for (i = 0; i < folio_batch_count(&fbatch); i++) {
 +			struct folio *folio = fbatch.folios[i];
-+			u64 pg_start = folio->index << PAGE_SECTORS_SHIFT;
-+			u64 pg_end = (folio->index + 1) << PAGE_SECTORS_SHIFT;
-+			unsigned pg_offset = max(start, pg_start) - pg_start;
-+			unsigned pg_len = min(end, pg_end) - pg_offset - pg_start;
-+			struct bch_page_state *s;
++			u64 folio_start = folio_sector(folio);
++			u64 folio_end = folio_end_sector(folio);
++			unsigned folio_offset = max(start, folio_start) - folio_start;
++			unsigned folio_len = min(end, folio_end) - folio_offset - folio_start;
++			struct bch_folio *s;
 +
-+			BUG_ON(end <= pg_start);
-+			BUG_ON(pg_offset >= PAGE_SECTORS);
-+			BUG_ON(pg_offset + pg_len > PAGE_SECTORS);
++			BUG_ON(end <= folio_start);
 +
 +			folio_lock(folio);
-+			s = bch2_page_state(&folio->page);
++			s = bch2_folio(folio);
 +
 +			if (s) {
 +				spin_lock(&s->lock);
-+				for (j = pg_offset; j < pg_offset + pg_len; j++)
++				for (j = folio_offset; j < folio_offset + folio_len; j++)
 +					switch (s->s[j].state) {
 +					case SECTOR_UNALLOCATED:
 +						s->s[j].state = SECTOR_RESERVED;
@@ -50840,28 +50890,28 @@ index 000000000000..df2f317f5443
 +		: c->opts.data_replicas;
 +}
 +
-+static inline unsigned sectors_to_reserve(struct bch_page_sector *s,
-+						  unsigned nr_replicas)
++static inline unsigned sectors_to_reserve(struct bch_folio_sector *s,
++					  unsigned nr_replicas)
 +{
 +	return max(0, (int) nr_replicas -
 +		   s->nr_replicas -
 +		   s->replicas_reserved);
 +}
 +
-+static int bch2_get_page_disk_reservation(struct bch_fs *c,
++static int bch2_get_folio_disk_reservation(struct bch_fs *c,
 +				struct bch_inode_info *inode,
-+				struct page *page, bool check_enospc)
++				struct folio *folio, bool check_enospc)
 +{
-+	struct bch_page_state *s = bch2_page_state_create(page, 0);
++	struct bch_folio *s = bch2_folio_create(folio, 0);
 +	unsigned nr_replicas = inode_nr_replicas(c, inode);
 +	struct disk_reservation disk_res = { 0 };
-+	unsigned i, disk_res_sectors = 0;
++	unsigned i, sectors = folio_sectors(folio), disk_res_sectors = 0;
 +	int ret;
 +
 +	if (!s)
 +		return -ENOMEM;
 +
-+	for (i = 0; i < ARRAY_SIZE(s->s); i++)
++	for (i = 0; i < sectors; i++)
 +		disk_res_sectors += sectors_to_reserve(&s->s[i], nr_replicas);
 +
 +	if (!disk_res_sectors)
@@ -50875,41 +50925,42 @@ index 000000000000..df2f317f5443
 +	if (unlikely(ret))
 +		return ret;
 +
-+	for (i = 0; i < ARRAY_SIZE(s->s); i++)
++	for (i = 0; i < sectors; i++)
 +		s->s[i].replicas_reserved +=
 +			sectors_to_reserve(&s->s[i], nr_replicas);
 +
 +	return 0;
 +}
 +
-+struct bch2_page_reservation {
++struct bch2_folio_reservation {
 +	struct disk_reservation	disk;
 +	struct quota_res	quota;
 +};
 +
-+static void bch2_page_reservation_init(struct bch_fs *c,
++static void bch2_folio_reservation_init(struct bch_fs *c,
 +			struct bch_inode_info *inode,
-+			struct bch2_page_reservation *res)
++			struct bch2_folio_reservation *res)
 +{
 +	memset(res, 0, sizeof(*res));
 +
 +	res->disk.nr_replicas = inode_nr_replicas(c, inode);
 +}
 +
-+static void bch2_page_reservation_put(struct bch_fs *c,
++static void bch2_folio_reservation_put(struct bch_fs *c,
 +			struct bch_inode_info *inode,
-+			struct bch2_page_reservation *res)
++			struct bch2_folio_reservation *res)
 +{
 +	bch2_disk_reservation_put(c, &res->disk);
 +	bch2_quota_reservation_put(c, inode, &res->quota);
 +}
 +
-+static int bch2_page_reservation_get(struct bch_fs *c,
-+			struct bch_inode_info *inode, struct page *page,
-+			struct bch2_page_reservation *res,
++static int bch2_folio_reservation_get(struct bch_fs *c,
++			struct bch_inode_info *inode,
++			struct folio *folio,
++			struct bch2_folio_reservation *res,
 +			unsigned offset, unsigned len)
 +{
-+	struct bch_page_state *s = bch2_page_state_create(page, 0);
++	struct bch_folio *s = bch2_folio_create(folio, 0);
 +	unsigned i, disk_sectors = 0, quota_sectors = 0;
 +	int ret;
 +
@@ -50949,21 +51000,21 @@ index 000000000000..df2f317f5443
 +	return 0;
 +}
 +
-+static void bch2_clear_page_bits(struct page *page)
++static void bch2_clear_folio_bits(struct folio *folio)
 +{
-+	struct bch_inode_info *inode = to_bch_ei(page->mapping->host);
++	struct bch_inode_info *inode = to_bch_ei(folio->mapping->host);
 +	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-+	struct bch_page_state *s = bch2_page_state(page);
++	struct bch_folio *s = bch2_folio(folio);
 +	struct disk_reservation disk_res = { 0 };
-+	int i, dirty_sectors = 0;
++	int i, sectors = folio_sectors(folio), dirty_sectors = 0;
 +
 +	if (!s)
 +		return;
 +
-+	EBUG_ON(!PageLocked(page));
-+	EBUG_ON(PageWriteback(page));
++	EBUG_ON(!folio_test_locked(folio));
++	EBUG_ON(folio_test_writeback(folio));
 +
-+	for (i = 0; i < ARRAY_SIZE(s->s); i++) {
++	for (i = 0; i < sectors; i++) {
 +		disk_res.sectors += s->s[i].replicas_reserved;
 +		s->s[i].replicas_reserved = 0;
 +
@@ -50984,18 +51035,19 @@ index 000000000000..df2f317f5443
 +
 +	i_sectors_acct(c, inode, NULL, dirty_sectors);
 +
-+	bch2_page_state_release(page);
++	bch2_folio_release(folio);
 +}
 +
-+static void bch2_set_page_dirty(struct bch_fs *c,
-+			struct bch_inode_info *inode, struct page *page,
-+			struct bch2_page_reservation *res,
++static void bch2_set_folio_dirty(struct bch_fs *c,
++			struct bch_inode_info *inode,
++			struct folio *folio,
++			struct bch2_folio_reservation *res,
 +			unsigned offset, unsigned len)
 +{
-+	struct bch_page_state *s = bch2_page_state(page);
++	struct bch_folio *s = bch2_folio(folio);
 +	unsigned i, dirty_sectors = 0;
 +
-+	WARN_ON((u64) page_offset(page) + offset + len >
++	WARN_ON((u64) folio_pos(folio) + offset + len >
 +		round_up((u64) i_size_read(&inode->v), block_bytes(c)));
 +
 +	spin_lock(&s->lock);
@@ -51032,8 +51084,8 @@ index 000000000000..df2f317f5443
 +
 +	i_sectors_acct(c, inode, &res->quota, dirty_sectors);
 +
-+	if (!PageDirty(page))
-+		filemap_dirty_folio(inode->v.i_mapping, page_folio(page));
++	if (!folio_test_dirty(folio))
++		filemap_dirty_folio(inode->v.i_mapping, folio);
 +}
 +
 +vm_fault_t bch2_page_fault(struct vm_fault *vmf)
@@ -51076,17 +51128,17 @@ index 000000000000..df2f317f5443
 +
 +vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 +{
-+	struct page *page = vmf->page;
++	struct folio *folio = page_folio(vmf->page);
 +	struct file *file = vmf->vma->vm_file;
 +	struct bch_inode_info *inode = file_bch_inode(file);
 +	struct address_space *mapping = file->f_mapping;
 +	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-+	struct bch2_page_reservation res;
++	struct bch2_folio_reservation res;
 +	unsigned len;
 +	loff_t isize;
 +	int ret;
 +
-+	bch2_page_reservation_init(c, inode, &res);
++	bch2_folio_reservation_init(c, inode, &res);
 +
 +	sb_start_pagefault(inode->v.i_sb);
 +	file_update_time(file);
@@ -51099,35 +51151,35 @@ index 000000000000..df2f317f5443
 +	 */
 +	bch2_pagecache_add_get(inode);
 +
-+	lock_page(page);
++	folio_lock(folio);
 +	isize = i_size_read(&inode->v);
 +
-+	if (page->mapping != mapping || page_offset(page) >= isize) {
-+		unlock_page(page);
++	if (folio->mapping != mapping || folio_pos(folio) >= isize) {
++		folio_unlock(folio);
 +		ret = VM_FAULT_NOPAGE;
 +		goto out;
 +	}
 +
-+	len = min_t(loff_t, PAGE_SIZE, isize - page_offset(page));
++	len = min_t(loff_t, folio_size(folio), isize - folio_pos(folio));
 +
-+	if (!bch2_page_state_create(page, __GFP_NOFAIL)->uptodate) {
-+		if (bch2_page_state_set(c, inode_inum(inode), &page, 1)) {
-+			unlock_page(page);
++	if (!bch2_folio_create(folio, __GFP_NOFAIL)->uptodate) {
++		if (bch2_folio_set(c, inode_inum(inode), &folio, 1)) {
++			folio_unlock(folio);
 +			ret = VM_FAULT_SIGBUS;
 +			goto out;
 +		}
 +	}
 +
-+	if (bch2_page_reservation_get(c, inode, page, &res, 0, len)) {
-+		unlock_page(page);
++	if (bch2_folio_reservation_get(c, inode, folio, &res, 0, len)) {
++		folio_unlock(folio);
 +		ret = VM_FAULT_SIGBUS;
 +		goto out;
 +	}
 +
-+	bch2_set_page_dirty(c, inode, page, &res, 0, len);
-+	bch2_page_reservation_put(c, inode, &res);
++	bch2_set_folio_dirty(c, inode, folio, &res, 0, len);
++	bch2_folio_reservation_put(c, inode, &res);
 +
-+	wait_for_stable_page(page);
++	folio_wait_stable(folio);
 +	ret = VM_FAULT_LOCKED;
 +out:
 +	bch2_pagecache_add_put(inode);
@@ -51141,7 +51193,7 @@ index 000000000000..df2f317f5443
 +	if (offset || length < folio_size(folio))
 +		return;
 +
-+	bch2_clear_page_bits(&folio->page);
++	bch2_clear_folio_bits(folio);
 +}
 +
 +bool bch2_release_folio(struct folio *folio, gfp_t gfp_mask)
@@ -51149,7 +51201,7 @@ index 000000000000..df2f317f5443
 +	if (folio_test_dirty(folio) || folio_test_writeback(folio))
 +		return false;
 +
-+	bch2_clear_page_bits(&folio->page);
++	bch2_clear_folio_bits(folio);
 +	return true;
 +}
 +
@@ -51157,19 +51209,16 @@ index 000000000000..df2f317f5443
 +
 +static void bch2_readpages_end_io(struct bio *bio)
 +{
-+	struct bvec_iter_all iter;
-+	struct bio_vec *bv;
++	struct folio_iter fi;
 +
-+	bio_for_each_segment_all(bv, bio, iter) {
-+		struct page *page = bv->bv_page;
-+
++	bio_for_each_folio_all(fi, bio) {
 +		if (!bio->bi_status) {
-+			SetPageUptodate(page);
++			folio_mark_uptodate(fi.folio);
 +		} else {
-+			ClearPageUptodate(page);
-+			SetPageError(page);
++			folio_clear_uptodate(fi.folio);
++			folio_set_error(fi.folio);
 +		}
-+		unlock_page(page);
++		folio_unlock(fi.folio);
 +	}
 +
 +	bio_put(bio);
@@ -51200,21 +51249,23 @@ index 000000000000..df2f317f5443
 +
 +	nr_pages = __readahead_batch(ractl, iter->pages, nr_pages);
 +	for (i = 0; i < nr_pages; i++) {
-+		__bch2_page_state_create(iter->pages[i], __GFP_NOFAIL);
++		__bch2_folio_create(page_folio(iter->pages[i]), __GFP_NOFAIL);
 +		put_page(iter->pages[i]);
 +	}
 +
 +	return 0;
 +}
 +
-+static inline struct page *readpage_iter_next(struct readpages_iter *iter)
++static inline struct folio *readpage_iter_peek(struct readpages_iter *iter)
 +{
-+	if (iter->idx >= iter->nr_pages)
-+		return NULL;
++	return iter->idx < iter->nr_pages
++		? page_folio(iter->pages[iter->idx])
++		: NULL;
++}
 +
-+	EBUG_ON(iter->pages[iter->idx]->index != iter->offset + iter->idx);
-+
-+	return iter->pages[iter->idx];
++static inline void readpage_iter_advance(struct readpages_iter *iter)
++{
++	iter->idx++;
 +}
 +
 +static bool extent_partial_reads_expensive(struct bkey_s_c k)
@@ -51236,44 +51287,43 @@ index 000000000000..df2f317f5443
 +{
 +	while (bio_sectors(bio) < sectors_this_extent &&
 +	       bio->bi_vcnt < bio->bi_max_vecs) {
-+		pgoff_t page_offset = bio_end_sector(bio) >> PAGE_SECTORS_SHIFT;
-+		struct page *page = readpage_iter_next(iter);
++		struct folio *folio = readpage_iter_peek(iter);
 +		int ret;
 +
-+		if (page) {
-+			if (iter->offset + iter->idx != page_offset)
-+				break;
++		if (folio) {
++			BUG_ON(folio_sector(folio) != bio_end_sector(bio));
 +
-+			iter->idx++;
++			readpage_iter_advance(iter);
 +		} else {
++			pgoff_t folio_offset = bio_end_sector(bio) >> PAGE_SECTORS_SHIFT;
++
 +			if (!get_more)
 +				break;
 +
-+			page = xa_load(&iter->mapping->i_pages, page_offset);
-+			if (page && !xa_is_value(page))
++			folio = xa_load(&iter->mapping->i_pages, folio_offset);
++			if (folio && !xa_is_value(folio))
 +				break;
 +
-+			page = __page_cache_alloc(readahead_gfp_mask(iter->mapping));
-+			if (!page)
++			folio = filemap_alloc_folio(readahead_gfp_mask(iter->mapping), 0);
++			if (!folio)
 +				break;
 +
-+			if (!__bch2_page_state_create(page, 0)) {
-+				put_page(page);
++			if (!__bch2_folio_create(folio, 0)) {
++				folio_put(folio);
 +				break;
 +			}
 +
-+			ret = add_to_page_cache_lru(page, iter->mapping,
-+						    page_offset, GFP_NOFS);
++			ret = filemap_add_folio(iter->mapping, folio, folio_offset, GFP_NOFS);
 +			if (ret) {
-+				__bch2_page_state_release(page);
-+				put_page(page);
++				__bch2_folio_release(folio);
++				folio_put(folio);
 +				break;
 +			}
 +
-+			put_page(page);
++			folio_put(folio);
 +		}
 +
-+		BUG_ON(!bio_add_page(bio, page, PAGE_SIZE, 0));
++		BUG_ON(!bio_add_folio(bio, folio, folio_size(folio), 0));
 +	}
 +}
 +
@@ -51391,7 +51441,7 @@ index 000000000000..df2f317f5443
 +	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 +	struct bch_io_opts opts;
 +	struct btree_trans trans;
-+	struct page *page;
++	struct folio *folio;
 +	struct readpages_iter readpages_iter;
 +	int ret;
 +
@@ -51404,7 +51454,7 @@ index 000000000000..df2f317f5443
 +
 +	bch2_pagecache_add_get(inode);
 +
-+	while ((page = readpage_iter_next(&readpages_iter))) {
++	while ((folio = readpage_iter_peek(&readpages_iter))) {
 +		pgoff_t index = readpages_iter.offset + readpages_iter.idx;
 +		unsigned n = min_t(unsigned,
 +				   readpages_iter.nr_pages -
@@ -51415,11 +51465,11 @@ index 000000000000..df2f317f5443
 +						   GFP_NOFS, &c->bio_read),
 +				  opts);
 +
-+		readpages_iter.idx++;
++		readpage_iter_advance(&readpages_iter);
 +
 +		rbio->bio.bi_iter.bi_sector = (sector_t) index << PAGE_SECTORS_SHIFT;
 +		rbio->bio.bi_end_io = bch2_readpages_end_io;
-+		BUG_ON(!bio_add_page(&rbio->bio, page, PAGE_SIZE, 0));
++		BUG_ON(!bio_add_folio(&rbio->bio, folio, folio_size(folio), 0));
 +
 +		bchfs_read(&trans, rbio, inode_inum(inode),
 +			   &readpages_iter);
@@ -51431,30 +51481,29 @@ index 000000000000..df2f317f5443
 +	kfree(readpages_iter.pages);
 +}
 +
-+static void __bchfs_readpage(struct bch_fs *c, struct bch_read_bio *rbio,
-+			     subvol_inum inum, struct page *page)
++static void __bchfs_readfolio(struct bch_fs *c, struct bch_read_bio *rbio,
++			     subvol_inum inum, struct folio *folio)
 +{
 +	struct btree_trans trans;
 +
-+	bch2_page_state_create(page, __GFP_NOFAIL);
++	bch2_folio_create(folio, __GFP_NOFAIL);
 +
 +	rbio->bio.bi_opf = REQ_OP_READ|REQ_SYNC;
-+	rbio->bio.bi_iter.bi_sector =
-+		(sector_t) page->index << PAGE_SECTORS_SHIFT;
-+	BUG_ON(!bio_add_page(&rbio->bio, page, PAGE_SIZE, 0));
++	rbio->bio.bi_iter.bi_sector = folio_sector(folio);
++	BUG_ON(!bio_add_folio(&rbio->bio, folio, folio_size(folio), 0));
 +
 +	bch2_trans_init(&trans, c, 0, 0);
 +	bchfs_read(&trans, rbio, inum, NULL);
 +	bch2_trans_exit(&trans);
 +}
 +
-+static void bch2_read_single_page_end_io(struct bio *bio)
++static void bch2_read_single_folio_end_io(struct bio *bio)
 +{
 +	complete(bio->bi_private);
 +}
 +
-+static int bch2_read_single_page(struct page *page,
-+				 struct address_space *mapping)
++static int bch2_read_single_folio(struct folio *folio,
++				  struct address_space *mapping)
 +{
 +	struct bch_inode_info *inode = to_bch_ei(mapping->host);
 +	struct bch_fs *c = inode->v.i_sb->s_fs_info;
@@ -51468,9 +51517,9 @@ index 000000000000..df2f317f5443
 +	rbio = rbio_init(bio_alloc_bioset(NULL, 1, REQ_OP_READ, GFP_NOFS, &c->bio_read),
 +			 opts);
 +	rbio->bio.bi_private = &done;
-+	rbio->bio.bi_end_io = bch2_read_single_page_end_io;
++	rbio->bio.bi_end_io = bch2_read_single_folio_end_io;
 +
-+	__bchfs_readpage(c, rbio, inode_inum(inode), page);
++	__bchfs_readfolio(c, rbio, inode_inum(inode), folio);
 +	wait_for_completion(&done);
 +
 +	ret = blk_status_to_errno(rbio->bio.bi_status);
@@ -51479,16 +51528,15 @@ index 000000000000..df2f317f5443
 +	if (ret < 0)
 +		return ret;
 +
-+	SetPageUptodate(page);
++	folio_mark_uptodate(folio);
 +	return 0;
 +}
 +
 +int bch2_read_folio(struct file *file, struct folio *folio)
 +{
-+	struct page *page = &folio->page;
 +	int ret;
 +
-+	ret = bch2_read_single_page(page, page->mapping);
++	ret = bch2_read_single_folio(folio, folio->mapping);
 +	folio_unlock(folio);
 +	return bch2_err_class(ret);
 +}
@@ -51498,6 +51546,8 @@ index 000000000000..df2f317f5443
 +struct bch_writepage_state {
 +	struct bch_writepage_io	*io;
 +	struct bch_io_opts	opts;
++	struct bch_folio_sector	*tmp;
++	unsigned		tmp_sectors;
 +};
 +
 +static inline struct bch_writepage_state bch_writepage_state_init(struct bch_fs *c,
@@ -51515,34 +51565,33 @@ index 000000000000..df2f317f5443
 +		container_of(op, struct bch_writepage_io, op);
 +	struct bch_fs *c = io->op.c;
 +	struct bio *bio = &io->op.wbio.bio;
-+	struct bvec_iter_all iter;
-+	struct bio_vec *bvec;
++	struct folio_iter fi;
 +	unsigned i;
 +
 +	if (io->op.error) {
 +		set_bit(EI_INODE_ERROR, &io->inode->ei_flags);
 +
-+		bio_for_each_segment_all(bvec, bio, iter) {
-+			struct bch_page_state *s;
++		bio_for_each_folio_all(fi, bio) {
++			struct bch_folio *s;
 +
-+			SetPageError(bvec->bv_page);
-+			mapping_set_error(bvec->bv_page->mapping, -EIO);
++			folio_set_error(fi.folio);
++			mapping_set_error(fi.folio->mapping, -EIO);
 +
-+			s = __bch2_page_state(bvec->bv_page);
++			s = __bch2_folio(fi.folio);
 +			spin_lock(&s->lock);
-+			for (i = 0; i < PAGE_SECTORS; i++)
++			for (i = 0; i < folio_sectors(fi.folio); i++)
 +				s->s[i].nr_replicas = 0;
 +			spin_unlock(&s->lock);
 +		}
 +	}
 +
 +	if (io->op.flags & BCH_WRITE_WROTE_DATA_INLINE) {
-+		bio_for_each_segment_all(bvec, bio, iter) {
-+			struct bch_page_state *s;
++		bio_for_each_folio_all(fi, bio) {
++			struct bch_folio *s;
 +
-+			s = __bch2_page_state(bvec->bv_page);
++			s = __bch2_folio(fi.folio);
 +			spin_lock(&s->lock);
-+			for (i = 0; i < PAGE_SECTORS; i++)
++			for (i = 0; i < folio_sectors(fi.folio); i++)
 +				s->s[i].nr_replicas = 0;
 +			spin_unlock(&s->lock);
 +		}
@@ -51567,11 +51616,11 @@ index 000000000000..df2f317f5443
 +	 */
 +	i_sectors_acct(c, io->inode, NULL, io->op.i_sectors_delta);
 +
-+	bio_for_each_segment_all(bvec, bio, iter) {
-+		struct bch_page_state *s = __bch2_page_state(bvec->bv_page);
++	bio_for_each_folio_all(fi, bio) {
++		struct bch_folio *s = __bch2_folio(fi.folio);
 +
 +		if (atomic_dec_and_test(&s->write_count))
-+			end_page_writeback(bvec->bv_page);
++			folio_end_writeback(fi.folio);
 +	}
 +
 +	bio_put(&io->op.wbio.bio);
@@ -51619,55 +51668,64 @@ index 000000000000..df2f317f5443
 +	op->wbio.bio.bi_opf	= wbc_to_write_flags(wbc);
 +}
 +
-+static int __bch2_writepage(struct page *page,
++static int __bch2_writepage(struct page *_page,
 +			    struct writeback_control *wbc,
 +			    void *data)
 +{
-+	struct bch_inode_info *inode = to_bch_ei(page->mapping->host);
++	struct folio *folio = page_folio(_page);
++	struct bch_inode_info *inode = to_bch_ei(folio->mapping->host);
 +	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 +	struct bch_writepage_state *w = data;
-+	struct bch_page_state *s, orig;
-+	unsigned i, offset, nr_replicas_this_write = U32_MAX;
++	struct bch_folio *s;
++	unsigned i, offset, f_sectors, nr_replicas_this_write = U32_MAX;
 +	loff_t i_size = i_size_read(&inode->v);
-+	pgoff_t end_index = i_size >> PAGE_SHIFT;
 +	int ret;
 +
-+	EBUG_ON(!PageUptodate(page));
++	EBUG_ON(!folio_test_uptodate(folio));
 +
-+	/* Is the page fully inside i_size? */
-+	if (page->index < end_index)
++	/* Is the folio fully inside i_size? */
++	if (folio_end_pos(folio) <= i_size)
 +		goto do_io;
 +
-+	/* Is the page fully outside i_size? (truncate in progress) */
-+	offset = i_size & (PAGE_SIZE - 1);
-+	if (page->index > end_index || !offset) {
-+		unlock_page(page);
++	/* Is the folio fully outside i_size? (truncate in progress) */
++	if (folio_pos(folio) >= i_size) {
++		folio_unlock(folio);
 +		return 0;
 +	}
 +
 +	/*
-+	 * The page straddles i_size.  It must be zeroed out on each and every
++	 * The folio straddles i_size.  It must be zeroed out on each and every
 +	 * writepage invocation because it may be mmapped.  "A file is mapped
-+	 * in multiples of the page size.  For a file that is not a multiple of
-+	 * the  page size, the remaining memory is zeroed when mapped, and
++	 * in multiples of the folio size.  For a file that is not a multiple of
++	 * the  folio size, the remaining memory is zeroed when mapped, and
 +	 * writes to that region are not written out to the file."
 +	 */
-+	zero_user_segment(page, offset, PAGE_SIZE);
++	folio_zero_segment(folio,
++			   i_size - folio_pos(folio),
++			   folio_size(folio));
 +do_io:
-+	s = bch2_page_state_create(page, __GFP_NOFAIL);
++	f_sectors = folio_sectors(folio);
++	s = bch2_folio_create(folio, __GFP_NOFAIL);
++
++	if (f_sectors > w->tmp_sectors) {
++		kfree(w->tmp);
++		w->tmp = kzalloc(sizeof(struct bch_folio_sector) *
++				 f_sectors, __GFP_NOFAIL);
++		w->tmp_sectors = f_sectors;
++	}
 +
 +	/*
 +	 * Things get really hairy with errors during writeback:
 +	 */
-+	ret = bch2_get_page_disk_reservation(c, inode, page, false);
++	ret = bch2_get_folio_disk_reservation(c, inode, folio, false);
 +	BUG_ON(ret);
 +
 +	/* Before unlocking the page, get copy of reservations: */
 +	spin_lock(&s->lock);
-+	orig = *s;
++	memcpy(w->tmp, s->s, sizeof(struct bch_folio_sector) * f_sectors);
 +	spin_unlock(&s->lock);
 +
-+	for (i = 0; i < PAGE_SECTORS; i++) {
++	for (i = 0; i < f_sectors; i++) {
 +		if (s->s[i].state < SECTOR_DIRTY)
 +			continue;
 +
@@ -51677,7 +51735,7 @@ index 000000000000..df2f317f5443
 +			      s->s[i].replicas_reserved);
 +	}
 +
-+	for (i = 0; i < PAGE_SECTORS; i++) {
++	for (i = 0; i < f_sectors; i++) {
 +		if (s->s[i].state < SECTOR_DIRTY)
 +			continue;
 +
@@ -51691,36 +51749,36 @@ index 000000000000..df2f317f5443
 +	BUG_ON(atomic_read(&s->write_count));
 +	atomic_set(&s->write_count, 1);
 +
-+	BUG_ON(PageWriteback(page));
-+	set_page_writeback(page);
++	BUG_ON(folio_test_writeback(folio));
++	folio_start_writeback(folio);
 +
-+	unlock_page(page);
++	folio_unlock(folio);
 +
 +	offset = 0;
 +	while (1) {
 +		unsigned sectors = 0, dirty_sectors = 0, reserved_sectors = 0;
 +		u64 sector;
 +
-+		while (offset < PAGE_SECTORS &&
-+		       orig.s[offset].state < SECTOR_DIRTY)
++		while (offset < f_sectors &&
++		       w->tmp[offset].state < SECTOR_DIRTY)
 +			offset++;
 +
-+		if (offset == PAGE_SECTORS)
++		if (offset == f_sectors)
 +			break;
 +
-+		while (offset + sectors < PAGE_SECTORS &&
-+		       orig.s[offset + sectors].state >= SECTOR_DIRTY) {
-+			reserved_sectors += orig.s[offset + sectors].replicas_reserved;
-+			dirty_sectors += orig.s[offset + sectors].state == SECTOR_DIRTY;
++		while (offset + sectors < f_sectors &&
++		       w->tmp[offset + sectors].state >= SECTOR_DIRTY) {
++			reserved_sectors += w->tmp[offset + sectors].replicas_reserved;
++			dirty_sectors += w->tmp[offset + sectors].state == SECTOR_DIRTY;
 +			sectors++;
 +		}
 +		BUG_ON(!sectors);
 +
-+		sector = ((u64) page->index << PAGE_SECTORS_SHIFT) + offset;
++		sector = folio_sector(folio) + offset;
 +
 +		if (w->io &&
 +		    (w->io->op.res.nr_replicas != nr_replicas_this_write ||
-+		     bio_full(&w->io->op.wbio.bio, PAGE_SIZE) ||
++		     bio_full(&w->io->op.wbio.bio, sectors << 9) ||
 +		     w->io->op.wbio.bio.bi_iter.bi_size + (sectors << 9) >=
 +		     (BIO_MAX_VECS * PAGE_SIZE) ||
 +		     bio_end_sector(&w->io->op.wbio.bio) != sector))
@@ -51733,7 +51791,7 @@ index 000000000000..df2f317f5443
 +		atomic_inc(&s->write_count);
 +
 +		BUG_ON(inode != w->io->inode);
-+		BUG_ON(!bio_add_page(&w->io->op.wbio.bio, page,
++		BUG_ON(!bio_add_folio(&w->io->op.wbio.bio, folio,
 +				     sectors << 9, offset << 9));
 +
 +		/* Check for writing past i_size: */
@@ -51753,7 +51811,7 @@ index 000000000000..df2f317f5443
 +	}
 +
 +	if (atomic_dec_and_test(&s->write_count))
-+		end_page_writeback(page);
++		folio_end_writeback(folio);
 +
 +	return 0;
 +}
@@ -51771,6 +51829,7 @@ index 000000000000..df2f317f5443
 +	if (w.io)
 +		bch2_writepage_do_io(&w);
 +	blk_finish_plug(&plug);
++	kfree(w.tmp);
 +	return bch2_err_class(ret);
 +}
 +
@@ -51782,61 +51841,65 @@ index 000000000000..df2f317f5443
 +{
 +	struct bch_inode_info *inode = to_bch_ei(mapping->host);
 +	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-+	struct bch2_page_reservation *res;
-+	pgoff_t index = pos >> PAGE_SHIFT;
-+	unsigned offset = pos & (PAGE_SIZE - 1);
-+	struct page *page;
++	struct bch2_folio_reservation *res;
++	struct folio *folio;
++	unsigned offset;
 +	int ret = -ENOMEM;
 +
 +	res = kmalloc(sizeof(*res), GFP_KERNEL);
 +	if (!res)
 +		return -ENOMEM;
 +
-+	bch2_page_reservation_init(c, inode, res);
++	bch2_folio_reservation_init(c, inode, res);
 +	*fsdata = res;
 +
 +	bch2_pagecache_add_get(inode);
 +
-+	page = grab_cache_page_write_begin(mapping, index);
-+	if (!page)
++	folio = __filemap_get_folio(mapping, pos >> PAGE_SHIFT,
++				FGP_LOCK|FGP_WRITE|FGP_CREAT|FGP_STABLE,
++				mapping_gfp_mask(mapping));
++	if (!folio)
 +		goto err_unlock;
 +
-+	if (PageUptodate(page))
++	if (folio_test_uptodate(folio))
 +		goto out;
 +
-+	/* If we're writing entire page, don't need to read it in first: */
-+	if (len == PAGE_SIZE)
++	offset = pos - folio_pos(folio);
++	len = min_t(size_t, len, folio_end_pos(folio) - pos);
++
++	/* If we're writing entire folio, don't need to read it in first: */
++	if (!offset && len == folio_size(folio))
 +		goto out;
 +
 +	if (!offset && pos + len >= inode->v.i_size) {
-+		zero_user_segment(page, len, PAGE_SIZE);
-+		flush_dcache_page(page);
++		folio_zero_segment(folio, len, folio_size(folio));
++		flush_dcache_folio(folio);
 +		goto out;
 +	}
 +
-+	if (index > inode->v.i_size >> PAGE_SHIFT) {
-+		zero_user_segments(page, 0, offset, offset + len, PAGE_SIZE);
-+		flush_dcache_page(page);
++	if (folio_pos(folio) >= inode->v.i_size) {
++		folio_zero_segments(folio, 0, offset, offset + len, folio_size(folio));
++		flush_dcache_folio(folio);
 +		goto out;
 +	}
 +readpage:
-+	ret = bch2_read_single_page(page, mapping);
++	ret = bch2_read_single_folio(folio, mapping);
 +	if (ret)
 +		goto err;
 +out:
-+	if (!bch2_page_state_create(page, __GFP_NOFAIL)->uptodate) {
-+		ret = bch2_page_state_set(c, inode_inum(inode), &page, 1);
++	if (!bch2_folio_create(folio, __GFP_NOFAIL)->uptodate) {
++		ret = bch2_folio_set(c, inode_inum(inode), &folio, 1);
 +		if (ret)
 +			goto err;
 +	}
 +
-+	ret = bch2_page_reservation_get(c, inode, page, res, offset, len);
++	ret = bch2_folio_reservation_get(c, inode, folio, res, offset, len);
 +	if (ret) {
-+		if (!PageUptodate(page)) {
++		if (!folio_test_uptodate(folio)) {
 +			/*
-+			 * If the page hasn't been read in, we won't know if we
++			 * If the folio hasn't been read in, we won't know if we
 +			 * actually need a reservation - we don't actually need
-+			 * to read here, we just need to check if the page is
++			 * to read here, we just need to check if the folio is
 +			 * fully backed by uncompressed data:
 +			 */
 +			goto readpage;
@@ -51845,11 +51908,11 @@ index 000000000000..df2f317f5443
 +		goto err;
 +	}
 +
-+	*pagep = page;
++	*pagep = &folio->page;
 +	return 0;
 +err:
-+	unlock_page(page);
-+	put_page(page);
++	folio_unlock(folio);
++	folio_put(folio);
 +	*pagep = NULL;
 +err_unlock:
 +	bch2_pagecache_add_put(inode);
@@ -51864,19 +51927,21 @@ index 000000000000..df2f317f5443
 +{
 +	struct bch_inode_info *inode = to_bch_ei(mapping->host);
 +	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-+	struct bch2_page_reservation *res = fsdata;
-+	unsigned offset = pos & (PAGE_SIZE - 1);
++	struct bch2_folio_reservation *res = fsdata;
++	struct folio *folio = page_folio(page);
++	unsigned offset = pos - folio_pos(folio);
 +
 +	lockdep_assert_held(&inode->v.i_rwsem);
++	BUG_ON(offset + copied > folio_size(folio));
 +
-+	if (unlikely(copied < len && !PageUptodate(page))) {
++	if (unlikely(copied < len && !folio_test_uptodate(folio))) {
 +		/*
-+		 * The page needs to be read in, but that would destroy
++		 * The folio needs to be read in, but that would destroy
 +		 * our partial write - simplest thing is to just force
 +		 * userspace to redo the write:
 +		 */
-+		zero_user(page, 0, PAGE_SIZE);
-+		flush_dcache_page(page);
++		folio_zero_range(folio, 0, folio_size(folio));
++		flush_dcache_folio(folio);
 +		copied = 0;
 +	}
 +
@@ -51886,25 +51951,35 @@ index 000000000000..df2f317f5443
 +	spin_unlock(&inode->v.i_lock);
 +
 +	if (copied) {
-+		if (!PageUptodate(page))
-+			SetPageUptodate(page);
++		if (!folio_test_uptodate(folio))
++			folio_mark_uptodate(folio);
 +
-+		bch2_set_page_dirty(c, inode, page, res, offset, copied);
++		bch2_set_folio_dirty(c, inode, folio, res, offset, copied);
 +
 +		inode->ei_last_dirtied = (unsigned long) current;
 +	}
 +
-+	unlock_page(page);
-+	put_page(page);
++	folio_unlock(folio);
++	folio_put(folio);
 +	bch2_pagecache_add_put(inode);
 +
-+	bch2_page_reservation_put(c, inode, res);
++	bch2_folio_reservation_put(c, inode, res);
 +	kfree(res);
 +
 +	return copied;
 +}
 +
-+#define WRITE_BATCH_PAGES	32
++typedef DARRAY(struct folio *) folios;
++
++static noinline void folios_trunc(folios *folios, struct folio **fi)
++{
++	while (folios->data + folios->nr > fi) {
++		struct folio *f = darray_pop(folios);
++
++		folio_unlock(f);
++		folio_put(f);
++	}
++}
 +
 +static int __bch2_buffered_write(struct bch_inode_info *inode,
 +				 struct address_space *mapping,
@@ -51912,61 +51987,73 @@ index 000000000000..df2f317f5443
 +				 loff_t pos, unsigned len)
 +{
 +	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-+	struct page *pages[WRITE_BATCH_PAGES];
-+	struct bch2_page_reservation res;
-+	unsigned long index = pos >> PAGE_SHIFT;
-+	unsigned offset = pos & (PAGE_SIZE - 1);
-+	unsigned nr_pages = DIV_ROUND_UP(offset + len, PAGE_SIZE);
-+	unsigned i, reserved = 0, set_dirty = 0;
-+	unsigned copied = 0, nr_pages_copied = 0;
++	struct bch2_folio_reservation res;
++	folios folios;
++	struct folio **fi, *f;
++	unsigned copied = 0, f_offset;
++	loff_t end = pos + len, f_pos;
 +	int ret = 0;
 +
 +	BUG_ON(!len);
-+	BUG_ON(nr_pages > ARRAY_SIZE(pages));
 +
-+	bch2_page_reservation_init(c, inode, &res);
++	bch2_folio_reservation_init(c, inode, &res);
++	darray_init(&folios);
 +
-+	for (i = 0; i < nr_pages; i++) {
-+		pages[i] = grab_cache_page_write_begin(mapping, index + i);
-+		if (!pages[i]) {
-+			nr_pages = i;
-+			if (!i) {
-+				ret = -ENOMEM;
-+				goto out;
-+			}
-+			len = min_t(unsigned, len,
-+				    nr_pages * PAGE_SIZE - offset);
++	f_pos = pos;
++	while (f_pos < end) {
++		unsigned fgp_flags = FGP_LOCK|FGP_WRITE|FGP_STABLE;
++
++		if ((u64) f_pos < (u64) pos + (1U << 20))
++			fgp_flags |= FGP_CREAT;
++
++		if (darray_make_room_gfp(&folios, 1,
++				mapping_gfp_mask(mapping) & GFP_KERNEL))
 +			break;
-+		}
++
++		f = __filemap_get_folio(mapping, f_pos >> PAGE_SHIFT,
++					fgp_flags, mapping_gfp_mask(mapping));
++		if (!f)
++			break;
++
++		BUG_ON(folios.nr && folio_pos(f) != f_pos);
++
++		f_pos = folio_end_pos(f);
++		darray_push(&folios, f);
 +	}
 +
-+	if (offset && !PageUptodate(pages[0])) {
-+		ret = bch2_read_single_page(pages[0], mapping);
++	end = min(end, f_pos);
++	if (end == pos) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	f = darray_first(folios);
++	if (pos != folio_pos(f) && !folio_test_uptodate(f)) {
++		ret = bch2_read_single_folio(f, mapping);
 +		if (ret)
 +			goto out;
 +	}
 +
-+	if ((pos + len) & (PAGE_SIZE - 1) &&
-+	    !PageUptodate(pages[nr_pages - 1])) {
-+		if ((index + nr_pages - 1) << PAGE_SHIFT >= inode->v.i_size) {
-+			zero_user(pages[nr_pages - 1], 0, PAGE_SIZE);
++	f = darray_last(folios);
++	if (end != folio_end_pos(f) && !folio_test_uptodate(f)) {
++		if (end >= inode->v.i_size) {
++			folio_zero_range(f, 0, folio_size(f));
 +		} else {
-+			ret = bch2_read_single_page(pages[nr_pages - 1], mapping);
++			ret = bch2_read_single_folio(f, mapping);
 +			if (ret)
 +				goto out;
 +		}
 +	}
 +
-+	while (reserved < len) {
-+		unsigned i = (offset + reserved) >> PAGE_SHIFT;
-+		struct page *page = pages[i];
-+		unsigned pg_offset = (offset + reserved) & (PAGE_SIZE - 1);
-+		unsigned pg_len = min_t(unsigned, len - reserved,
-+					PAGE_SIZE - pg_offset);
++	f_pos = pos;
++	f_offset = pos - folio_pos(darray_first(folios));
++	darray_for_each(folios, fi) {
++		struct folio *f = *fi;
++		unsigned f_len = min(end, folio_end_pos(f)) - f_pos;
 +
-+		if (!bch2_page_state_create(page, __GFP_NOFAIL)->uptodate) {
-+			ret = bch2_page_state_set(c, inode_inum(inode),
-+						  pages + i, nr_pages - i);
++		if (!bch2_folio_create(f, __GFP_NOFAIL)->uptodate) {
++			ret = bch2_folio_set(c, inode_inum(inode), fi,
++					     folios.data + folios.nr - fi);
 +			if (ret)
 +				goto out;
 +		}
@@ -51979,79 +52066,90 @@ index 000000000000..df2f317f5443
 +		 * we aren't completely out of disk space - we don't do that
 +		 * yet:
 +		 */
-+		ret = bch2_page_reservation_get(c, inode, page, &res,
-+						pg_offset, pg_len);
++		ret = bch2_folio_reservation_get(c, inode, f, &res, f_offset, f_len);
 +		if (unlikely(ret)) {
-+			if (!reserved)
++			folios_trunc(&folios, fi);
++			if (!folios.nr)
 +				goto out;
++
++			end = min(end, folio_end_pos(darray_last(folios)));
 +			break;
 +		}
 +
-+		reserved += pg_len;
++		f_pos = folio_end_pos(f);
++		f_offset = 0;
 +	}
 +
 +	if (mapping_writably_mapped(mapping))
-+		for (i = 0; i < nr_pages; i++)
-+			flush_dcache_page(pages[i]);
++		darray_for_each(folios, fi)
++			flush_dcache_folio(*fi);
 +
-+	while (copied < reserved) {
-+		struct page *page = pages[(offset + copied) >> PAGE_SHIFT];
-+		unsigned pg_offset = (offset + copied) & (PAGE_SIZE - 1);
-+		unsigned pg_len = min_t(unsigned, reserved - copied,
-+					PAGE_SIZE - pg_offset);
-+		unsigned pg_copied = copy_page_from_iter_atomic(page,
-+						pg_offset, pg_len, iter);
++	f_pos = pos;
++	f_offset = pos - folio_pos(darray_first(folios));
++	darray_for_each(folios, fi) {
++		struct folio *f = *fi;
++		unsigned f_len = min(end, folio_end_pos(f)) - f_pos;
++		unsigned f_copied = copy_folio_from_iter_atomic(f, f_offset, f_len, iter);
 +
-+		if (!pg_copied)
-+			break;
-+
-+		if (!PageUptodate(page) &&
-+		    pg_copied != PAGE_SIZE &&
-+		    pos + copied + pg_copied < inode->v.i_size) {
-+			zero_user(page, 0, PAGE_SIZE);
++		if (!f_copied) {
++			folios_trunc(&folios, fi);
 +			break;
 +		}
 +
-+		flush_dcache_page(page);
-+		copied += pg_copied;
-+
-+		if (pg_copied != pg_len)
++		if (!folio_test_uptodate(f) &&
++		    f_copied != folio_size(f) &&
++		    pos + copied + f_copied < inode->v.i_size) {
++			folio_zero_range(f, 0, folio_size(f));
++			folios_trunc(&folios, fi);
 +			break;
++		}
++
++		flush_dcache_folio(f);
++		copied += f_copied;
++
++		if (f_copied != f_len) {
++			folios_trunc(&folios, fi + 1);
++			break;
++		}
++
++		f_pos = folio_end_pos(f);
++		f_offset = 0;
 +	}
 +
 +	if (!copied)
 +		goto out;
 +
++	end = pos + copied;
++
 +	spin_lock(&inode->v.i_lock);
-+	if (pos + copied > inode->v.i_size)
-+		i_size_write(&inode->v, pos + copied);
++	if (end > inode->v.i_size)
++		i_size_write(&inode->v, end);
 +	spin_unlock(&inode->v.i_lock);
 +
-+	while (set_dirty < copied) {
-+		struct page *page = pages[(offset + set_dirty) >> PAGE_SHIFT];
-+		unsigned pg_offset = (offset + set_dirty) & (PAGE_SIZE - 1);
-+		unsigned pg_len = min_t(unsigned, copied - set_dirty,
-+					PAGE_SIZE - pg_offset);
++	f_pos = pos;
++	f_offset = pos - folio_pos(darray_first(folios));
++	darray_for_each(folios, fi) {
++		struct folio *f = *fi;
++		unsigned f_len = min(end, folio_end_pos(f)) - f_pos;
 +
-+		if (!PageUptodate(page))
-+			SetPageUptodate(page);
++		if (!folio_test_uptodate(f))
++			folio_mark_uptodate(f);
 +
-+		bch2_set_page_dirty(c, inode, page, &res, pg_offset, pg_len);
-+		unlock_page(page);
-+		put_page(page);
++		bch2_set_folio_dirty(c, inode, f, &res, f_offset, f_len);
 +
-+		set_dirty += pg_len;
++		f_pos = folio_end_pos(f);
++		f_offset = 0;
 +	}
 +
-+	nr_pages_copied = DIV_ROUND_UP(offset + copied, PAGE_SIZE);
 +	inode->ei_last_dirtied = (unsigned long) current;
 +out:
-+	for (i = nr_pages_copied; i < nr_pages; i++) {
-+		unlock_page(pages[i]);
-+		put_page(pages[i]);
++	darray_for_each(folios, fi) {
++		folio_unlock(*fi);
++		folio_put(*fi);
 +	}
 +
-+	bch2_page_reservation_put(c, inode, &res);
++	darray_exit(&folios);
++	bch2_folio_reservation_put(c, inode, &res);
 +
 +	return copied ?: ret;
 +}
@@ -52069,8 +52167,7 @@ index 000000000000..df2f317f5443
 +
 +	do {
 +		unsigned offset = pos & (PAGE_SIZE - 1);
-+		unsigned bytes = min_t(unsigned long, iov_iter_count(iter),
-+			      PAGE_SIZE * WRITE_BATCH_PAGES - offset);
++		unsigned bytes = iov_iter_count(iter);
 +again:
 +		/*
 +		 * Bring in the user page that we will copy from _first_.
@@ -52472,8 +52569,6 @@ index 000000000000..df2f317f5443
 +	struct kiocb *req = dio->req;
 +	struct bch_inode_info *inode = dio->inode;
 +	struct bio *bio = &dio->op.wbio.bio;
-+	struct bvec_iter_all iter;
-+	struct bio_vec *bv;
 +
 +	req->ki_pos	+= (u64) dio->op.written << 9;
 +	dio->written	+= dio->op.written;
@@ -52492,9 +52587,12 @@ index 000000000000..df2f317f5443
 +		mutex_unlock(&inode->ei_quota_lock);
 +	}
 +
-+	if (likely(!bio_flagged(bio, BIO_NO_PAGE_REF)))
-+		bio_for_each_segment_all(bv, bio, iter)
-+			put_page(bv->bv_page);
++	if (likely(!bio_flagged(bio, BIO_NO_PAGE_REF))) {
++		struct folio_iter fi;
++
++		bio_for_each_folio_all(fi, bio)
++			folio_put(fi.folio);
++	}
 +
 +	if (unlikely(dio->op.error))
 +		set_bit(EI_INODE_ERROR, &inode->ei_flags);
@@ -52614,11 +52712,10 @@ index 000000000000..df2f317f5443
 +	dio->op.error = ret;
 +
 +	if (!bio_flagged(bio, BIO_NO_PAGE_REF)) {
-+		struct bvec_iter_all iter;
-+		struct bio_vec *bv;
++		struct folio_iter fi;
 +
-+		bio_for_each_segment_all(bv, bio, iter)
-+			put_page(bv->bv_page);
++		bio_for_each_folio_all(fi, bio)
++			folio_put(fi.folio);
 +	}
 +
 +	bch2_quota_reservation_put(c, inode, &dio->quota_res);
@@ -52843,33 +52940,24 @@ index 000000000000..df2f317f5443
 +	return ret;
 +}
 +
-+static int __bch2_truncate_page(struct bch_inode_info *inode,
-+				pgoff_t index, loff_t start, loff_t end)
++static int __bch2_truncate_folio(struct bch_inode_info *inode,
++				 pgoff_t index, loff_t start, loff_t end)
 +{
 +	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 +	struct address_space *mapping = inode->v.i_mapping;
-+	struct bch_page_state *s;
++	struct bch_folio *s;
 +	unsigned start_offset = start & (PAGE_SIZE - 1);
 +	unsigned end_offset = ((end - 1) & (PAGE_SIZE - 1)) + 1;
 +	unsigned i;
-+	struct page *page;
++	struct folio *folio;
 +	s64 i_sectors_delta = 0;
 +	int ret = 0;
 +
-+	/* Page boundary? Nothing to do */
-+	if (!((index == start >> PAGE_SHIFT && start_offset) ||
-+	      (index == end >> PAGE_SHIFT && end_offset != PAGE_SIZE)))
-+		return 0;
-+
-+	/* Above i_size? */
-+	if (index << PAGE_SHIFT >= inode->v.i_size)
-+		return 0;
-+
-+	page = find_lock_page(mapping, index);
-+	if (!page) {
++	folio = filemap_lock_folio(mapping, index);
++	if (!folio) {
 +		/*
 +		 * XXX: we're doing two index lookups when we end up reading the
-+		 * page
++		 * folio
 +		 */
 +		ret = range_has_data(c, inode->ei_subvol,
 +				POS(inode->v.i_ino, (index << PAGE_SECTORS_SHIFT)),
@@ -52877,29 +52965,38 @@ index 000000000000..df2f317f5443
 +		if (ret <= 0)
 +			return ret;
 +
-+		page = find_or_create_page(mapping, index, GFP_KERNEL);
-+		if (unlikely(!page)) {
++		folio = __filemap_get_folio(mapping, index,
++					    FGP_LOCK|FGP_CREAT, GFP_KERNEL);
++		if (unlikely(!folio)) {
 +			ret = -ENOMEM;
 +			goto out;
 +		}
 +	}
 +
-+	s = bch2_page_state_create(page, 0);
++	BUG_ON(start	>= folio_end_pos(folio));
++	BUG_ON(end	<= folio_pos(folio));
++
++	start_offset	= max(start, folio_pos(folio)) - folio_pos(folio);
++	end_offset	= min(end, folio_end_pos(folio)) - folio_pos(folio);
++
++	/* Folio boundary? Nothing to do */
++	if (start_offset == 0 &&
++	    end_offset == folio_size(folio)) {
++		ret = 0;
++		goto unlock;
++	}
++
++	s = bch2_folio_create(folio, 0);
 +	if (!s) {
 +		ret = -ENOMEM;
 +		goto unlock;
 +	}
 +
-+	if (!PageUptodate(page)) {
-+		ret = bch2_read_single_page(page, mapping);
++	if (!folio_test_uptodate(folio)) {
++		ret = bch2_read_single_folio(folio, mapping);
 +		if (ret)
 +			goto unlock;
 +	}
-+
-+	if (index != start >> PAGE_SHIFT)
-+		start_offset = 0;
-+	if (index != end >> PAGE_SHIFT)
-+		end_offset = PAGE_SIZE;
 +
 +	for (i = round_up(start_offset, block_bytes(c)) >> 9;
 +	     i < round_down(end_offset, block_bytes(c)) >> 9;
@@ -52913,54 +53010,54 @@ index 000000000000..df2f317f5443
 +	i_sectors_acct(c, inode, NULL, i_sectors_delta);
 +
 +	/*
-+	 * Caller needs to know whether this page will be written out by
++	 * Caller needs to know whether this folio will be written out by
 +	 * writeback - doing an i_size update if necessary - or whether it will
 +	 * be responsible for the i_size update:
 +	 */
-+	ret = s->s[(min_t(u64, inode->v.i_size - (index << PAGE_SHIFT),
-+			  PAGE_SIZE) - 1) >> 9].state >= SECTOR_DIRTY;
++	ret = s->s[(min(inode->v.i_size, folio_end_pos(folio)) -
++		    folio_pos(folio) - 1) >> 9].state >= SECTOR_DIRTY;
 +
-+	zero_user_segment(page, start_offset, end_offset);
++	folio_zero_segment(folio, start_offset, end_offset);
 +
 +	/*
 +	 * Bit of a hack - we don't want truncate to fail due to -ENOSPC.
 +	 *
-+	 * XXX: because we aren't currently tracking whether the page has actual
++	 * XXX: because we aren't currently tracking whether the folio has actual
 +	 * data in it (vs. just 0s, or only partially written) this wrong. ick.
 +	 */
-+	BUG_ON(bch2_get_page_disk_reservation(c, inode, page, false));
++	BUG_ON(bch2_get_folio_disk_reservation(c, inode, folio, false));
 +
 +	/*
 +	 * This removes any writeable userspace mappings; we need to force
 +	 * .page_mkwrite to be called again before any mmapped writes, to
 +	 * redirty the full page:
 +	 */
-+	page_mkclean(page);
-+	filemap_dirty_folio(mapping, page_folio(page));
++	folio_mkclean(folio);
++	filemap_dirty_folio(mapping, folio);
 +unlock:
-+	unlock_page(page);
-+	put_page(page);
++	folio_unlock(folio);
++	folio_put(folio);
 +out:
 +	return ret;
 +}
 +
-+static int bch2_truncate_page(struct bch_inode_info *inode, loff_t from)
++static int bch2_truncate_folio(struct bch_inode_info *inode, loff_t from)
 +{
-+	return __bch2_truncate_page(inode, from >> PAGE_SHIFT,
-+				    from, round_up(from, PAGE_SIZE));
++	return __bch2_truncate_folio(inode, from >> PAGE_SHIFT,
++				     from, ANYSINT_MAX(loff_t));
 +}
 +
-+static int bch2_truncate_pages(struct bch_inode_info *inode,
-+			       loff_t start, loff_t end)
++static int bch2_truncate_folios(struct bch_inode_info *inode,
++				loff_t start, loff_t end)
 +{
-+	int ret = __bch2_truncate_page(inode, start >> PAGE_SHIFT,
-+				       start, end);
++	int ret = __bch2_truncate_folio(inode, start >> PAGE_SHIFT,
++					start, end);
 +
 +	if (ret >= 0 &&
 +	    start >> PAGE_SHIFT != end >> PAGE_SHIFT)
-+		ret = __bch2_truncate_page(inode,
-+					   end >> PAGE_SHIFT,
-+					   start, end);
++		ret = __bch2_truncate_folio(inode,
++					(end - 1) >> PAGE_SHIFT,
++					start, end);
 +	return ret;
 +}
 +
@@ -53055,7 +53152,7 @@ index 000000000000..df2f317f5443
 +
 +	iattr->ia_valid &= ~ATTR_SIZE;
 +
-+	ret = bch2_truncate_page(inode, iattr->ia_size);
++	ret = bch2_truncate_folio(inode, iattr->ia_size);
 +	if (unlikely(ret < 0))
 +		goto err;
 +
@@ -53133,7 +53230,7 @@ index 000000000000..df2f317f5443
 +	bool truncated_last_page;
 +	int ret = 0;
 +
-+	ret = bch2_truncate_pages(inode, offset, end);
++	ret = bch2_truncate_folios(inode, offset, end);
 +	if (unlikely(ret < 0))
 +		goto err;
 +
@@ -53454,7 +53551,7 @@ index 000000000000..df2f317f5443
 +	}
 +
 +	if (mode & FALLOC_FL_ZERO_RANGE) {
-+		ret = bch2_truncate_pages(inode, offset, end);
++		ret = bch2_truncate_folios(inode, offset, end);
 +		if (unlikely(ret < 0))
 +			return ret;
 +
@@ -53671,11 +53768,11 @@ index 000000000000..df2f317f5443
 +
 +static int folio_data_offset(struct folio *folio, unsigned offset)
 +{
-+	struct bch_page_state *s = bch2_page_state(&folio->page);
-+	unsigned i;
++	struct bch_folio *s = bch2_folio(folio);
++	unsigned i, sectors = folio_sectors(folio);
 +
 +	if (s)
-+		for (i = offset >> 9; i < PAGE_SECTORS; i++)
++		for (i = offset >> 9; i < sectors; i++)
 +			if (s->s[i].state >= SECTOR_DIRTY)
 +				return i << 9;
 +
@@ -53703,12 +53800,10 @@ index 000000000000..df2f317f5443
 +
 +			folio_lock(folio);
 +			offset = folio_data_offset(folio,
-+					folio->index == start_index
-+					? start_offset & (PAGE_SIZE - 1)
-+					: 0);
++					max(folio_pos(folio), start_offset) -
++					folio_pos(folio));
 +			if (offset >= 0) {
-+				ret = clamp(((loff_t) folio->index << PAGE_SHIFT) +
-+					    offset,
++				ret = clamp(folio_pos(folio) + offset,
 +					    start_offset, end_offset);
 +				folio_unlock(folio);
 +				folio_batch_release(&fbatch);
@@ -53776,38 +53871,34 @@ index 000000000000..df2f317f5443
 +	return vfs_setpos(file, next_data, MAX_LFS_FILESIZE);
 +}
 +
-+static int __page_hole_offset(struct page *page, unsigned offset)
++static bool folio_hole_offset(struct address_space *mapping, loff_t *offset)
 +{
-+	struct bch_page_state *s = bch2_page_state(page);
-+	unsigned i;
++	struct folio *folio;
++	struct bch_folio *s;
++	unsigned i, sectors, f_offset;
++	bool ret = true;
 +
++	folio = filemap_lock_folio(mapping, *offset >> PAGE_SHIFT);
++	if (!folio)
++		return true;
++
++	s = bch2_folio(folio);
 +	if (!s)
-+		return 0;
++		goto unlock;
 +
-+	for (i = offset >> 9; i < PAGE_SECTORS; i++)
-+		if (s->s[i].state < SECTOR_DIRTY)
-+			return i << 9;
++	sectors = folio_sectors(folio);
++	f_offset = *offset - folio_pos(folio);
 +
-+	return -1;
-+}
++	for (i = f_offset >> 9; i < sectors; i++)
++		if (s->s[i].state < SECTOR_DIRTY) {
++			*offset = max(*offset, folio_pos(folio) + (i << 9));
++			goto unlock;
++		}
 +
-+static loff_t page_hole_offset(struct address_space *mapping, loff_t offset)
-+{
-+	pgoff_t index = offset >> PAGE_SHIFT;
-+	struct page *page;
-+	int pg_offset;
-+	loff_t ret = -1;
-+
-+	page = find_lock_page(mapping, index);
-+	if (!page)
-+		return offset;
-+
-+	pg_offset = __page_hole_offset(page, offset & (PAGE_SIZE - 1));
-+	if (pg_offset >= 0)
-+		ret = ((loff_t) index << PAGE_SHIFT) + pg_offset;
-+
-+	unlock_page(page);
-+
++	*offset = folio_end_pos(folio);
++	ret = false;
++unlock:
++	folio_unlock(folio);
 +	return ret;
 +}
 +
@@ -53816,18 +53907,13 @@ index 000000000000..df2f317f5443
 +				       loff_t end_offset)
 +{
 +	struct address_space *mapping = vinode->i_mapping;
-+	loff_t offset = start_offset, hole;
++	loff_t offset = start_offset;
 +
-+	while (offset < end_offset) {
-+		hole = page_hole_offset(mapping, offset);
-+		if (hole >= 0 && hole <= end_offset)
-+			return max(start_offset, hole);
++	while (offset < end_offset &&
++	       !folio_hole_offset(mapping, &offset))
++		;
 +
-+		offset += PAGE_SIZE;
-+		offset &= PAGE_MASK;
-+	}
-+
-+	return end_offset;
++	return min(offset, end_offset);
 +}
 +
 +static loff_t bch2_seek_hole(struct file *file, u64 offset)
@@ -54011,10 +54097,10 @@ index 000000000000..a8835298613a
 +#endif /* _BCACHEFS_FS_IO_H */
 diff --git a/fs/bcachefs/fs-ioctl.c b/fs/bcachefs/fs-ioctl.c
 new file mode 100644
-index 000000000000..2bb680827b44
+index 000000000000..571b4dca4d39
 --- /dev/null
 +++ b/fs/bcachefs/fs-ioctl.c
-@@ -0,0 +1,555 @@
+@@ -0,0 +1,556 @@
 +// SPDX-License-Identifier: GPL-2.0
 +#ifndef NO_BCACHEFS_FS
 +
@@ -54468,19 +54554,20 @@ index 000000000000..2bb680827b44
 +		return ret;
 +
 +	if (path.dentry->d_sb->s_fs_info != c) {
-+		path_put(&path);
-+		return -EXDEV;
++		ret = -EXDEV;
++		goto err;
 +	}
 +
 +	dir = path.dentry->d_parent->d_inode;
 +
 +	ret = __bch2_unlink(dir, path.dentry, true);
-+	if (!ret) {
-+		fsnotify_rmdir(dir, path.dentry);
-+		d_delete(path.dentry);
-+	}
-+	path_put(&path);
++	if (ret)
++		goto err;
 +
++	fsnotify_rmdir(dir, path.dentry);
++	d_delete(path.dentry);
++err:
++	path_put(&path);
 +	return ret;
 +}
 +
@@ -54659,10 +54746,10 @@ index 000000000000..f201980ef2c3
 +#endif /* _BCACHEFS_FS_IOCTL_H */
 diff --git a/fs/bcachefs/fs.c b/fs/bcachefs/fs.c
 new file mode 100644
-index 000000000000..95429092b79f
+index 000000000000..5b8f752c2b86
 --- /dev/null
 +++ b/fs/bcachefs/fs.c
-@@ -0,0 +1,1918 @@
+@@ -0,0 +1,1945 @@
 +// SPDX-License-Identifier: GPL-2.0
 +#ifndef NO_BCACHEFS_FS
 +
@@ -54770,6 +54857,11 @@ index 000000000000..95429092b79f
 +	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 +		goto retry;
 +
++	bch2_fs_fatal_err_on(ret == -ENOENT, c,
++			     "inode %u:%llu not found when updating",
++			     inode_inum(inode).subvol,
++			     inode_inum(inode).inum);
++
 +	bch2_trans_exit(&trans);
 +	return ret < 0 ? ret : 0;
 +}
@@ -54865,6 +54957,10 @@ index 000000000000..95429092b79f
 +		iget_failed(&inode->v);
 +		return ERR_PTR(ret);
 +	}
++
++	mutex_lock(&c->vfs_inodes_lock);
++	list_add(&inode->ei_vfs_inode_list, &c->vfs_inodes_list);
++	mutex_unlock(&c->vfs_inodes_lock);
 +
 +	unlock_new_inode(&inode->v);
 +
@@ -54979,6 +55075,9 @@ index 000000000000..95429092b79f
 +
 +		inode = old;
 +	} else {
++		mutex_lock(&c->vfs_inodes_lock);
++		list_add(&inode->ei_vfs_inode_list, &c->vfs_inodes_list);
++		mutex_unlock(&c->vfs_inodes_lock);
 +		/*
 +		 * we really don't want insert_inode_locked2() to be setting
 +		 * I_NEW...
@@ -55107,19 +55206,27 @@ index 000000000000..95429092b79f
 +	bch2_trans_init(&trans, c, 4, 1024);
 +
 +	ret = commit_do(&trans, NULL, NULL,
-+			      BTREE_INSERT_NOFAIL,
-+			bch2_unlink_trans(&trans,
-+					  inode_inum(dir), &dir_u,
-+					  &inode_u, &dentry->d_name,
-+					  deleting_snapshot));
++			BTREE_INSERT_NOFAIL,
++		bch2_unlink_trans(&trans,
++				  inode_inum(dir), &dir_u,
++				  &inode_u, &dentry->d_name,
++				  deleting_snapshot));
++	if (unlikely(ret))
++		goto err;
 +
-+	if (likely(!ret)) {
-+		bch2_inode_update_after_write(&trans, dir, &dir_u,
-+					      ATTR_MTIME|ATTR_CTIME);
-+		bch2_inode_update_after_write(&trans, inode, &inode_u,
-+					      ATTR_MTIME);
++	bch2_inode_update_after_write(&trans, dir, &dir_u,
++				      ATTR_MTIME|ATTR_CTIME);
++	bch2_inode_update_after_write(&trans, inode, &inode_u,
++				      ATTR_MTIME);
++
++	if (inode_u.bi_subvol) {
++		/*
++		 * Subvolume deletion is asynchronous, but we still want to tell
++		 * the VFS that it's been deleted here:
++		 */
++		set_nlink(&inode->v, 0);
 +	}
-+
++err:
 +	bch2_trans_exit(&trans);
 +	bch2_unlock_inodes(INODE_UPDATE_LOCK, dir, inode);
 +
@@ -56014,6 +56121,8 @@ index 000000000000..95429092b79f
 +		inode->v.i_op	= &bch_special_inode_operations;
 +		break;
 +	}
++
++	mapping_set_large_folios(inode->v.i_mapping);
 +}
 +
 +static struct inode *bch2_alloc_inode(struct super_block *sb)
@@ -56027,6 +56136,7 @@ index 000000000000..95429092b79f
 +	inode_init_once(&inode->v);
 +	mutex_init(&inode->ei_update_lock);
 +	two_state_lock_init(&inode->ei_pagecache_lock);
++	INIT_LIST_HEAD(&inode->ei_vfs_inode_list);
 +	mutex_init(&inode->ei_quota_lock);
 +
 +	return &inode->v;
@@ -56091,13 +56201,16 @@ index 000000000000..95429092b79f
 +				KEY_TYPE_QUOTA_WARN);
 +		bch2_inode_rm(c, inode_inum(inode));
 +	}
++
++	mutex_lock(&c->vfs_inodes_lock);
++	list_del_init(&inode->ei_vfs_inode_list);
++	mutex_unlock(&c->vfs_inodes_lock);
 +}
 +
 +void bch2_evict_subvolume_inodes(struct bch_fs *c, snapshot_id_list *s)
 +{
-+	struct super_block *sb = c->vfs_sb;
-+	struct inode *inode, **i;
-+	DARRAY(struct inode *) grabbed;
++	struct bch_inode_info *inode, **i;
++	DARRAY(struct bch_inode_info *) grabbed;
 +	bool clean_pass = false, this_pass_clean;
 +
 +	/*
@@ -56114,17 +56227,17 @@ index 000000000000..95429092b79f
 +	cond_resched();
 +	this_pass_clean = true;
 +
-+	spin_lock(&sb->s_inode_list_lock);
-+	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
-+		if ((inode->i_state & I_FREEING) ||
-+		    !snapshot_list_has_id(s, to_bch_ei(inode)->ei_subvol))
++	mutex_lock(&c->vfs_inodes_lock);
++	list_for_each_entry(inode, &c->vfs_inodes_list, ei_vfs_inode_list) {
++		if (!snapshot_list_has_id(s, inode->ei_subvol))
 +			continue;
 +
-+		if (!(inode->i_state & I_DONTCACHE)) {
++		if (!(inode->v.i_state & I_DONTCACHE) &&
++		    !(inode->v.i_state & I_FREEING)) {
 +			this_pass_clean = false;
 +
-+			d_mark_dontcache(inode);
-+			d_prune_aliases(inode);
++			d_mark_dontcache(&inode->v);
++			d_prune_aliases(&inode->v);
 +
 +			/*
 +			 * If i_count was zero, we have to take and release a
@@ -56132,32 +56245,33 @@ index 000000000000..95429092b79f
 +			 * inode to be dropped;
 +			 */
 +
-+			if (!atomic_read(&inode->i_count) &&
-+			    igrab(inode) &&
++			if (!atomic_read(&inode->v.i_count) &&
++			    igrab(&inode->v) &&
 +			    darray_push_gfp(&grabbed, inode, GFP_ATOMIC|__GFP_NOWARN))
 +				break;
 +		} else if (clean_pass && this_pass_clean) {
-+			wait_queue_head_t *wq = bit_waitqueue(&inode->i_state, __I_NEW);
-+			DEFINE_WAIT_BIT(wait, &inode->i_state, __I_NEW);
++			wait_queue_head_t *wq = bit_waitqueue(&inode->v.i_state, __I_NEW);
++			DEFINE_WAIT_BIT(wait, &inode->v.i_state, __I_NEW);
 +
 +			prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
-+			spin_unlock(&inode->i_lock);
-+			spin_unlock(&sb->s_inode_list_lock);
++			spin_unlock(&inode->v.i_lock);
++			mutex_unlock(&c->vfs_inodes_lock);
 +
 +			schedule();
 +			finish_wait(wq, &wait.wq_entry);
 +			goto again;
 +		}
 +	}
-+	spin_unlock(&sb->s_inode_list_lock);
++	mutex_unlock(&c->vfs_inodes_lock);
 +
 +	darray_for_each(grabbed, i)
-+		iput(*i);
++		iput(&(*i)->v);
 +	grabbed.nr = 0;
 +
-+	clean_pass = this_pass_clean;
-+	if (!clean_pass)
++	if (!clean_pass || !this_pass_clean) {
++		clean_pass = this_pass_clean;
 +		goto again;
++	}
 +
 +	darray_exit(&grabbed);
 +}
@@ -56583,10 +56697,10 @@ index 000000000000..95429092b79f
 +#endif /* NO_BCACHEFS_FS */
 diff --git a/fs/bcachefs/fs.h b/fs/bcachefs/fs.h
 new file mode 100644
-index 000000000000..783e77c321f9
+index 000000000000..cf0413534182
 --- /dev/null
 +++ b/fs/bcachefs/fs.h
-@@ -0,0 +1,205 @@
+@@ -0,0 +1,206 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +#ifndef _BCACHEFS_FS_H
 +#define _BCACHEFS_FS_H
@@ -56602,6 +56716,7 @@ index 000000000000..783e77c321f9
 +
 +struct bch_inode_info {
 +	struct inode		v;
++	struct list_head	ei_vfs_inode_list;
 +	unsigned long		ei_flags;
 +
 +	struct mutex		ei_update_lock;
@@ -59302,10 +59417,10 @@ index 000000000000..264f2706b12d
 +#endif /* _BCACHEFS_FSCK_H */
 diff --git a/fs/bcachefs/inode.c b/fs/bcachefs/inode.c
 new file mode 100644
-index 000000000000..560545a7ea03
+index 000000000000..7ccbc00b7156
 --- /dev/null
 +++ b/fs/bcachefs/inode.c
-@@ -0,0 +1,898 @@
+@@ -0,0 +1,895 @@
 +// SPDX-License-Identifier: GPL-2.0
 +
 +#include "bcachefs.h"
@@ -60111,9 +60226,6 @@ index 000000000000..560545a7ea03
 +
 +	bch2_inode_unpack(k, &inode_u);
 +
-+	/* Subvolume root? */
-+	BUG_ON(inode_u.bi_subvol);
-+
 +	bkey_inode_generation_init(&delete.k_i);
 +	delete.k.p = iter.pos;
 +	delete.v.bi_generation = cpu_to_le32(inode_u.bi_generation + 1);
@@ -60400,10 +60512,10 @@ index 000000000000..f5066afb4886
 +#endif /* _BCACHEFS_INODE_H */
 diff --git a/fs/bcachefs/io.c b/fs/bcachefs/io.c
 new file mode 100644
-index 000000000000..d11feb100d7e
+index 000000000000..3a92dd200ca4
 --- /dev/null
 +++ b/fs/bcachefs/io.c
-@@ -0,0 +1,3049 @@
+@@ -0,0 +1,3052 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Some low level IO code, and hacks for various block layer limitations
@@ -60791,6 +60903,7 @@ index 000000000000..d11feb100d7e
 +	struct open_buckets open_buckets;
 +	struct bkey_s_c k;
 +	struct bkey_buf old, new;
++	unsigned sectors_allocated;
 +	bool have_reservation = false;
 +	bool unwritten = opts.nocow &&
 +	    c->sb.version >= bcachefs_metadata_version_unwritten_extents;
@@ -60801,6 +60914,8 @@ index 000000000000..d11feb100d7e
 +	closure_init_stack(&cl);
 +	open_buckets.nr = 0;
 +retry:
++	sectors_allocated = 0;
++
 +	k = bch2_btree_iter_peek_slot(iter);
 +	ret = bkey_err(k);
 +	if (ret)
@@ -60857,15 +60972,16 @@ index 000000000000..d11feb100d7e
 +				opts.data_replicas,
 +				opts.data_replicas,
 +				RESERVE_none, 0, &cl, &wp);
-+		if (bch2_err_matches(ret, BCH_ERR_operation_blocked)) {
++		if (ret) {
 +			bch2_trans_unlock(trans);
 +			closure_sync(&cl);
-+			goto retry;
-+		}
-+		if (ret)
++			if (bch2_err_matches(ret, BCH_ERR_operation_blocked))
++				goto retry;
 +			return ret;
++		}
 +
 +		sectors = min(sectors, wp->sectors_free);
++		sectors_allocated = sectors;
 +
 +		bch2_key_resize(&e->k, sectors);
 +
@@ -60891,6 +61007,9 @@ index 000000000000..d11feb100d7e
 +		bch2_trans_begin(trans);
 +		goto retry;
 +	}
++
++	if (!ret && sectors_allocated)
++		bch2_increment_clock(c, sectors_allocated, WRITE);
 +
 +	bch2_open_buckets_put(c, &open_buckets);
 +	bch2_disk_reservation_put(c, &disk_res);
@@ -61881,7 +62000,7 @@ index 000000000000..d11feb100d7e
 +	struct btree_iter iter;
 +	struct bkey_s_c k;
 +	struct bkey_ptrs_c ptrs;
-+	const struct bch_extent_ptr *ptr, *ptr2;
++	const struct bch_extent_ptr *ptr;
 +	struct {
 +		struct bpos	b;
 +		unsigned	gen;
@@ -61936,10 +62055,11 @@ index 000000000000..d11feb100d7e
 +						  bucket_to_u64(buckets[nr_buckets].b));
 +
 +			prefetch(buckets[nr_buckets].l);
-+			nr_buckets++;
 +
 +			if (unlikely(!bch2_dev_get_ioref(bch_dev_bkey_exists(c, ptr->dev), WRITE)))
 +				goto err_get_ioref;
++
++			nr_buckets++;
 +
 +			if (ptr->unwritten)
 +				op->flags |= BCH_WRITE_CONVERT_UNWRITTEN;
@@ -62031,12 +62151,8 @@ index 000000000000..d11feb100d7e
 +	}
 +	return;
 +err_get_ioref:
-+	bkey_for_each_ptr(ptrs, ptr2) {
-+		if (ptr2 == ptr)
-+			break;
-+
-+		percpu_ref_put(&bch_dev_bkey_exists(c, ptr2->dev)->io_ref);
-+	}
++	for (i = 0; i < nr_buckets; i++)
++		percpu_ref_put(&bch_dev_bkey_exists(c, buckets[i].b.inode)->io_ref);
 +
 +	/* Fall back to COW path: */
 +	goto out;
@@ -62045,9 +62161,8 @@ index 000000000000..d11feb100d7e
 +		bch2_bucket_nocow_unlock(&c->nocow_locks,
 +					 buckets[i].b,
 +					 BUCKET_NOCOW_LOCK_UPDATE);
-+
-+	bkey_for_each_ptr(ptrs, ptr2)
-+		percpu_ref_put(&bch_dev_bkey_exists(c, ptr2->dev)->io_ref);
++	for (i = 0; i < nr_buckets; i++)
++		percpu_ref_put(&bch_dev_bkey_exists(c, buckets[i].b.inode)->io_ref);
 +
 +	/* We can retry this: */
 +	ret = BCH_ERR_transaction_restart;
@@ -63832,10 +63947,10 @@ index 000000000000..3b2ed0fa583a
 +#endif /* _BCACHEFS_IO_TYPES_H */
 diff --git a/fs/bcachefs/journal.c b/fs/bcachefs/journal.c
 new file mode 100644
-index 000000000000..c9c2ee9c67f6
+index 000000000000..3f0e6d71aa32
 --- /dev/null
 +++ b/fs/bcachefs/journal.c
-@@ -0,0 +1,1399 @@
+@@ -0,0 +1,1447 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * bcachefs journalling code, for btree insertions
@@ -63912,6 +64027,67 @@ index 000000000000..c9c2ee9c67f6
 +	INIT_LIST_HEAD(&p->flushed);
 +	atomic_set(&p->count, count);
 +	p->devs.nr = 0;
++}
++
++/*
++ * Detect stuck journal conditions and trigger shutdown. Technically the journal
++ * can end up stuck for a variety of reasons, such as a blocked I/O, journal
++ * reservation lockup, etc. Since this is a fatal error with potentially
++ * unpredictable characteristics, we want to be fairly conservative before we
++ * decide to shut things down.
++ *
++ * Consider the journal stuck when it appears full with no ability to commit
++ * btree transactions, to discard journal buckets, nor acquire priority
++ * (reserved watermark) reservation.
++ */
++static inline bool
++journal_error_check_stuck(struct journal *j, int error, unsigned flags)
++{
++	struct bch_fs *c = container_of(j, struct bch_fs, journal);
++	bool stuck = false;
++	struct printbuf buf = PRINTBUF;
++
++	if (!(error == JOURNAL_ERR_journal_full ||
++	      error == JOURNAL_ERR_journal_pin_full) ||
++	    nr_unwritten_journal_entries(j) ||
++	    (flags & JOURNAL_WATERMARK_MASK) != JOURNAL_WATERMARK_reserved)
++		return stuck;
++
++	spin_lock(&j->lock);
++
++	if (j->can_discard) {
++		spin_unlock(&j->lock);
++		return stuck;
++	}
++
++	stuck = true;
++
++	/*
++	 * The journal shutdown path will set ->err_seq, but do it here first to
++	 * serialize against concurrent failures and avoid duplicate error
++	 * reports.
++	 */
++	if (j->err_seq) {
++		spin_unlock(&j->lock);
++		return stuck;
++	}
++	j->err_seq = journal_cur_seq(j);
++	spin_unlock(&j->lock);
++
++	bch_err(c, "Journal stuck! Hava a pre-reservation but journal full (error %s)",
++		bch2_journal_errors[error]);
++	bch2_journal_debug_to_text(&buf, j);
++	bch_err(c, "%s", buf.buf);
++
++	printbuf_reset(&buf);
++	bch2_journal_pins_to_text(&buf, j);
++	bch_err(c, "Journal pins:\n%s", buf.buf);
++	printbuf_exit(&buf);
++
++	bch2_fatal_error(c);
++	dump_stack();
++
++	return stuck;
 +}
 +
 +/* journal entry close/open: */
@@ -64001,6 +64177,7 @@ index 000000000000..c9c2ee9c67f6
 +	__journal_entry_close(j, JOURNAL_ENTRY_ERROR_VAL);
 +	if (!j->err_seq)
 +		j->err_seq = journal_cur_seq(j);
++	journal_wake(j);
 +	spin_unlock(&j->lock);
 +}
 +
@@ -64201,6 +64378,12 @@ index 000000000000..c9c2ee9c67f6
 +
 +	spin_lock(&j->lock);
 +
++	/* check once more in case somebody else shut things down... */
++	if (bch2_journal_error(j)) {
++		spin_unlock(&j->lock);
++		return -BCH_ERR_erofs_journal_err;
++	}
++
 +	/*
 +	 * Recheck after taking the lock, so we don't race with another thread
 +	 * that just did journal_entry_open() and call journal_entry_close()
@@ -64248,28 +64431,8 @@ index 000000000000..c9c2ee9c67f6
 +
 +	if (!ret)
 +		goto retry;
-+
-+	if ((ret == JOURNAL_ERR_journal_full ||
-+	     ret == JOURNAL_ERR_journal_pin_full) &&
-+	    !can_discard &&
-+	    !nr_unwritten_journal_entries(j) &&
-+	    (flags & JOURNAL_WATERMARK_MASK) == JOURNAL_WATERMARK_reserved) {
-+		struct printbuf buf = PRINTBUF;
-+
-+		bch_err(c, "Journal stuck! Hava a pre-reservation but journal full (ret %s)",
-+			bch2_journal_errors[ret]);
-+
-+		bch2_journal_debug_to_text(&buf, j);
-+		bch_err(c, "%s", buf.buf);
-+
-+		printbuf_reset(&buf);
-+		bch2_journal_pins_to_text(&buf, j);
-+		bch_err(c, "Journal pins:\n%s", buf.buf);
-+
-+		printbuf_exit(&buf);
-+		bch2_fatal_error(c);
-+		dump_stack();
-+	}
++	if (journal_error_check_stuck(j, ret, flags))
++		ret = -BCH_ERR_journal_res_get_blocked;
 +
 +	/*
 +	 * Journal is full - can't rely on reclaim from work item due to
@@ -67701,10 +67864,10 @@ index 000000000000..8801e98104bd
 +#endif /* _BCACHEFS_JOURNAL_IO_H */
 diff --git a/fs/bcachefs/journal_reclaim.c b/fs/bcachefs/journal_reclaim.c
 new file mode 100644
-index 000000000000..8c88884c74a5
+index 000000000000..37c6846a30aa
 --- /dev/null
 +++ b/fs/bcachefs/journal_reclaim.c
-@@ -0,0 +1,880 @@
+@@ -0,0 +1,863 @@
 +// SPDX-License-Identifier: GPL-2.0
 +
 +#include "bcachefs.h"
@@ -67917,24 +68080,7 @@ index 000000000000..8c88884c74a5
 +	clean		= j->space[journal_space_clean].total;
 +	total		= j->space[journal_space_total].total;
 +
-+	if (!clean_ondisk &&
-+	    journal_cur_seq(j) == j->seq_ondisk) {
-+		struct printbuf buf = PRINTBUF;
-+
-+		__bch2_journal_debug_to_text(&buf, j);
-+		bch_err(c, "journal stuck\n%s", buf.buf);
-+		printbuf_exit(&buf);
-+
-+		/*
-+		 * Hack: bch2_fatal_error() calls bch2_journal_halt() which
-+		 * takes journal lock:
-+		 */
-+		spin_unlock(&j->lock);
-+		bch2_fatal_error(c);
-+		spin_lock(&j->lock);
-+
-+		ret = JOURNAL_ERR_journal_stuck;
-+	} else if (!j->space[journal_space_discarded].next_entry)
++	if (!j->space[journal_space_discarded].next_entry)
 +		ret = JOURNAL_ERR_journal_full;
 +
 +	if ((j->space[journal_space_clean_ondisk].next_entry <
@@ -69814,10 +69960,10 @@ index 000000000000..4b3ff7d8a875
 +#endif /* _BCACHEFS_KEYLIST_TYPES_H */
 diff --git a/fs/bcachefs/lru.c b/fs/bcachefs/lru.c
 new file mode 100644
-index 000000000000..e913b90f37b7
+index 000000000000..c2dece27da2d
 --- /dev/null
 +++ b/fs/bcachefs/lru.c
-@@ -0,0 +1,187 @@
+@@ -0,0 +1,188 @@
 +// SPDX-License-Identifier: GPL-2.0
 +
 +#include "bcachefs.h"
@@ -69968,7 +70114,8 @@ index 000000000000..e913b90f37b7
 +			goto out;
 +		}
 +
-+		if (fsck_err(c, "incorrect lru entry: lru %s time %llu\n"
++		if (c->opts.reconstruct_alloc ||
++		    fsck_err(c, "incorrect lru entry: lru %s time %llu\n"
 +			     "  %s\n"
 +			     "  for %s",
 +			     bch2_lru_types[type],
@@ -70277,10 +70424,10 @@ index 000000000000..027efaa0d575
 +#endif /* _BCACHEFS_MIGRATE_H */
 diff --git a/fs/bcachefs/move.c b/fs/bcachefs/move.c
 new file mode 100644
-index 000000000000..6f5851ea81b5
+index 000000000000..030dc5d57667
 --- /dev/null
 +++ b/fs/bcachefs/move.c
-@@ -0,0 +1,1193 @@
+@@ -0,0 +1,1201 @@
 +// SPDX-License-Identifier: GPL-2.0
 +
 +#include "bcachefs.h"
@@ -70913,6 +71060,8 @@ index 000000000000..6f5851ea81b5
 +	u64 bp_offset = 0;
 +	int ret;
 +
++	bch2_trans_begin(trans);
++
 +	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
 +			     bucket, BTREE_ITER_CACHED);
 +again:
@@ -70933,6 +71082,7 @@ index 000000000000..6f5851ea81b5
 +		}
 +	}
 +
++	set_btree_iter_dontneed(&iter);
 +	bch2_trans_iter_exit(trans, &iter);
 +	return;
 +failed_to_evacuate:
@@ -70996,6 +71146,11 @@ index 000000000000..6f5851ea81b5
 +	int ret = 0;
 +
 +	bch2_bkey_buf_init(&sk);
++
++	/*
++	 * We're not run in a context that handles transaction restarts:
++	 */
++	bch2_trans_begin(trans);
 +
 +	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
 +			     bucket, BTREE_ITER_CACHED);
@@ -71611,10 +71766,10 @@ index 000000000000..285ffdb762ac
 +#endif /* _BCACHEFS_MOVE_TYPES_H */
 diff --git a/fs/bcachefs/movinggc.c b/fs/bcachefs/movinggc.c
 new file mode 100644
-index 000000000000..178f96a64804
+index 000000000000..5f1aea3b258a
 --- /dev/null
 +++ b/fs/bcachefs/movinggc.c
-@@ -0,0 +1,386 @@
+@@ -0,0 +1,394 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Moving/copying garbage collector
@@ -71886,6 +72041,12 @@ index 000000000000..178f96a64804
 +					atomic64_read(&c->io_clock[WRITE].now)) << 9);
 +	prt_newline(out);
 +
++	prt_printf(out, "Currently waiting since:   ");
++	prt_human_readable_u64(out, max(0LL,
++					atomic64_read(&c->io_clock[WRITE].now) -
++					c->copygc_wait_at) << 9);
++	prt_newline(out);
++
 +	prt_printf(out, "Currently calculated wait: ");
 +	prt_human_readable_u64(out, bch2_copygc_wait_amount(c));
 +	prt_newline(out);
@@ -71934,9 +72095,11 @@ index 000000000000..178f96a64804
 +		wait = bch2_copygc_wait_amount(c);
 +
 +		if (wait > clock->max_slop) {
++			c->copygc_wait_at = last;
++			c->copygc_wait = last + wait;
++
 +			move_buckets_wait(&trans, &ctxt, &move_buckets, 0, true);
 +			trace_and_count(c, copygc_wait, c, wait, last + wait);
-+			c->copygc_wait = last + wait;
 +			bch2_kthread_io_clock_wait(clock, last + wait,
 +					MAX_SCHEDULE_TIMEOUT);
 +			continue;
@@ -82680,10 +82843,10 @@ index 000000000000..14a25f6fe29a
 +#endif /* _BCACHEFS_SUPER_IO_H */
 diff --git a/fs/bcachefs/super.c b/fs/bcachefs/super.c
 new file mode 100644
-index 000000000000..8a269b680295
+index 000000000000..6e261164f310
 --- /dev/null
 +++ b/fs/bcachefs/super.c
-@@ -0,0 +1,1976 @@
+@@ -0,0 +1,1979 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * bcachefs setup/teardown code, and some metadata io - read a superblock and
@@ -83394,6 +83557,9 @@ index 000000000000..8a269b680295
 +	seqcount_init(&c->usage_lock);
 +
 +	sema_init(&c->io_in_flight, 128);
++
++	INIT_LIST_HEAD(&c->vfs_inodes_list);
++	mutex_init(&c->vfs_inodes_lock);
 +
 +	c->copy_gc_enabled		= 1;
 +	c->rebalance.enabled		= 1;
@@ -90710,10 +90876,10 @@ index 659bf3b31c91..82de099ffec7 100644
  	TRACE_PRINTKS()							\
 diff --git a/include/linux/alloc_tag.h b/include/linux/alloc_tag.h
 new file mode 100644
-index 000000000000..d7551b0b386c
+index 000000000000..27badfa7993b
 --- /dev/null
 +++ b/include/linux/alloc_tag.h
-@@ -0,0 +1,160 @@
+@@ -0,0 +1,162 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
 + * allocation tagging
@@ -90739,6 +90905,8 @@ index 000000000000..d7551b0b386c
 +} __aligned(8);
 +
 +#ifdef CONFIG_MEM_ALLOC_PROFILING
++
++void alloc_tags_show_mem_report(struct seq_buf *s);
 +
 +static inline struct alloc_tag *ctc_to_alloc_tag(struct codetag_with_ctx *ctc)
 +{
@@ -92619,6 +92787,31 @@ index 22be4582faae..fbb929183101 100644
  
  struct pglist_data;
  struct page_ext_operations {
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index a7852e22101f..d9122d179ef7 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -467,14 +467,17 @@ static inline void *detach_page_private(struct page *page)
+ }
+ 
+ #ifdef CONFIG_NUMA
+-struct folio *filemap_alloc_folio(gfp_t gfp, unsigned int order);
++struct folio *_filemap_alloc_folio(gfp_t gfp, unsigned int order);
+ #else
+-static inline struct folio *filemap_alloc_folio(gfp_t gfp, unsigned int order)
++static inline struct folio *_filemap_alloc_folio(gfp_t gfp, unsigned int order)
+ {
+-	return folio_alloc(gfp, order);
++	return _folio_alloc(gfp, order);
+ }
+ #endif
+ 
++#define filemap_alloc_folio(_gfp, _order) \
++	alloc_hooks(_filemap_alloc_folio(_gfp, _order), struct folio *, NULL)
++
+ static inline struct page *__page_cache_alloc(gfp_t gfp)
+ {
+ 	return &filemap_alloc_folio(gfp, 0)->page;
 diff --git a/include/linux/percpu.h b/include/linux/percpu.h
 index 1338ea2aa720..51ec257379af 100644
 --- a/include/linux/percpu.h
@@ -93749,6 +93942,19 @@ index fe1e467ba046..7c43e98cf211 100644
  
  /* Included from linux/ktime.h */
  
+diff --git a/include/linux/uio.h b/include/linux/uio.h
+index 9f158238edba..66cb394d6df4 100644
+--- a/include/linux/uio.h
++++ b/include/linux/uio.h
+@@ -152,6 +152,8 @@ static inline struct iovec iov_iter_iovec(const struct iov_iter *iter)
+ 
+ size_t copy_page_from_iter_atomic(struct page *page, unsigned offset,
+ 				  size_t bytes, struct iov_iter *i);
++size_t copy_folio_from_iter_atomic(struct folio *folio, size_t offset,
++				   size_t bytes, struct iov_iter *i);
+ void iov_iter_advance(struct iov_iter *i, size_t bytes);
+ void iov_iter_revert(struct iov_iter *i, size_t bytes);
+ size_t fault_in_iov_iter_readable(const struct iov_iter *i, size_t bytes);
 diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
 index 096d48aa3437..8d11e2e4ddc8 100644
 --- a/include/linux/vmalloc.h
@@ -96276,7 +96482,7 @@ index ce2abffb9ed8..61859eab472c 100644
 +config TIME_STATS
 +	bool
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 02ee440f7be3..a58c40d3268b 100644
+index 02ee440f7be3..2ae711e86722 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
 @@ -191,6 +191,7 @@ config DYNAMIC_DEBUG_CORE
@@ -96287,7 +96493,7 @@ index 02ee440f7be3..a58c40d3268b 100644
  	help
  	  If you say Y here, the kernel's printf implementation will
  	  be able to print symbolic error names such as ENOSPC instead
-@@ -1009,6 +1010,41 @@ config DEBUG_STACKOVERFLOW
+@@ -1009,6 +1010,32 @@ config DEBUG_STACKOVERFLOW
  
  	  If in doubt, say "N".
  
@@ -96317,19 +96523,10 @@ index 02ee440f7be3..a58c40d3268b 100644
 +	  Adds warnings with helpful error messages for memory allocation
 +	  profiling.
 +
-+config CODE_TAG_TESTING
-+	bool "Enable code tag testing"
-+	default y
-+	select MEM_ALLOC_PROFILING
-+	select MEM_ALLOC_PROFILING_DEBUG
-+	select STAGING
-+	help
-+	  Enable to test code tagging.
-+
  source "lib/Kconfig.kasan"
  source "lib/Kconfig.kfence"
  source "lib/Kconfig.kmsan"
-@@ -1666,6 +1702,15 @@ config DEBUG_NOTIFIERS
+@@ -1666,6 +1693,15 @@ config DEBUG_NOTIFIERS
  	  This is a relatively cheap check but if you care about maximum
  	  performance, say N.
  
@@ -96345,7 +96542,7 @@ index 02ee440f7be3..a58c40d3268b 100644
  config BUG_ON_DATA_CORRUPTION
  	bool "Trigger a BUG when data corruption is detected"
  	select DEBUG_LIST
-@@ -1755,6 +1800,14 @@ config DEBUG_CGROUP_REF
+@@ -1755,6 +1791,14 @@ config DEBUG_CGROUP_REF
  	  Force cgroup css reference count functions to not be inlined so
  	  that they can be kprobed for debugging.
  
@@ -96360,7 +96557,7 @@ index 02ee440f7be3..a58c40d3268b 100644
  source "kernel/trace/Kconfig"
  
  config PROVIDE_OHCI1394_DMA_INIT
-@@ -2014,6 +2067,12 @@ config FAULT_INJECTION_STACKTRACE_FILTER
+@@ -2014,6 +2058,12 @@ config FAULT_INJECTION_STACKTRACE_FILTER
  	help
  	  Provide stacktrace filter for fault-injection capabilities
  
@@ -96373,7 +96570,7 @@ index 02ee440f7be3..a58c40d3268b 100644
  config ARCH_HAS_KCOV
  	bool
  	help
-@@ -2105,6 +2164,15 @@ config CPUMASK_KUNIT_TEST
+@@ -2105,6 +2155,15 @@ config CPUMASK_KUNIT_TEST
  
  	  If unsure, say N.
  
@@ -96436,10 +96633,10 @@ index 71c9627153b8..60960fc00280 100644
  obj-$(CONFIG_GLOB) += glob.o
 diff --git a/lib/alloc_tag.c b/lib/alloc_tag.c
 new file mode 100644
-index 000000000000..adf8b5da18db
+index 000000000000..b40684e12416
 --- /dev/null
 +++ b/lib/alloc_tag.c
-@@ -0,0 +1,416 @@
+@@ -0,0 +1,454 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#include <linux/alloc_tag.h>
 +#include <linux/codetag_ctx.h>
@@ -96454,6 +96651,8 @@ index 000000000000..adf8b5da18db
 +#include <linux/uaccess.h>
 +
 +#define STACK_BUF_SIZE 1024
++
++static struct codetag_type *alloc_tag_cttype;
 +
 +DEFINE_STATIC_KEY_TRUE(mem_alloc_profiling_key);
 +
@@ -96573,6 +96772,43 @@ index 000000000000..adf8b5da18db
 +	codetag_lock_module_list(iter->ct_iter.cttype, false);
 +
 +	return err ? : buf.ret;
++}
++
++void alloc_tags_show_mem_report(struct seq_buf *s)
++{
++	struct codetag_iterator iter;
++	struct codetag *ct;
++	struct {
++		struct codetag		*tag;
++		size_t			bytes;
++	} tags[10], n;
++	unsigned i, nr = 0;
++
++	codetag_init_iter(&iter, alloc_tag_cttype);
++
++	codetag_lock_module_list(alloc_tag_cttype, true);
++	while ((ct = codetag_next_ct(&iter))) {
++		n.tag	= ct;
++		n.bytes = lazy_percpu_counter_read(&ct_to_alloc_tag(ct)->bytes_allocated);
++
++		for (i = 0; i < nr; i++)
++			if (n.bytes > tags[i].bytes)
++				break;
++
++		if (i < ARRAY_SIZE(tags)) {
++			nr -= nr == ARRAY_SIZE(tags);
++			memmove(&tags[i + 1],
++				&tags[i],
++				sizeof(tags[0]) * (nr - i));
++			nr++;
++			tags[i] = n;
++		}
++	}
++
++	for (i = 0; i < nr; i++)
++		alloc_tag_to_text(s, tags[i].tag);
++
++	codetag_lock_module_list(alloc_tag_cttype, false);
 +}
 +
 +static const struct file_operations allocations_file_ops = {
@@ -96818,7 +97054,7 @@ index 000000000000..adf8b5da18db
 +		size_t bytes = lazy_percpu_counter_read(&tag->bytes_allocated);
 +
 +		if (!WARN(bytes, "%s:%u module %s func:%s has %zu allocated at module unload",
-+			  ct->filename, ct->lineno, ct->modname, ct->function))
++			  ct->filename, ct->lineno, ct->modname, ct->function, bytes))
 +			lazy_percpu_counter_exit(&tag->bytes_allocated);
 +	}
 +}
@@ -96841,7 +97077,6 @@ index 000000000000..adf8b5da18db
 +
 +static int __init alloc_tag_init(void)
 +{
-+	struct codetag_type *cttype;
 +	const struct codetag_type_desc desc = {
 +		.section	= "alloc_tags",
 +		.tag_size	= sizeof(struct alloc_tag),
@@ -96849,11 +97084,11 @@ index 000000000000..adf8b5da18db
 +		.free_ctx	= alloc_tag_ops_free_ctx,
 +	};
 +
-+	cttype = codetag_register_type(&desc);
-+	if (IS_ERR_OR_NULL(cttype))
-+		return PTR_ERR(cttype);
++	alloc_tag_cttype = codetag_register_type(&desc);
++	if (IS_ERR_OR_NULL(alloc_tag_cttype))
++		return PTR_ERR(alloc_tag_cttype);
 +
-+	return dbgfs_init(cttype);
++	return dbgfs_init(alloc_tag_cttype);
 +}
 +module_init(alloc_tag_init);
 diff --git a/drivers/md/bcache/closure.c b/lib/closure.c
@@ -98267,6 +98502,81 @@ index f25eb111c051..41f1bcdc4488 100644
  static void genradix_free_recurse(struct genradix_node *n, unsigned level)
  {
  	if (level) {
+diff --git a/lib/iov_iter.c b/lib/iov_iter.c
+index f9a3ff37ecd1..23b1709ff1a1 100644
+--- a/lib/iov_iter.c
++++ b/lib/iov_iter.c
+@@ -806,18 +806,10 @@ size_t iov_iter_zero(size_t bytes, struct iov_iter *i)
+ }
+ EXPORT_SYMBOL(iov_iter_zero);
+ 
+-size_t copy_page_from_iter_atomic(struct page *page, unsigned offset, size_t bytes,
+-				  struct iov_iter *i)
++static inline size_t __copy_page_from_iter_atomic(struct page *page, unsigned offset,
++						  size_t bytes, struct iov_iter *i)
+ {
+ 	char *kaddr = kmap_atomic(page), *p = kaddr + offset;
+-	if (!page_copy_sane(page, offset, bytes)) {
+-		kunmap_atomic(kaddr);
+-		return 0;
+-	}
+-	if (WARN_ON_ONCE(!i->data_source)) {
+-		kunmap_atomic(kaddr);
+-		return 0;
+-	}
+ 	iterate_and_advance(i, bytes, base, len, off,
+ 		copyin(p + off, base, len),
+ 		memcpy(p + off, base, len)
+@@ -825,8 +817,49 @@ size_t copy_page_from_iter_atomic(struct page *page, unsigned offset, size_t byt
+ 	kunmap_atomic(kaddr);
+ 	return bytes;
+ }
++
++size_t copy_page_from_iter_atomic(struct page *page, unsigned offset, size_t bytes,
++				  struct iov_iter *i)
++{
++	if (!page_copy_sane(page, offset, bytes))
++		return 0;
++	if (WARN_ON_ONCE(!i->data_source))
++		return 0;
++	return __copy_page_from_iter_atomic(page, offset, bytes, i);
++}
+ EXPORT_SYMBOL(copy_page_from_iter_atomic);
+ 
++size_t copy_folio_from_iter_atomic(struct folio *folio, size_t offset,
++				   size_t bytes, struct iov_iter *i)
++{
++	size_t ret = 0;
++
++	if (WARN_ON(offset + bytes > folio_size(folio)))
++		return 0;
++	if (WARN_ON_ONCE(!i->data_source))
++		return 0;
++
++#ifdef CONFIG_HIGHMEM
++	while (bytes) {
++		struct page *page = folio_page(folio, offset >> PAGE_SHIFT);
++		unsigned b = min(bytes, PAGE_SIZE - (offset & PAGE_MASK));
++		unsigned r = __copy_page_from_iter_atomic(page, offset, b, i);
++
++		offset	+= r;
++		bytes	-= r;
++		ret	+= r;
++
++		if (r != b)
++			break;
++	}
++#else
++	ret = __copy_page_from_iter_atomic(&folio->page, offset, bytes, i);
++#endif
++
++	return ret;
++}
++EXPORT_SYMBOL(copy_folio_from_iter_atomic);
++
+ static void pipe_advance(struct iov_iter *i, size_t size)
+ {
+ 	struct pipe_inode_info *pipe = i->pipe;
 diff --git a/lib/lazy-percpu-counter.c b/lib/lazy-percpu-counter.c
 new file mode 100644
 index 000000000000..4f4e32c2dc09
@@ -99168,9 +99478,30 @@ index 3613d7f174dc..1e83ff376347 100644
   * This is a migrate-callback that "frees" freepages back to the isolated
   * freelist.  All pages on the freelist are from the same zone, so there is no
 diff --git a/mm/filemap.c b/mm/filemap.c
-index 0e20a8d6dd93..667fe9b057c0 100644
+index 0e20a8d6dd93..321694852b41 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
+@@ -954,7 +954,7 @@ int filemap_add_folio(struct address_space *mapping, struct folio *folio,
+ EXPORT_SYMBOL_GPL(filemap_add_folio);
+ 
+ #ifdef CONFIG_NUMA
+-struct folio *filemap_alloc_folio(gfp_t gfp, unsigned int order)
++struct folio *_filemap_alloc_folio(gfp_t gfp, unsigned int order)
+ {
+ 	int n;
+ 	struct folio *folio;
+@@ -969,9 +969,9 @@ struct folio *filemap_alloc_folio(gfp_t gfp, unsigned int order)
+ 
+ 		return folio;
+ 	}
+-	return folio_alloc(gfp, order);
++	return _folio_alloc(gfp, order);
+ }
+-EXPORT_SYMBOL(filemap_alloc_folio);
++EXPORT_SYMBOL(_filemap_alloc_folio);
+ #endif
+ 
+ /*
 @@ -2945,6 +2945,7 @@ loff_t mapping_seek_hole_data(struct address_space *mapping, loff_t start,
  		return end;
  	return start;
@@ -100243,10 +100574,10 @@ index acd78da0493b..3e626e35be23 100644
  
  	/*
 diff --git a/lib/show_mem.c b/mm/show_mem.c
-similarity index 75%
+similarity index 67%
 rename from lib/show_mem.c
 rename to mm/show_mem.c
-index 0d7585cde2a6..e79a1ad57d0c 100644
+index 0d7585cde2a6..153101c86560 100644
 --- a/lib/show_mem.c
 +++ b/mm/show_mem.c
 @@ -7,11 +7,15 @@
@@ -100265,7 +100596,7 @@ index 0d7585cde2a6..e79a1ad57d0c 100644
  
  	printk("Mem-Info:\n");
  	__show_free_areas(filter, nodemask, max_zone_idx);
-@@ -41,4 +45,20 @@ void __show_mem(unsigned int filter, nodemask_t *nodemask, int max_zone_idx)
+@@ -41,4 +45,27 @@ void __show_mem(unsigned int filter, nodemask_t *nodemask, int max_zone_idx)
  #ifdef CONFIG_MEMORY_FAILURE
  	printk("%lu pages hwpoisoned\n", atomic_long_read(&num_poisoned_pages));
  #endif
@@ -100283,6 +100614,13 @@ index 0d7585cde2a6..e79a1ad57d0c 100644
 +		seq_buf_init(&s, buf, 4096);
 +		shrinkers_to_text(&s);
 +		printk("%s", buf);
++
++#ifdef CONFIG_MEM_ALLOC_PROFILING
++		printk("Memory allocations:\n");
++		seq_buf_init(&s, buf, 4096);
++		alloc_tags_show_mem_report(&s);
++		printk("%s", buf);
++#endif
 +		kfree(buf);
 +	}
  }
@@ -101435,5 +101773,5 @@ index bf5bcf2836d8..45c67a0994f3 100644
  }
  
 -- 
-2.39.2.501.gd9d677b2d8
+2.40.0.71.g950264636c
 
