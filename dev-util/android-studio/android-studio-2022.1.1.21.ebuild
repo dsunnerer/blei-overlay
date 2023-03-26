@@ -59,8 +59,6 @@ src_prepare() {
 	# If jetbrains-jre is not set bundled jre is replaced with system vm/jdk
 	if use jetbrains-jre; then
 		mv -f "${S}/jbr" "${S}/custom-jdk" || die "Could not move bundled jdk"
-	else
-		rm -rf "${S}/jbr" || die "Could not remove bundled jdk"
 	fi
 
 	sed -i \

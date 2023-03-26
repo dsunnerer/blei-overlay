@@ -59,8 +59,6 @@ src_prepare() {
 	# If jetbrains-jre is not set bundled jre is replaced with system vm/jdk
 	if use jetbrains-jre; then
 		mv -f "${S}/jbr" "${S}/custom-jdk" || die "Could not move bundled jdk"
-	else
-		rm -rf "${S}/jbr" || die "Could not remove bundled jdk"
 	fi
 
 	sed -i \
@@ -88,7 +86,7 @@ src_install() {
 		dosym "../../etc/java-config-2/current-system-vm" "${dir}/jre"
 	fi
 
-	fperms 755 "${dir}"/bin/{format.sh,studio.sh,inspect.sh,restart.py,fsnotifier,ltedit.sh}
+	fperms 755 "${dir}"/bin/{format.sh,studio.sh,inspect.sh,restart.py,ltedit.sh}
 
 	dosym "${dir}/bin/studio.sh" "/usr/bin/${PN}"
 	dosym "${dir}/bin/studio.png" "/usr/share/pixmaps/${PN}.png"
