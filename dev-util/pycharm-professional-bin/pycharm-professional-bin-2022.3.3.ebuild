@@ -6,7 +6,7 @@ inherit desktop
 
 DESCRIPTION="Python IDE for Professional Developers"
 HOMEPAGE="https://www.jetbrains.com/pycharm/"
-SRC_URI="https://download.jetbrains.com/python/pycharm-professional-${PV}-no-jbr.tar.gz"
+SRC_URI="https://download.jetbrains.com/python/pycharm-professional-${PV}.tar.gz"
 
 LICENSE="all-rights-reserved"
 SLOT="0"

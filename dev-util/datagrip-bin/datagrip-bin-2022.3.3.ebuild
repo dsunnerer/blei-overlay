@@ -6,7 +6,7 @@ inherit desktop
 
 DESCRIPTION="Database IDE"
 HOMEPAGE="https://www.jetbrains.com/datagrip/"
-SRC_URI="https://download.jetbrains.com/datagrip/datagrip-${PV}-no-jbr.tar.gz"
+SRC_URI="https://download.jetbrains.com/datagrip/datagrip-${PV}.tar.gz"
 
 LICENSE="all-rights-reserved"
 SLOT="0"

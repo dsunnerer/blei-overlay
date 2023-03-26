@@ -6,7 +6,7 @@ inherit desktop
 
 DESCRIPTION="Intelligent Java IDE"
 HOMEPAGE="https://www.jetbrains.com/idea/"
-SRC_URI="https://download.jetbrains.com/idea/ideaIC-${PV}-no-jbr.tar.gz"
+SRC_URI="https://download.jetbrains.com/idea/ideaIC-${PV}.tar.gz"
 
 LICENSE="all-rights-reserved"
 SLOT="0"
