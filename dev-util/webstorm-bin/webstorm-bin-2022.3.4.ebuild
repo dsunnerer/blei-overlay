@@ -20,7 +20,7 @@ RDEPEND="${DEPEND}
 	dev-libs/libdbusmenu"
 BDEPEND="dev-util/patchelf"
 
-_PV="223.7571.168"
+_PV="223.8836.50"
 _CAP_IDE=WebStorm
 _IDE=webstorm
 
