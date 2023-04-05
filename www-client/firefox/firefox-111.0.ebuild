@@ -733,7 +733,7 @@ src_configure() {
 	mozconfig_add_options_ac '' --enable-project=browser
 
 	# Set Gentoo defaults
-	export MOZILLA_OFFICIAL=1
+	# export MOZILLA_OFFICIAL=1
 
 	mozconfig_add_options_ac 'Gentoo default' \
 		--allow-addon-sideload \
@@ -749,8 +749,10 @@ src_configure() {
 		--disable-wmf-cdm \
 		--enable-negotiateauth \
 		--enable-new-pass-manager \
-		--enable-official-branding \
-		--enable-release \
+		#--enable-official-branding \
+		#--enable-release \
+		--disable-official-branding \
+		--disable-release \
 		--enable-system-ffi \
 		--enable-system-pixman \
 		--enable-system-policies \
@@ -1208,7 +1210,7 @@ src_install() {
 	insinto "${MOZILLA_FIVE_HOME}/distribution"
 	newins "${FILESDIR}"/distribution.ini distribution.ini
 	#######
-	if use privacy; then 
+	if use privacy; then
 		newins "${FILESDIR}"/enable-privacy.policy.json policies.json
 	else
 		newins "${FILESDIR}"/disable-auto-update.policy.json policies.json
