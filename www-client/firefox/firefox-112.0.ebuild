@@ -746,7 +746,6 @@ src_configure() {
 		--disable-strip \
 		--disable-tests \
 		--disable-updater \
-		--disable-wmf-cdm \
 		--enable-negotiateauth \
 		--enable-new-pass-manager \
 		--enable-official-branding \
