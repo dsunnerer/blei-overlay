@@ -48,7 +48,7 @@ if [[ ${PV} == *_rc* ]] ; then
 fi
 
 PATCH_URIS=(
-	https://dev.gentoo.org/~{juippis,whissi,slashbeast}/mozilla/patchsets/${FIREFOX_PATCHSET}
+	https://dev.gentoo.org/~juippis/mozilla/patchsets/${FIREFOX_PATCHSET}
 )
 
 SRC_URI="${MOZ_SRC_BASE_URI}/source/${MOZ_P}.source.tar.xz -> ${MOZ_P_DISTFILES}.source.tar.xz
@@ -57,15 +57,15 @@ SRC_URI="${MOZ_SRC_BASE_URI}/source/${MOZ_P}.source.tar.xz -> ${MOZ_P_DISTFILES}
 DESCRIPTION="Firefox Web Browser"
 HOMEPAGE="https://www.mozilla.com/firefox"
 
-KEYWORDS="~amd64 ~arm64 ~ppc64 ~x86"
+KEYWORDS="~amd64 ~arm64 ~ppc64 ~riscv ~x86"
 
 SLOT="rapid"
 LICENSE="MPL-2.0 GPL-2 LGPL-2.1"
 
 IUSE="+clang cpu_flags_arm_neon dbus debug eme-free hardened hwaccel"
-IUSE+=" jack libproxy lto +openh264 pgo pulseaudio sndio selinux"
+IUSE+=" jack +jumbo-build libproxy lto +openh264 pgo pulseaudio sndio selinux"
 IUSE+=" +system-av1 +system-harfbuzz +system-icu +system-jpeg +system-libevent +system-libvpx system-png system-python-libs +system-webp"
-IUSE+=" wayland wifi +X"
+IUSE+=" +telemetry wayland wifi +X"
 
 # Firefox-only IUSE
 IUSE+=" geckodriver +gmp-autoupdate screencast +privacy"
@@ -114,7 +114,7 @@ COMMON_DEPEND="${FF_ONLY_DEPEND}
 	dev-libs/expat
 	dev-libs/glib:2
 	dev-libs/libffi:=
-	>=dev-libs/nss-3.88
+	>=dev-libs/nss-3.89
 	>=dev-libs/nspr-4.35
 	media-libs/alsa-lib
 	media-libs/fontconfig
@@ -382,9 +382,11 @@ virtwl() {
 
 	debug-print "${FUNCNAME}: $@"
 	"$@"
+	local r=$?
 
 	[[ -n $VIRTWL_PID ]] || die "tinywl exited unexpectedly"
 	exec {VIRTWL[0]}<&- {VIRTWL[1]}>&-
+	return $r
 }
 
 pkg_pretend() {
@@ -584,7 +586,24 @@ src_prepare() {
 		|| die "sed failed to disable ccache stats call"
 
 	einfo "Removing pre-built binaries ..."
-	find "${S}"/third_party -type f \( -name '*.so' -o -name '*.o' -o -name '*.la' -o -name '*.a' \) -print -delete || die
+
+	find "${S}"/third_party -type f \( -name '*.so' -o -name '*.o' -o -name '*.a' -o -name '*.la' \) -print -delete || die
+
+	# Respect choice for "jumbo-build"
+	# Changing the value for FILES_PER_UNIFIED_FILE may not work, see #905431
+	if [[ -n ${FILES_PER_UNIFIED_FILE} ]] && use jumbo-build; then
+		local my_files_per_unified_file=${FILES_PER_UNIFIED_FILE:=16}
+		elog ""
+		elog "jumbo-build defaults modified to ${my_files_per_unified_file}."
+		elog "if you get a build failure, try undefining FILES_PER_UNIFIED_FILE,"
+		elog "if that fails try -jumbo-build before opening a bug report."
+		elog ""
+
+		sed -i -e "s/\"FILES_PER_UNIFIED_FILE\", 16/\"FILES_PER_UNIFIED_FILE\", "${my_files_per_unified_file}"/" python/mozbuild/mozbuild/frontend/data.py ||
+			die "Failed to adjust FILES_PER_UNIFIED_FILE in python/mozbuild/mozbuild/frontend/data.py"
+		sed -i -e "s/FILES_PER_UNIFIED_FILE = 6/FILES_PER_UNIFIED_FILE = "${my_files_per_unified_file}"/" js/src/moz.build ||
+			die "Failed to adjust FILES_PER_UNIFIED_FILE in js/src/moz.build"
+	fi
 
 	# Create build dir
 	BUILD_DIR="${WORKDIR}/${PN}_build"
@@ -607,10 +626,10 @@ src_prepare() {
 	#######
 	### Debian patches
 	einfo "Applying Debian's patches"
-	for p in $(cat "${FILESDIR}/debian-patchset-$(ver_cut 1)"/series);do
-		patch --dry-run --silent -p1 -i "${FILESDIR}/debian-patchset-$(ver_cut 1)"/$p 2>/dev/null
+	for p in $(cat "${FILESDIR}/debian-patchset"/series);do
+		patch --dry-run --silent -p1 -i "${FILESDIR}/debian-patchset"/$p 2>/dev/null
 		if [ $? -eq 0 ]; then
-			eapply "${FILESDIR}/debian-patchset-$(ver_cut 1)"/$p;
+			eapply "${FILESDIR}/debian-patchset"/$p;
 			einfo +++++++++++++++++++++++++;
 			einfo Patch $p is APPLIED;
 			einfo +++++++++++++++++++++++++
@@ -625,16 +644,16 @@ src_prepare() {
 	einfo +++++++++++++++++++++++++++
 	einfo "Applying FreeBSD's patches"
 	einfo +++++++++++++++++++++++++++
-	for i in $(cat "${FILESDIR}/freebsd-patchset-$(ver_cut 1)/series"); do eapply "${FILESDIR}/freebsd-patchset-$(ver_cut 1)/$i";	done
+	for i in $(cat "${FILESDIR}/freebsd-patchset/series"); do eapply "${FILESDIR}/freebsd-patchset/$i";	done
 
 	### Fedora patches
 	einfo ++++++++++++++++++++++++++
 	einfo "Applying Fedora's patches"
 	einfo ++++++++++++++++++++++++++
-	for p in $(cat "${FILESDIR}/fedora-patchset-$(ver_cut 1)"/series);do
-		patch --dry-run --silent -p1 -i "${FILESDIR}/fedora-patchset-$(ver_cut 1)"/$p 2>/dev/null
+	for p in $(cat "${FILESDIR}/fedora-patchset"/series);do
+		patch --dry-run --silent -p1 -i "${FILESDIR}/fedora-patchset"/$p 2>/dev/null
 		if [ $? -eq 0 ]; then
-			eapply "${FILESDIR}/fedora-patchset-$(ver_cut 1)"/$p;
+			eapply "${FILESDIR}/fedora-patchset"/$p;
 			einfo +++++++++++++++++++++++++;
 			einfo Patch $p is APPLIED;
 			einfo +++++++++++++++++++++++++
@@ -649,10 +668,10 @@ src_prepare() {
 	einfo +++++++++++++++++++++++++++++
 	einfo "Applying KissLinux's patches"
 	einfo +++++++++++++++++++++++++++++
-	for p in $(cat "${FILESDIR}/kiss-patchset-$(ver_cut 1)"/series);do
-		patch --dry-run --silent -p1 -i "${FILESDIR}/kiss-patchset-$(ver_cut 1)"/$p 2>/dev/null
+	for p in $(cat "${FILESDIR}/kiss-patchset"/series);do
+		patch --dry-run --silent -p1 -i "${FILESDIR}/kiss-patchset"/$p 2>/dev/null
 		if [ $? -eq 0 ]; then
-			eapply "${FILESDIR}/kiss-patchset-$(ver_cut 1)"/$p;
+			eapply "${FILESDIR}/kiss-patchset"/$p;
 			einfo +++++++++++++++++++++++++;
 			einfo Patch $p is APPLIED;
 			einfo +++++++++++++++++++++++++
@@ -733,7 +752,9 @@ src_configure() {
 	mozconfig_add_options_ac '' --enable-project=browser
 
 	# Set Gentoo defaults
-	export MOZILLA_OFFICIAL=1
+	if use telemetry; then
+		export MOZILLA_OFFICIAL=1
+	fi
 
 	mozconfig_add_options_ac 'Gentoo default' \
 		--allow-addon-sideload \
@@ -746,6 +767,7 @@ src_configure() {
 		--disable-strip \
 		--disable-tests \
 		--disable-updater \
+		--disable-wmf \
 		--enable-negotiateauth \
 		--enable-new-pass-manager \
 		--enable-official-branding \
@@ -781,11 +803,16 @@ src_configure() {
 	# For future keywording: This is currently (97.0) only supported on:
 	# amd64, arm, arm64 & x86.
 	# Might want to flip the logic around if Firefox is to support more arches.
-	if use ppc64; then
+	# bug 833001, bug 903411#c8
+	if use ppc64 || use riscv; then
 		mozconfig_add_options_ac '' --disable-sandbox
 	else
 		mozconfig_add_options_ac '' --enable-sandbox
 	fi
+
+	# Enable JIT on riscv64 explicitly
+	# Can be removed once upstream enable it by default in the future.
+	use riscv && mozconfig_add_options_ac 'Enable JIT for RISC-V 64' --enable-jit
 
 	if [[ -s "${S}/api-google.key" ]] ; then
 		local key_origin="Gentoo default"
@@ -854,6 +881,8 @@ src_configure() {
 	mozconfig_add_options_ac '--enable-audio-backends' --enable-audio-backends="${myaudiobackends::-1}"
 
 	mozconfig_use_enable wifi necko-wifi
+
+	! use jumbo-build && mozconfig_add_options_ac '--disable-unified-build' --disable-unified-build
 
 	if use X && use wayland ; then
 		mozconfig_add_options_ac '+x11+wayland' --enable-default-toolkit=cairo-gtk3-x11-wayland
@@ -986,6 +1015,10 @@ src_configure() {
 		fi
 	fi
 
+	if use elibc_musl && use arm64 ; then
+		mozconfig_add_options_ac 'elf-hack is broken when using musl/arm64' --disable-elf-hack
+	fi
+
 	# Additional ARCH support
 	case "${ARCH}" in
 		arm)
@@ -1022,6 +1055,13 @@ src_configure() {
 		export MACH_BUILD_PYTHON_NATIVE_PACKAGE_SOURCE="system"
 	else
 		export MACH_BUILD_PYTHON_NATIVE_PACKAGE_SOURCE="none"
+	fi
+
+	if ! use telemetry; then
+		mozconfig_add_options_mk '-telemetry setting' "MOZ_CRASHREPORTER=0"
+		mozconfig_add_options_mk '-telemetry setting' "MOZ_DATA_REPORTING=0"
+		mozconfig_add_options_mk '-telemetry setting' "MOZ_SERVICES_HEALTHREPORT=0"
+		mozconfig_add_options_mk '-telemetry setting' "MOZ_TELEMETRY_REPORTING=0"
 	fi
 
 	# Disable notification when build system has finished
@@ -1122,8 +1162,8 @@ src_configure() {
 	mozconfig_add_options_ac '' MOZ_PAY=0
 	mozconfig_add_options_ac '' MOZ_SERVICES_HEALTHREPORTER=0
 	mozconfig_add_options_ac '' MOZ_SERVICES_METRICS=0
-	mozconfig_add_options_ac '' MOZ_TELEMETRY_REPORTING=0
-	mozconfig_add_options_ac '' MOZ_X11=
+	#mozconfig_add_options_ac '' MOZ_TELEMETRY_REPORTING=
+	mozconfig_add_options_ac '' MOZ_X11=0
 	mozconfig_add_options_ac '' USE_X11=0
 
 	### Enable good features
@@ -1140,8 +1180,6 @@ src_configure() {
 	echo "export MOZ_PAY=0" >> "${S}"/.mozconfig
 	echo "export MOZ_SERVICES_HEALTHREPORTER=0" >> "${S}"/.mozconfig
 	echo "export MOZ_SERVICES_METRICS=0" >> "${S}"/.mozconfig
-	echo "export MOZ_TELEMETRY_REPORTING=" >> "${S}"/.mozconfig
-	echo "export MOZ_X11=" >> "${S}"/.mozconfig
 	echo "export USE_X11=0" >> "${S}"/.mozconfig
 	echo "export MOZ_ENABLE_WAYLAND=1" >> "${S}"/.mozconfig
 	#######
@@ -1207,7 +1245,7 @@ src_install() {
 	insinto "${MOZILLA_FIVE_HOME}/distribution"
 	newins "${FILESDIR}"/distribution.ini distribution.ini
 	#######
-	if use privacy; then
+	if use privacy; then 
 		newins "${FILESDIR}"/enable-privacy.policy.json policies.json
 	else
 		newins "${FILESDIR}"/disable-auto-update.policy.json policies.json
@@ -1259,6 +1297,11 @@ src_install() {
 		sticky_pref("gfx.font_rendering.graphite.enabled", true);
 		EOF
 	fi
+
+	#######
+	cat "${FILESDIR}"/opensuse-kde/kde.js >> \
+	"${GENTOO_PREFS}" \
+	|| die
 
 	cat "${FILESDIR}"/privacy-patchset/privacy.js >> \
 	"${GENTOO_PREFS}" \
