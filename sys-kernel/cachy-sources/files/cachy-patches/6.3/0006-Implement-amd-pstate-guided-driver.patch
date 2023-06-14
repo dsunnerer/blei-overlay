@@ -1,8 +1,7 @@
-From 41e6d6404c5714916d60eefe139db7f5b0bfbd7b Mon Sep 17 00:00:00 2001
+From b3e9dd7bff7bb11fa6210beddc094d8a663188d3 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Fri, 9 Jun 2023 20:02:56 +0200
-Subject: [PATCH 06/11] Implement amd-pstate guided and enable amd-pstate
- active as default
+Date: Wed, 14 Jun 2023 19:31:49 +0200
+Subject: [PATCH 06/12] Implement amd-pstate guided driver
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
