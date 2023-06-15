@@ -1,0 +1,127 @@
+From 74ff7f4ae0bea5fc011181876d76dce3b9f36882 Mon Sep 17 00:00:00 2001
+From: Matteo Croce <mcroce@microsoft.com>
+Date: Wed, 28 Jul 2021 20:52:33 +0100
+Subject: lib/string: optimized memcpy
+
+Patch series "lib/string: optimized mem* functions", v2.
+
+Rewrite the generic mem{cpy,move,set} so that memory is accessed with the
+widest size possible, but without doing unaligned accesses.
+
+This was originally posted as C string functions for RISC-V[1], but as
+there was no specific RISC-V code, it was proposed for the generic
+lib/string.c implementation.
+
+Tested on RISC-V and on x86_64 by undefining __HAVE_ARCH_MEM{CPY,SET,MOVE}
+and HAVE_EFFICIENT_UNALIGNED_ACCESS.
+
+These are the performances of memcpy() and memset() of a RISC-V machine on
+a 32 mbyte buffer:
+
+memcpy:
+original aligned:	 75 Mb/s
+original unaligned:	 75 Mb/s
+new aligned:		114 Mb/s
+new unaligned:		107 Mb/s
+
+memset:
+original aligned:	140 Mb/s
+original unaligned:	140 Mb/s
+new aligned:		241 Mb/s
+new unaligned:		241 Mb/s
+
+The size increase is negligible:
+
+$ scripts/bloat-o-meter vmlinux.orig vmlinux
+add/remove: 0/0 grow/shrink: 4/1 up/down: 427/-6 (421)
+Function                                     old     new   delta
+memcpy                                        29     351    +322
+memset                                        29     117     +88
+strlcat                                       68      78     +10
+strlcpy                                       50      57      +7
+memmove                                       56      50      -6
+Total: Before=8556964, After=8557385, chg +0.00%
+
+These functions will be used for RISC-V initially.
+
+[1] https://lore.kernel.org/linux-riscv/20210617152754.17960-1-mcroce@linux.microsoft.com/
+
+The only architecture which will use all the three function will be riscv,
+while memmove() will be used by arc, h8300, hexagon, ia64, openrisc and
+parisc.
+
+Keep in mind that memmove() isn't anything special, it just calls memcpy()
+when possible (e.g.  buffers not overlapping), and fallbacks to the byte
+by byte copy otherwise.
+
+In future we can write two functions, one which copies forward and another
+one which copies backward, and call the right one depending on the buffers
+position.  Then, we could alias memcpy() and memmove(), as proposed by
+Linus: https://bugzilla.redhat.com/show_bug.cgi?id=638477#c132
+
+This patch (of 3):
+
+Rewrite the generic memcpy() to copy a word at time, without generating
+unaligned accesses.
+
+The procedure is made of three steps: First copy data one byte at time
+until the destination buffer is aligned to a long boundary.  Then copy the
+data one long at time shifting the current and the next long to compose a
+long at every cycle.  Finally, copy the remainder one byte at time.
+
+This is the improvement on RISC-V:
+
+original aligned:	 75 Mb/s
+original unaligned:	 75 Mb/s
+new aligned:		114 Mb/s
+new unaligned:		107 Mb/s
+
+and this the binary size increase according to bloat-o-meter:
+
+Function     old     new   delta
+memcpy        36     324    +288
+
+Link: https://lkml.kernel.org/r/20210702123153.14093-1-mcroce@linux.microsoft.com
+Link: https://lkml.kernel.org/r/20210702123153.14093-2-mcroce@linux.microsoft.com
+Signed-off-by: Matteo Croce <mcroce@microsoft.com>
+Cc: Nick Kossifidis <mick@ics.forth.gr>
+Cc: Guo Ren <guoren@kernel.org>
+Cc: Christoph Hellwig <hch@infradead.org>
+Cc: David Laight <David.Laight@aculab.com>
+Cc: Palmer Dabbelt <palmer@dabbelt.com>
+Cc: Emil Renner Berthing <kernel@esmil.dk>
+Cc: Drew Fustini <drew@beagleboard.org>
+Cc: Nick Desaulniers <ndesaulniers@google.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Mark Brown <broonie@kernel.org>
+---
+ lib/string.c | 80 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 77 insertions(+), 3 deletions(-)
+
+diff --git a/lib/string.c b/lib/string.c
+index 77bd0b1d32967..1053044883197 100644
+--- a/lib/string.c
++++ b/lib/string.c
+@@ -33,6 +33,23 @@
+ #include <asm/word-at-a-time.h>
+ #include <asm/page.h>
+ 
++#define BYTES_LONG	sizeof(long)
++#define WORD_MASK	(BYTES_LONG - 1)
++#define MIN_THRESHOLD	(BYTES_LONG * 2)
++
++/* convenience union to avoid cast between different pointer types */
++union types {
++	u8 *as_u8;
++	unsigned long *as_ulong;
++	uintptr_t as_uptr;
++};
++
++union const_types {
++	const u8 *as_u8;
++	const unsigned long *as_ulong;
++	uintptr_t as_uptr;
++};
++
+ #ifndef __HAVE_ARCH_STRNCASECMP
+ /**

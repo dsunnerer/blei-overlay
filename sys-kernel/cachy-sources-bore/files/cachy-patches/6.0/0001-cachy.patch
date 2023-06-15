@@ -1,0 +1,3764 @@
+From f5f3359a1c4e7721538fbb5c7dfbe36550e5ae2b Mon Sep 17 00:00:00 2001
+From: Peter Jung <admin@ptr1337.dev>
+Date: Thu, 8 Dec 2022 13:03:50 +0100
+Subject: [PATCH 01/20] cachy
+
+Signed-off-by: Peter Jung <admin@ptr1337.dev>
+---
+ .gitignore                                    |   1 +
+ .../admin-guide/kernel-parameters.txt         |  11 +-
+ Documentation/mm/index.rst                    |   1 +
+ Documentation/mm/zblock.rst                   |  31 +
+ MAINTAINERS                                   |   7 +
+ Makefile                                      | 137 +++-
+ arch/arc/configs/axs101_defconfig             |   1 +
+ arch/arc/configs/axs103_defconfig             |   1 +
+ arch/arc/configs/axs103_smp_defconfig         |   1 +
+ arch/arc/configs/haps_hs_defconfig            |   1 +
+ arch/arc/configs/haps_hs_smp_defconfig        |   1 +
+ arch/arc/configs/hsdk_defconfig               |   1 +
+ arch/arc/configs/nsim_700_defconfig           |   1 +
+ arch/arc/configs/nsimosci_defconfig           |   1 +
+ arch/arc/configs/nsimosci_hs_defconfig        |   1 +
+ arch/arc/configs/nsimosci_hs_smp_defconfig    |   1 +
+ arch/arc/configs/tb10x_defconfig              |   1 +
+ arch/arc/configs/vdk_hs38_defconfig           |   1 +
+ arch/arc/configs/vdk_hs38_smp_defconfig       |   1 +
+ arch/arm/Makefile                             |  43 --
+ arch/x86/Kconfig.cpu                          | 332 ++++++++-
+ arch/x86/Makefile                             |  11 +-
+ arch/x86/Makefile.postlink                    |  41 ++
+ arch/x86/Makefile_32.cpu                      |  41 --
+ arch/x86/boot/compressed/Makefile             |  10 +-
+ arch/x86/include/asm/vermagic.h               |  66 ++
+ block/bfq-iosched.c                           |   6 +
+ block/elevator.c                              |   7 +-
+ drivers/i2c/busses/Kconfig                    |   9 +
+ drivers/i2c/busses/Makefile                   |   1 +
+ drivers/i2c/busses/i2c-nct6775.c              | 647 ++++++++++++++++++
+ drivers/i2c/busses/i2c-piix4.c                |   4 +-
+ drivers/md/dm-crypt.c                         |   5 +
+ drivers/pci/quirks.c                          | 101 +++
+ include/linux/pagemap.h                       |   2 +-
+ include/linux/user_namespace.h                |   4 +
+ init/Kconfig                                  |  39 ++
+ kernel/Kconfig.hz                             |  24 +
+ kernel/fork.c                                 |  14 +
+ kernel/module/Kconfig                         |  25 +
+ kernel/rcu/Kconfig                            |   4 +-
+ kernel/rcu/rcutorture.c                       |   2 +-
+ kernel/rcu/tree.c                             |   6 +-
+ kernel/rcu/tree_nocb.h                        |   4 +-
+ kernel/rcu/tree_plugin.h                      |   4 +-
+ kernel/sched/core.c                           |  20 +-
+ kernel/sched/fair.c                           |  28 +-
+ kernel/sched/pelt.c                           |  60 ++
+ kernel/sched/pelt.h                           |  42 +-
+ kernel/sched/sched.h                          |   1 +
+ kernel/sysctl.c                               |  12 +
+ kernel/user_namespace.c                       |   7 +
+ lib/Kconfig.debug                             |  29 +-
+ lib/string.c                                  |  62 +-
+ mm/Kconfig                                    |  17 +
+ mm/Makefile                                   |   1 +
+ mm/compaction.c                               |   6 +-
+ mm/page-writeback.c                           |   8 +
+ mm/swap.c                                     |   5 +
+ mm/vmpressure.c                               |   4 +
+ mm/vmscan.c                                   |   4 +
+ mm/zblock.c                                   | 642 +++++++++++++++++
+ scripts/Makefile.debug                        |   6 +-
+ scripts/Makefile.lib                          |  13 +-
+ scripts/Makefile.modinst                      |   7 +-
+ 65 files changed, 2457 insertions(+), 170 deletions(-)
+ create mode 100644 Documentation/mm/zblock.rst
+ create mode 100644 arch/x86/Makefile.postlink
+ create mode 100644 drivers/i2c/busses/i2c-nct6775.c
+ create mode 100644 mm/zblock.c
+
+diff --git a/.gitignore b/.gitignore
+index 265959544978..cd4ef88584ea 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -37,6 +37,7 @@
+ *.o
+ *.o.*
+ *.patch
++*.relocs
+ *.s
+ *.so
+ *.so.dbg
+diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+index 2bc11a61c4d0..74053d8b1287 100644
+--- a/Documentation/admin-guide/kernel-parameters.txt
++++ b/Documentation/admin-guide/kernel-parameters.txt
+@@ -4128,6 +4128,15 @@
+ 		nomsi		[MSI] If the PCI_MSI kernel config parameter is
+ 				enabled, this kernel boot option can be used to
+ 				disable the use of MSI interrupts system-wide.
++		pcie_acs_override =
++					[PCIE] Override missing PCIe ACS support for:
++				downstream
++					All downstream ports - full ACS capabilities
++				multfunction
++					All multifunction devices - multifunction ACS subset
++				id:nnnn:nnnn
++					Specfic device - full ACS capabilities
++					Specified as vid:did (vendor/device ID) in hex
+ 		noioapicquirk	[APIC] Disable all boot interrupt quirks.
+ 				Safety option to keep boot IRQs enabled. This
+ 				should never be necessary.
+@@ -4703,7 +4712,7 @@
+ 			overwritten.
+ 
+ 	rcutree.kthread_prio= 	 [KNL,BOOT]
+-			Set the SCHED_FIFO priority of the RCU per-CPU
++			Set the SCHED_RR priority of the RCU per-CPU
+ 			kthreads (rcuc/N). This value is also used for
+ 			the priority of the RCU boost threads (rcub/N)
+ 			and for the RCU grace-period kthreads (rcu_bh,
+diff --git a/Documentation/mm/index.rst b/Documentation/mm/index.rst
+index 575ccd40e30c..25561b95780f 100644
+--- a/Documentation/mm/index.rst
++++ b/Documentation/mm/index.rst
+@@ -65,4 +65,5 @@ above structured documentation, or deleted if it has served its purpose.
+    vmalloced-kernel-stacks
+    vmemmap_dedup
+    z3fold
++   zblock
+    zsmalloc
+diff --git a/Documentation/mm/zblock.rst b/Documentation/mm/zblock.rst
+new file mode 100644
+index 000000000000..fa4f8f24a5fd
+--- /dev/null
++++ b/Documentation/mm/zblock.rst
+@@ -0,0 +1,31 @@
++.. SPDX-License-Identifier: GPL-2.0
++
++.. _zblock:
++
++======
++zblock
++======
++
++Zblock stores integer number of compressed objects per block. These blocks
++consist of several consecutive physical pages (from 1 to 8) and are arranged
++in lists. The range from 0 to PAGE_SIZE is divided into the number of intervals
++corresponding to the number of lists and these only operate on objects of size
++from its interval. Thus the block lists are isolated from each other, which
++makes it possible to simultaneously perform actions with several objects
++from different lists.
++
++With zlock, it is possible to densely arrange objects of various sizes,
++resulting in low internal fragmentation. Also this allocator tries to fill
++incomplete blocks instead of adding new ones. As a result, in many cases it
++provides a compression ratio substantially higher than z3fold and zbud. Zblock
++does not require MMU and also is superior to zsmalloc with regard to the worst
++execution times, thus allowing for better response time and real-time
++characteristics of the whole system.
++
++Like similar allocation method from z3fold and zsmalloc, zblock_alloc() does
++not return a dereferenceable pointer. Instead, it returns an unsigned long
++handle which encodes actual location of the allocated object.
++
++Unlike zbud and z3fold, zblock works well with objects of various sizes -
++including but not limited to highly compressed and poorly compressed, as well
++as cases where both object types exist.
+diff --git a/MAINTAINERS b/MAINTAINERS
+index 72b9654f764c..e3f4a32f28e4 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -22471,6 +22471,13 @@ L:	linux-mm@kvack.org
+ S:	Maintained
+ F:	mm/z3fold.c
+ 
++ZBLOCK COMPRESSED PAGE ALLOCATOR
++M:	Ananda Badmaev <a.badmaev@clicknet.pro>
++M:	Vitaly Wool <vitaly.wool@konsulko.com>
++L:	linux-mm@kvack.org
++S:	Maintained
++F:	mm/zblock.c
++
+ ZD1211RW WIRELESS DRIVER
+ M:	Ulrich Kunitz <kune@deine-taler.de>
+ L:	linux-wireless@vger.kernel.org
+diff --git a/Makefile b/Makefile
+index 46c6eb57b354..5d4cf9796f91 100644
+--- a/Makefile
++++ b/Makefile
+@@ -756,8 +756,140 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, format-truncation)
+ KBUILD_CFLAGS	+= $(call cc-disable-warning, format-overflow)
+ KBUILD_CFLAGS	+= $(call cc-disable-warning, address-of-packed-member)
+ 
++# This selects which ARM instruction set is used.
++# Note that GCC does not numerically define an architecture version
++# macro, but instead defines a whole series of macros which makes
++# testing for a specific architecture or later rather impossible.
++arch-$(CONFIG_CPU_32v7M)	=-D__LINUX_ARM_ARCH__=7 -march=armv7-m
++arch-$(CONFIG_CPU_32v7)		=-D__LINUX_ARM_ARCH__=7 -march=armv7-a
++arch-$(CONFIG_CPU_32v6)		=-D__LINUX_ARM_ARCH__=6 -march=armv6
++# Only override the compiler option if ARMv6. The ARMv6K extensions are
++# always available in ARMv7
++ifeq ($(CONFIG_CPU_32v6),y)
++arch-$(CONFIG_CPU_32v6K)	=-D__LINUX_ARM_ARCH__=6 -march=armv6k
++endif
++arch-$(CONFIG_CPU_32v5)		=-D__LINUX_ARM_ARCH__=5 -march=armv5te
++arch-$(CONFIG_CPU_32v4T)	=-D__LINUX_ARM_ARCH__=4 -march=armv4t
++arch-$(CONFIG_CPU_32v4)		=-D__LINUX_ARM_ARCH__=4 -march=armv4
++arch-$(CONFIG_CPU_32v3)		=-D__LINUX_ARM_ARCH__=3 -march=armv3m
++
++# Evaluate arch cc-option calls now
++arch-y := $(arch-y)
++
++# This selects how we optimise for the processor.
++tune-$(CONFIG_CPU_ARM7TDMI)	=-mtune=arm7tdmi
++tune-$(CONFIG_CPU_ARM720T)	=-mtune=arm7tdmi
++tune-$(CONFIG_CPU_ARM740T)	=-mtune=arm7tdmi
++tune-$(CONFIG_CPU_ARM9TDMI)	=-mtune=arm9tdmi
++tune-$(CONFIG_CPU_ARM940T)	=-mtune=arm9tdmi
++tune-$(CONFIG_CPU_ARM946E)	=-mtune=arm9e
++tune-$(CONFIG_CPU_ARM920T)	=-mtune=arm9tdmi
++tune-$(CONFIG_CPU_ARM922T)	=-mtune=arm9tdmi
++tune-$(CONFIG_CPU_ARM925T)	=-mtune=arm9tdmi
++tune-$(CONFIG_CPU_ARM926T)	=-mtune=arm9tdmi
++tune-$(CONFIG_CPU_FA526)	=-mtune=arm9tdmi
++tune-$(CONFIG_CPU_SA110)	=-mtune=strongarm110
++tune-$(CONFIG_CPU_SA1100)	=-mtune=strongarm1100
++tune-$(CONFIG_CPU_XSCALE)	=-mtune=xscale
++tune-$(CONFIG_CPU_XSC3)		=-mtune=xscale
++tune-$(CONFIG_CPU_FEROCEON)	=-mtune=xscale
++tune-$(CONFIG_CPU_V6)		=-mtune=arm1136j-s
++tune-$(CONFIG_CPU_V6K)		=-mtune=arm1136j-s
++
++# Evaluate tune cc-option calls now
++tune-y := $(tune-y)
++
++# This selects which x86 instruction set is used.
++cflags-$(CONFIG_M486SX)		+= -march=i486
++cflags-$(CONFIG_M486)		+= -march=i486
++cflags-$(CONFIG_M586)		+= -march=i586
++cflags-$(CONFIG_M586TSC)	+= -march=i586
++cflags-$(CONFIG_M586MMX)	+= -march=pentium-mmx
++cflags-$(CONFIG_M686)		+= -march=i686
++cflags-$(CONFIG_MPENTIUMII)	+= -march=i686 $(call tune,pentium2)
++cflags-$(CONFIG_MPENTIUMIII)	+= -march=i686 $(call tune,pentium3)
++cflags-$(CONFIG_MPENTIUMM)	+= -march=i686 $(call tune,pentium3)
++cflags-$(CONFIG_MPENTIUM4)	+= -march=i686 $(call tune,pentium4)
++cflags-$(CONFIG_MK6)		+= -march=k6
++# Please note, that patches that add -march=athlon-xp and friends are pointless.
++# They make zero difference whatsosever to performance at this time.
++cflags-$(CONFIG_MK7)		+= -march=athlon
++cflags-$(CONFIG_MK8)		+= $(call cc-option,-march=k8,-march=athlon)
++cflags-$(CONFIG_MCRUSOE)	+= -march=i686 $(align)
++cflags-$(CONFIG_MEFFICEON)	+= -march=i686 $(call tune,pentium3) $(align)
++cflags-$(CONFIG_MWINCHIPC6)	+= $(call cc-option,-march=winchip-c6,-march=i586)
++cflags-$(CONFIG_MWINCHIP3D)	+= $(call cc-option,-march=winchip2,-march=i586)
++cflags-$(CONFIG_MCYRIXIII)	+= $(call cc-option,-march=c3,-march=i486) $(align)
++cflags-$(CONFIG_MVIAC3_2)	+= $(call cc-option,-march=c3-2,-march=i686)
++cflags-$(CONFIG_MVIAC7)		+= -march=i686
++cflags-$(CONFIG_MCORE2)		+= -march=i686 $(call tune,core2)
++cflags-$(CONFIG_MATOM)		+= $(call cc-option,-march=atom,$(call cc-option,-march=core2,-march=i686)) \
++$(call cc-option,-mtune=atom,$(call cc-option,-mtune=generic))
++
++# AMD Elan support
++cflags-$(CONFIG_MELAN)		+= -march=i486
++
++# Geode GX1 support
++cflags-$(CONFIG_MGEODEGX1)	+= -march=pentium-mmx
++cflags-$(CONFIG_MGEODE_LX)	+= $(call cc-option,-march=geode,-march=pentium-mmx)
++# add at the end to overwrite eventual tuning options from earlier
++# cpu entries
++cflags-$(CONFIG_X86_GENERIC) 	+= $(call tune,generic,$(call tune,i686))
++
++# Bug fix for binutils: this option is required in order to keep
++# binutils from generating NOPL instructions against our will.
++ifneq ($(CONFIG_X86_P6_NOP),y)
++cflags-y			+= $(call cc-option,-Wa$(comma)-mtune=generic32,)
++endif
++
++# x86_64 instruction set
++cflags64-$(CONFIG_MK8)		+= -march=k8
++cflags64-$(CONFIG_MPSC)		+= -march=nocona
++cflags64-$(CONFIG_MK8SSE3)	+= -march=k8-sse3
++cflags64-$(CONFIG_MK10) 		+= -march=amdfam10
++cflags64-$(CONFIG_MBARCELONA) 	+= -march=barcelona
++cflags64-$(CONFIG_MBOBCAT) 	+= -march=btver1
++cflags64-$(CONFIG_MJAGUAR) 	+= -march=btver2
++cflags64-$(CONFIG_MBULLDOZER) 	+= -march=bdver1
++cflags64-$(CONFIG_MPILEDRIVER)	+= -march=bdver2 -mno-tbm
++cflags64-$(CONFIG_MSTEAMROLLER) 	+= -march=bdver3 -mno-tbm
++cflags64-$(CONFIG_MEXCAVATOR) 	+= -march=bdver4 -mno-tbm
++cflags64-$(CONFIG_MZEN) 		+= -march=znver1
++cflags64-$(CONFIG_MZEN2) 	+= -march=znver2
++cflags64-$(CONFIG_MZEN3) 	+= -march=znver3
++cflags64-$(CONFIG_MNATIVE_INTEL) += -march=native
++cflags64-$(CONFIG_MNATIVE_AMD) 	+= -march=native
++cflags64-$(CONFIG_MATOM) 	+= -march=bonnell
++cflags64-$(CONFIG_MCORE2) 	+= -march=core2
++cflags64-$(CONFIG_MNEHALEM) 	+= -march=nehalem
++cflags64-$(CONFIG_MWESTMERE) 	+= -march=westmere
++cflags64-$(CONFIG_MSILVERMONT) 	+= -march=silvermont
++cflags64-$(CONFIG_MGOLDMONT) 	+= -march=goldmont
++cflags64-$(CONFIG_MGOLDMONTPLUS) += -march=goldmont-plus
++cflags64-$(CONFIG_MSANDYBRIDGE) 	+= -march=sandybridge
++cflags64-$(CONFIG_MIVYBRIDGE) 	+= -march=ivybridge
++cflags64-$(CONFIG_MHASWELL) 	+= -march=haswell
++cflags64-$(CONFIG_MBROADWELL) 	+= -march=broadwell
++cflags64-$(CONFIG_MSKYLAKE) 	+= -march=skylake
++cflags64-$(CONFIG_MSKYLAKEX) 	+= -march=skylake-avx512
++cflags64-$(CONFIG_MCANNONLAKE) 	+= -march=cannonlake
++cflags64-$(CONFIG_MICELAKE) 	+= -march=icelake-client
++cflags64-$(CONFIG_MCASCADELAKE) 	+= -march=cascadelake
++cflags64-$(CONFIG_MCOOPERLAKE) 	+= -march=cooperlake
++cflags64-$(CONFIG_MTIGERLAKE) 	+= -march=tigerlake
++cflags64-$(CONFIG_MSAPPHIRERAPIDS) += -march=sapphirerapids
++cflags64-$(CONFIG_MROCKETLAKE) 	+= -march=rocketlake
++cflags64-$(CONFIG_MALDERLAKE) 	+= -march=alderlake
++cflags64-$(CONFIG_GENERIC_CPU2) 	+= -march=x86-64-v2
++cflags64-$(CONFIG_GENERIC_CPU3) 	+= -march=x86-64-v3
++cflags64-$(CONFIG_GENERIC_CPU4) 	+= -march=x86-64-v4
++cflags64-$(CONFIG_GENERIC_CPU)	+= -mtune=generic
++KBUILD_CFLAGS += $(cflags64-y)
++
+ ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
+ KBUILD_CFLAGS += -O2
++else ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3
++KBUILD_CFLAGS += -O3
+ else ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
+ KBUILD_CFLAGS += -Os
+ endif
+@@ -993,11 +1125,6 @@ KBUILD_CFLAGS	+= -fno-strict-overflow
+ # Make sure -fstack-check isn't enabled (like gentoo apparently did)
+ KBUILD_CFLAGS  += -fno-stack-check
+ 
+-# conserve stack if available
+-ifdef CONFIG_CC_IS_GCC
+-KBUILD_CFLAGS   += -fconserve-stack
+-endif
+-
+ # Prohibit date/time macros, which would make the build non-deterministic
+ KBUILD_CFLAGS   += -Werror=date-time
+ 
+diff --git a/arch/arc/configs/axs101_defconfig b/arch/arc/configs/axs101_defconfig
+index e31a8ebc3ecc..0016149f9583 100644
+--- a/arch/arc/configs/axs101_defconfig
++++ b/arch/arc/configs/axs101_defconfig
+@@ -9,6 +9,7 @@ CONFIG_NAMESPACES=y
+ # CONFIG_UTS_NS is not set
+ # CONFIG_PID_NS is not set
+ CONFIG_BLK_DEV_INITRD=y
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y
+ CONFIG_EMBEDDED=y
+ CONFIG_PERF_EVENTS=y
+ # CONFIG_VM_EVENT_COUNTERS is not set
+diff --git a/arch/arc/configs/axs103_defconfig b/arch/arc/configs/axs103_defconfig
+index e0e8567f0d75..5b031582a1cf 100644
+--- a/arch/arc/configs/axs103_defconfig
++++ b/arch/arc/configs/axs103_defconfig
+@@ -9,6 +9,7 @@ CONFIG_NAMESPACES=y
+ # CONFIG_UTS_NS is not set
+ # CONFIG_PID_NS is not set
+ CONFIG_BLK_DEV_INITRD=y
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y
+ CONFIG_EMBEDDED=y
+ CONFIG_PERF_EVENTS=y
+ # CONFIG_VM_EVENT_COUNTERS is not set
+diff --git a/arch/arc/configs/axs103_smp_defconfig b/arch/arc/configs/axs103_smp_defconfig
+index fcbc952bc75b..d4eec39e0112 100644
+--- a/arch/arc/configs/axs103_smp_defconfig
++++ b/arch/arc/configs/axs103_smp_defconfig
+@@ -9,6 +9,7 @@ CONFIG_NAMESPACES=y
+ # CONFIG_UTS_NS is not set
+ # CONFIG_PID_NS is not set
+ CONFIG_BLK_DEV_INITRD=y
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y
+ CONFIG_EMBEDDED=y
+ CONFIG_PERF_EVENTS=y
+ # CONFIG_VM_EVENT_COUNTERS is not set
+diff --git a/arch/arc/configs/haps_hs_defconfig b/arch/arc/configs/haps_hs_defconfig
+index d87ad7e88d62..7337cdf4ffdd 100644
+--- a/arch/arc/configs/haps_hs_defconfig
++++ b/arch/arc/configs/haps_hs_defconfig
+@@ -11,6 +11,7 @@ CONFIG_NAMESPACES=y
+ # CONFIG_UTS_NS is not set
+ # CONFIG_PID_NS is not set
+ CONFIG_BLK_DEV_INITRD=y
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y
+ CONFIG_EXPERT=y
+ CONFIG_PERF_EVENTS=y
+ # CONFIG_COMPAT_BRK is not set
+diff --git a/arch/arc/configs/haps_hs_smp_defconfig b/arch/arc/configs/haps_hs_smp_defconfig
+index 8d82cdb7f86a..bc927221afc0 100644
+--- a/arch/arc/configs/haps_hs_smp_defconfig
++++ b/arch/arc/configs/haps_hs_smp_defconfig
+@@ -11,6 +11,7 @@ CONFIG_NAMESPACES=y
+ # CONFIG_UTS_NS is not set
+ # CONFIG_PID_NS is not set
+ CONFIG_BLK_DEV_INITRD=y
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y
+ CONFIG_EMBEDDED=y
+ CONFIG_PERF_EVENTS=y
+ # CONFIG_VM_EVENT_COUNTERS is not set
+diff --git a/arch/arc/configs/hsdk_defconfig b/arch/arc/configs/hsdk_defconfig
+index f856b03e0fb5..aa000075a575 100644
+--- a/arch/arc/configs/hsdk_defconfig
++++ b/arch/arc/configs/hsdk_defconfig
+@@ -9,6 +9,7 @@ CONFIG_NAMESPACES=y
+ # CONFIG_PID_NS is not set
+ CONFIG_BLK_DEV_INITRD=y
+ CONFIG_BLK_DEV_RAM=y
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y
+ CONFIG_EMBEDDED=y
+ CONFIG_PERF_EVENTS=y
+ # CONFIG_VM_EVENT_COUNTERS is not set
+diff --git a/arch/arc/configs/nsim_700_defconfig b/arch/arc/configs/nsim_700_defconfig
+index a1ce12bf5b16..326f6cde7826 100644
+--- a/arch/arc/configs/nsim_700_defconfig
++++ b/arch/arc/configs/nsim_700_defconfig
+@@ -11,6 +11,7 @@ CONFIG_NAMESPACES=y
+ # CONFIG_UTS_NS is not set
+ # CONFIG_PID_NS is not set
+ CONFIG_BLK_DEV_INITRD=y
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y
+ CONFIG_KALLSYMS_ALL=y
+ CONFIG_EMBEDDED=y
+ CONFIG_PERF_EVENTS=y
+diff --git a/arch/arc/configs/nsimosci_defconfig b/arch/arc/configs/nsimosci_defconfig
+index ca10f4a2c823..bf39a0091679 100644
+--- a/arch/arc/configs/nsimosci_defconfig
++++ b/arch/arc/configs/nsimosci_defconfig
+@@ -10,6 +10,7 @@ CONFIG_NAMESPACES=y
+ # CONFIG_UTS_NS is not set
+ # CONFIG_PID_NS is not set
+ CONFIG_BLK_DEV_INITRD=y
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y
+ CONFIG_KALLSYMS_ALL=y
+ CONFIG_EMBEDDED=y
+ CONFIG_PERF_EVENTS=y
+diff --git a/arch/arc/configs/nsimosci_hs_defconfig b/arch/arc/configs/nsimosci_hs_defconfig
+index 31b6ec3683c6..7121bd71c543 100644
+--- a/arch/arc/configs/nsimosci_hs_defconfig
++++ b/arch/arc/configs/nsimosci_hs_defconfig
+@@ -10,6 +10,7 @@ CONFIG_NAMESPACES=y
+ # CONFIG_UTS_NS is not set
+ # CONFIG_PID_NS is not set
+ CONFIG_BLK_DEV_INITRD=y
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y
+ CONFIG_KALLSYMS_ALL=y
+ CONFIG_EMBEDDED=y
+ CONFIG_PERF_EVENTS=y
+diff --git a/arch/arc/configs/nsimosci_hs_smp_defconfig b/arch/arc/configs/nsimosci_hs_smp_defconfig
+index 41a0037f48a5..f9863b294a70 100644
+--- a/arch/arc/configs/nsimosci_hs_smp_defconfig
++++ b/arch/arc/configs/nsimosci_hs_smp_defconfig
+@@ -8,6 +8,7 @@ CONFIG_IKCONFIG_PROC=y
+ # CONFIG_UTS_NS is not set
+ # CONFIG_PID_NS is not set
+ CONFIG_BLK_DEV_INITRD=y
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y
+ CONFIG_PERF_EVENTS=y
+ # CONFIG_COMPAT_BRK is not set
+ CONFIG_KPROBES=y
+diff --git a/arch/arc/configs/tb10x_defconfig b/arch/arc/configs/tb10x_defconfig
+index d93b65008d4a..a12656ec0072 100644
+--- a/arch/arc/configs/tb10x_defconfig
++++ b/arch/arc/configs/tb10x_defconfig
+@@ -14,6 +14,7 @@ CONFIG_INITRAMFS_SOURCE="../tb10x-rootfs.cpio"
+ CONFIG_INITRAMFS_ROOT_UID=2100
+ CONFIG_INITRAMFS_ROOT_GID=501
+ # CONFIG_RD_GZIP is not set
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y
+ CONFIG_KALLSYMS_ALL=y
+ # CONFIG_AIO is not set
+ CONFIG_EMBEDDED=y
+diff --git a/arch/arc/configs/vdk_hs38_defconfig b/arch/arc/configs/vdk_hs38_defconfig
+index 0c3b21416819..d7c858df520c 100644
+--- a/arch/arc/configs/vdk_hs38_defconfig
++++ b/arch/arc/configs/vdk_hs38_defconfig
+@@ -4,6 +4,7 @@ CONFIG_HIGH_RES_TIMERS=y
+ CONFIG_IKCONFIG=y
+ CONFIG_IKCONFIG_PROC=y
+ CONFIG_BLK_DEV_INITRD=y
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y
+ CONFIG_EMBEDDED=y
+ CONFIG_PERF_EVENTS=y
+ # CONFIG_VM_EVENT_COUNTERS is not set
+diff --git a/arch/arc/configs/vdk_hs38_smp_defconfig b/arch/arc/configs/vdk_hs38_smp_defconfig
+index f9ad9d3ee702..015c1d43889e 100644
+--- a/arch/arc/configs/vdk_hs38_smp_defconfig
++++ b/arch/arc/configs/vdk_hs38_smp_defconfig
+@@ -4,6 +4,7 @@ CONFIG_HIGH_RES_TIMERS=y
+ CONFIG_IKCONFIG=y
+ CONFIG_IKCONFIG_PROC=y
+ CONFIG_BLK_DEV_INITRD=y
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y
+ CONFIG_EMBEDDED=y
+ CONFIG_PERF_EVENTS=y
+ # CONFIG_VM_EVENT_COUNTERS is not set
+diff --git a/arch/arm/Makefile b/arch/arm/Makefile
+index 56f655deebb1..5b8ad4df790e 100644
+--- a/arch/arm/Makefile
++++ b/arch/arm/Makefile
+@@ -56,49 +56,6 @@ endif
+ #
+ KBUILD_CFLAGS	+= $(call cc-option,-fno-ipa-sra)
+ 
+-# This selects which instruction set is used.
+-# Note that GCC does not numerically define an architecture version
+-# macro, but instead defines a whole series of macros which makes
+-# testing for a specific architecture or later rather impossible.
+-arch-$(CONFIG_CPU_32v7M)	=-D__LINUX_ARM_ARCH__=7 -march=armv7-m
+-arch-$(CONFIG_CPU_32v7)		=-D__LINUX_ARM_ARCH__=7 -march=armv7-a
+-arch-$(CONFIG_CPU_32v6)		=-D__LINUX_ARM_ARCH__=6 -march=armv6
+-# Only override the compiler option if ARMv6. The ARMv6K extensions are
+-# always available in ARMv7
+-ifeq ($(CONFIG_CPU_32v6),y)
+-arch-$(CONFIG_CPU_32v6K)	=-D__LINUX_ARM_ARCH__=6 -march=armv6k
+-endif
+-arch-$(CONFIG_CPU_32v5)		=-D__LINUX_ARM_ARCH__=5 -march=armv5te
+-arch-$(CONFIG_CPU_32v4T)	=-D__LINUX_ARM_ARCH__=4 -march=armv4t
+-arch-$(CONFIG_CPU_32v4)		=-D__LINUX_ARM_ARCH__=4 -march=armv4
+-arch-$(CONFIG_CPU_32v3)		=-D__LINUX_ARM_ARCH__=3 -march=armv3m
+-
+-# Evaluate arch cc-option calls now
+-arch-y := $(arch-y)
+-
+-# This selects how we optimise for the processor.
+-tune-$(CONFIG_CPU_ARM7TDMI)	=-mtune=arm7tdmi
+-tune-$(CONFIG_CPU_ARM720T)	=-mtune=arm7tdmi
+-tune-$(CONFIG_CPU_ARM740T)	=-mtune=arm7tdmi
+-tune-$(CONFIG_CPU_ARM9TDMI)	=-mtune=arm9tdmi
+-tune-$(CONFIG_CPU_ARM940T)	=-mtune=arm9tdmi
+-tune-$(CONFIG_CPU_ARM946E)	=-mtune=arm9e
+-tune-$(CONFIG_CPU_ARM920T)	=-mtune=arm9tdmi
+-tune-$(CONFIG_CPU_ARM922T)	=-mtune=arm9tdmi
+-tune-$(CONFIG_CPU_ARM925T)	=-mtune=arm9tdmi
+-tune-$(CONFIG_CPU_ARM926T)	=-mtune=arm9tdmi
+-tune-$(CONFIG_CPU_FA526)	=-mtune=arm9tdmi
+-tune-$(CONFIG_CPU_SA110)	=-mtune=strongarm110
+-tune-$(CONFIG_CPU_SA1100)	=-mtune=strongarm1100
+-tune-$(CONFIG_CPU_XSCALE)	=-mtune=xscale
+-tune-$(CONFIG_CPU_XSC3)		=-mtune=xscale
+-tune-$(CONFIG_CPU_FEROCEON)	=-mtune=xscale
+-tune-$(CONFIG_CPU_V6)		=-mtune=arm1136j-s
+-tune-$(CONFIG_CPU_V6K)		=-mtune=arm1136j-s
+-
+-# Evaluate tune cc-option calls now
+-tune-y := $(tune-y)
+-
+ ifeq ($(CONFIG_AEABI),y)
+ CFLAGS_ABI	:=-mabi=aapcs-linux -mfpu=vfp
+ else
+diff --git a/arch/x86/Kconfig.cpu b/arch/x86/Kconfig.cpu
+index 542377cd419d..22b919cdb6d1 100644
+--- a/arch/x86/Kconfig.cpu
++++ b/arch/x86/Kconfig.cpu
+@@ -157,7 +157,7 @@ config MPENTIUM4
+ 
+ 
+ config MK6
+-	bool "K6/K6-II/K6-III"
++	bool "AMD K6/K6-II/K6-III"
+ 	depends on X86_32
+ 	help
+ 	  Select this for an AMD K6-family processor.  Enables use of
+@@ -165,7 +165,7 @@ config MK6
+ 	  flags to GCC.
+ 
+ config MK7
+-	bool "Athlon/Duron/K7"
++	bool "AMD Athlon/Duron/K7"
+ 	depends on X86_32
+ 	help
+ 	  Select this for an AMD Athlon K7-family processor.  Enables use of
+@@ -173,12 +173,98 @@ config MK7
+ 	  flags to GCC.
+ 
+ config MK8
+-	bool "Opteron/Athlon64/Hammer/K8"
++	bool "AMD Opteron/Athlon64/Hammer/K8"
+ 	help
+ 	  Select this for an AMD Opteron or Athlon64 Hammer-family processor.
+ 	  Enables use of some extended instructions, and passes appropriate
+ 	  optimization flags to GCC.
+ 
++config MK8SSE3
++	bool "AMD Opteron/Athlon64/Hammer/K8 with SSE3"
++	help
++	  Select this for improved AMD Opteron or Athlon64 Hammer-family processors.
++	  Enables use of some extended instructions, and passes appropriate
++	  optimization flags to GCC.
++
++config MK10
++	bool "AMD 61xx/7x50/PhenomX3/X4/II/K10"
++	help
++	  Select this for an AMD 61xx Eight-Core Magny-Cours, Athlon X2 7x50,
++	  Phenom X3/X4/II, Athlon II X2/X3/X4, or Turion II-family processor.
++	  Enables use of some extended instructions, and passes appropriate
++	  optimization flags to GCC.
++
++config MBARCELONA
++	bool "AMD Barcelona"
++	help
++	  Select this for AMD Family 10h Barcelona processors.
++
++	  Enables -march=barcelona
++
++config MBOBCAT
++	bool "AMD Bobcat"
++	help
++	  Select this for AMD Family 14h Bobcat processors.
++
++	  Enables -march=btver1
++
++config MJAGUAR
++	bool "AMD Jaguar"
++	help
++	  Select this for AMD Family 16h Jaguar processors.
++
++	  Enables -march=btver2
++
++config MBULLDOZER
++	bool "AMD Bulldozer"
++	help
++	  Select this for AMD Family 15h Bulldozer processors.
++
++	  Enables -march=bdver1
++
++config MPILEDRIVER
++	bool "AMD Piledriver"
++	help
++	  Select this for AMD Family 15h Piledriver processors.
++
++	  Enables -march=bdver2
++
++config MSTEAMROLLER
++	bool "AMD Steamroller"
++	help
++	  Select this for AMD Family 15h Steamroller processors.
++
++	  Enables -march=bdver3
++
++config MEXCAVATOR
++	bool "AMD Excavator"
++	help
++	  Select this for AMD Family 15h Excavator processors.
++
++	  Enables -march=bdver4
++
++config MZEN
++	bool "AMD Zen"
++	help
++	  Select this for AMD Family 17h Zen processors.
++
++	  Enables -march=znver1
++
++config MZEN2
++	bool "AMD Zen 2"
++	help
++	  Select this for AMD Family 17h Zen 2 processors.
++
++	  Enables -march=znver2
++
++config MZEN3
++	bool "AMD Zen 3"
++	depends on (CC_IS_GCC && GCC_VERSION >= 100300) || (CC_IS_CLANG && CLANG_VERSION >= 120000)
++	help
++	  Select this for AMD Family 19h Zen 3 processors.
++
++	  Enables -march=znver3
++
+ config MCRUSOE
+ 	bool "Crusoe"
+ 	depends on X86_32
+@@ -270,7 +356,7 @@ config MPSC
+ 	  in /proc/cpuinfo. Family 15 is an older Xeon, Family 6 a newer one.
+ 
+ config MCORE2
+-	bool "Core 2/newer Xeon"
++	bool "Intel Core 2"
+ 	help
+ 
+ 	  Select this for Intel Core 2 and newer Core 2 Xeons (Xeon 51xx and
+@@ -278,6 +364,8 @@ config MCORE2
+ 	  family in /proc/cpuinfo. Newer ones have 6 and older ones 15
+ 	  (not a typo)
+ 
++	  Enables -march=core2
++
+ config MATOM
+ 	bool "Intel Atom"
+ 	help
+@@ -287,6 +375,182 @@ config MATOM
+ 	  accordingly optimized code. Use a recent GCC with specific Atom
+ 	  support in order to fully benefit from selecting this option.
+ 
++config MNEHALEM
++	bool "Intel Nehalem"
++	select X86_P6_NOP
++	help
++
++	  Select this for 1st Gen Core processors in the Nehalem family.
++
++	  Enables -march=nehalem
++
++config MWESTMERE
++	bool "Intel Westmere"
++	select X86_P6_NOP
++	help
++
++	  Select this for the Intel Westmere formerly Nehalem-C family.
++
++	  Enables -march=westmere
++
++config MSILVERMONT
++	bool "Intel Silvermont"
++	select X86_P6_NOP
++	help
++
++	  Select this for the Intel Silvermont platform.
++
++	  Enables -march=silvermont
++
++config MGOLDMONT
++	bool "Intel Goldmont"
++	select X86_P6_NOP
++	help
++
++	  Select this for the Intel Goldmont platform including Apollo Lake and Denverton.
++
++	  Enables -march=goldmont
++
++config MGOLDMONTPLUS
++	bool "Intel Goldmont Plus"
++	select X86_P6_NOP
++	help
++
++	  Select this for the Intel Goldmont Plus platform including Gemini Lake.
++
++	  Enables -march=goldmont-plus
++
++config MSANDYBRIDGE
++	bool "Intel Sandy Bridge"
++	select X86_P6_NOP
++	help
++
++	  Select this for 2nd Gen Core processors in the Sandy Bridge family.
++
++	  Enables -march=sandybridge
++
++config MIVYBRIDGE
++	bool "Intel Ivy Bridge"
++	select X86_P6_NOP
++	help
++
++	  Select this for 3rd Gen Core processors in the Ivy Bridge family.
++
++	  Enables -march=ivybridge
++
++config MHASWELL
++	bool "Intel Haswell"
++	select X86_P6_NOP
++	help
++
++	  Select this for 4th Gen Core processors in the Haswell family.
++
++	  Enables -march=haswell
++
++config MBROADWELL
++	bool "Intel Broadwell"
++	select X86_P6_NOP
++	help
++
++	  Select this for 5th Gen Core processors in the Broadwell family.
++
++	  Enables -march=broadwell
++
++config MSKYLAKE
++	bool "Intel Skylake"
++	select X86_P6_NOP
++	help
++
++	  Select this for 6th Gen Core processors in the Skylake family.
++
++	  Enables -march=skylake
++
++config MSKYLAKEX
++	bool "Intel Skylake X"
++	select X86_P6_NOP
++	help
++
++	  Select this for 6th Gen Core processors in the Skylake X family.
++
++	  Enables -march=skylake-avx512
++
++config MCANNONLAKE
++	bool "Intel Cannon Lake"
++	select X86_P6_NOP
++	help
++
++	  Select this for 8th Gen Core processors
++
++	  Enables -march=cannonlake
++
++config MICELAKE
++	bool "Intel Ice Lake"
++	select X86_P6_NOP
++	help
++
++	  Select this for 10th Gen Core processors in the Ice Lake family.
++
++	  Enables -march=icelake-client
++
++config MCASCADELAKE
++	bool "Intel Cascade Lake"
++	select X86_P6_NOP
++	help
++
++	  Select this for Xeon processors in the Cascade Lake family.
++
++	  Enables -march=cascadelake
++
++config MCOOPERLAKE
++	bool "Intel Cooper Lake"
++	depends on (CC_IS_GCC && GCC_VERSION > 100100) || (CC_IS_CLANG && CLANG_VERSION >= 100000)
++	select X86_P6_NOP
++	help
++
++	  Select this for Xeon processors in the Cooper Lake family.
++
++	  Enables -march=cooperlake
++
++config MTIGERLAKE
++	bool "Intel Tiger Lake"
++	depends on  (CC_IS_GCC && GCC_VERSION > 100100) || (CC_IS_CLANG && CLANG_VERSION >= 100000)
++	select X86_P6_NOP
++	help
++
++	  Select this for third-generation 10 nm process processors in the Tiger Lake family.
++
++	  Enables -march=tigerlake
++
++config MSAPPHIRERAPIDS
++	bool "Intel Sapphire Rapids"
++	depends on (CC_IS_GCC && GCC_VERSION > 110000) || (CC_IS_CLANG && CLANG_VERSION >= 120000)
++	select X86_P6_NOP
++	help
++
++	  Select this for third-generation 10 nm process processors in the Sapphire Rapids family.
++
++	  Enables -march=sapphirerapids
++
++config MROCKETLAKE
++	bool "Intel Rocket Lake"
++	depends on (CC_IS_GCC && GCC_VERSION > 110000) || (CC_IS_CLANG && CLANG_VERSION >= 120000)
++	select X86_P6_NOP
++	help
++
++	  Select this for eleventh-generation processors in the Rocket Lake family.
++
++	  Enables -march=rocketlake
++
++config MALDERLAKE
++	bool "Intel Alder Lake"
++	depends on (CC_IS_GCC && GCC_VERSION > 110000) || (CC_IS_CLANG && CLANG_VERSION >= 120000)
++	select X86_P6_NOP
++	help
++
++	  Select this for twelfth-generation processors in the Alder Lake family.
++
++	  Enables -march=alderlake
++
+ config GENERIC_CPU
+ 	bool "Generic-x86-64"
+ 	depends on X86_64
+@@ -294,6 +558,50 @@ config GENERIC_CPU
+ 	  Generic x86-64 CPU.
+ 	  Run equally well on all x86-64 CPUs.
+ 
++config GENERIC_CPU2
++	bool "Generic-x86-64-v2"
++	depends on (CC_IS_GCC && GCC_VERSION > 110000) || (CC_IS_CLANG && CLANG_VERSION >= 120000)
++	depends on X86_64
++	help
++	  Generic x86-64 CPU.
++	  Run equally well on all x86-64 CPUs with min support of x86-64-v2.
++
++config GENERIC_CPU3
++	bool "Generic-x86-64-v3"
++	depends on (CC_IS_GCC && GCC_VERSION > 110000) || (CC_IS_CLANG && CLANG_VERSION >= 120000)
++	depends on X86_64
++	help
++	  Generic x86-64-v3 CPU with v3 instructions.
++	  Run equally well on all x86-64 CPUs with min support of x86-64-v3.
++
++config GENERIC_CPU4
++	bool "Generic-x86-64-v4"
++	depends on (CC_IS_GCC && GCC_VERSION > 110000) || (CC_IS_CLANG && CLANG_VERSION >= 120000)
++	depends on X86_64
++	help
++	  Generic x86-64 CPU with v4 instructions.
++	  Run equally well on all x86-64 CPUs with min support of x86-64-v4.
++
++config MNATIVE_INTEL
++	bool "Intel-Native optimizations autodetected by the compiler"
++	help
++
++	  Clang 3.8, GCC 4.2 and above support -march=native, which automatically detects
++	  the optimum settings to use based on your processor. Do NOT use this
++	  for AMD CPUs.  Intel Only!
++
++	  Enables -march=native
++
++config MNATIVE_AMD
++	bool "AMD-Native optimizations autodetected by the compiler"
++	help
++
++	  Clang 3.8, GCC 4.2 and above support -march=native, which automatically detects
++	  the optimum settings to use based on your processor. Do NOT use this
++	  for Intel CPUs.  AMD Only!
++
++	  Enables -march=native
++
+ endchoice
+ 
+ config X86_GENERIC
+@@ -318,7 +626,7 @@ config X86_INTERNODE_CACHE_SHIFT
+ config X86_L1_CACHE_SHIFT
+ 	int
+ 	default "7" if MPENTIUM4 || MPSC
+-	default "6" if MK7 || MK8 || MPENTIUMM || MCORE2 || MATOM || MVIAC7 || X86_GENERIC || GENERIC_CPU
++	default "6" if MK7 || MK8 || MPENTIUMM || MCORE2 || MATOM || MVIAC7 || MK8SSE3 || MK10 || MBARCELONA || MBOBCAT || MJAGUAR || MBULLDOZER || MPILEDRIVER || MSTEAMROLLER || MEXCAVATOR || MZEN || MZEN2 || MZEN3 || MNEHALEM || MWESTMERE || MSILVERMONT || MGOLDMONT || MGOLDMONTPLUS || MSANDYBRIDGE || MIVYBRIDGE || MHASWELL || MBROADWELL || MSKYLAKE || MSKYLAKEX || MCANNONLAKE || MICELAKE || MCASCADELAKE || MCOOPERLAKE || MTIGERLAKE || MSAPPHIRERAPIDS || MROCKETLAKE || MALDERLAKE || MNATIVE_INTEL || MNATIVE_AMD || X86_GENERIC || GENERIC_CPU || GENERIC_CPU2 || GENERIC_CPU3 || GENERIC_CPU4
+ 	default "4" if MELAN || M486SX || M486 || MGEODEGX1
+ 	default "5" if MWINCHIP3D || MWINCHIPC6 || MCRUSOE || MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODE_LX
+ 
+@@ -336,11 +644,11 @@ config X86_ALIGNMENT_16
+ 
+ config X86_INTEL_USERCOPY
+ 	def_bool y
+-	depends on MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M586MMX || X86_GENERIC || MK8 || MK7 || MEFFICEON || MCORE2
++	depends on MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M586MMX || X86_GENERIC || MK8 || MK7 || MEFFICEON || MCORE2 || MNEHALEM || MWESTMERE || MSILVERMONT || MGOLDMONT || MGOLDMONTPLUS || MSANDYBRIDGE || MIVYBRIDGE || MHASWELL || MBROADWELL || MSKYLAKE || MSKYLAKEX || MCANNONLAKE || MICELAKE || MCASCADELAKE || MCOOPERLAKE || MTIGERLAKE || MSAPPHIRERAPIDS || MROCKETLAKE || MALDERLAKE || MNATIVE_INTEL
+ 
+ config X86_USE_PPRO_CHECKSUM
+ 	def_bool y
+-	depends on MWINCHIP3D || MWINCHIPC6 || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MK8 || MVIAC3_2 || MVIAC7 || MEFFICEON || MGEODE_LX || MCORE2 || MATOM
++	depends on MWINCHIP3D || MWINCHIPC6 || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MK8 || MVIAC3_2 || MVIAC7 || MEFFICEON || MGEODE_LX || MCORE2 || MATOM || MK8SSE3 || MK10 || MBARCELONA || MBOBCAT || MJAGUAR || MBULLDOZER || MPILEDRIVER || MSTEAMROLLER || MEXCAVATOR || MZEN || MZEN2 || MZEN3 || MNEHALEM || MWESTMERE || MSILVERMONT || MGOLDMONT || MGOLDMONTPLUS || MSANDYBRIDGE || MIVYBRIDGE || MHASWELL || MBROADWELL || MSKYLAKE || MSKYLAKEX || MCANNONLAKE || MICELAKE || MCASCADELAKE || MCOOPERLAKE || MTIGERLAKE || MSAPPHIRERAPIDS || MROCKETLAKE || MALDERLAKE || MNATIVE_INTEL || MNATIVE_AMD
+ 
+ #
+ # P6_NOPs are a relatively minor optimization that require a family >=
+@@ -356,26 +664,26 @@ config X86_USE_PPRO_CHECKSUM
+ config X86_P6_NOP
+ 	def_bool y
+ 	depends on X86_64
+-	depends on (MCORE2 || MPENTIUM4 || MPSC)
++	depends on (MCORE2 || MPENTIUM4 || MPSC || MNEHALEM || MWESTMERE || MSILVERMONT || MGOLDMONT || MGOLDMONTPLUS || MSANDYBRIDGE || MIVYBRIDGE || MHASWELL || MBROADWELL || MSKYLAKE || MSKYLAKEX || MCANNONLAKE || MICELAKE || MCASCADELAKE || MCOOPERLAKE || MTIGERLAKE || MSAPPHIRERAPIDS || MROCKETLAKE || MALDERLAKE || MNATIVE_INTEL)
+ 
+ config X86_TSC
+ 	def_bool y
+-	depends on (MWINCHIP3D || MCRUSOE || MEFFICEON || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MK8 || MVIAC3_2 || MVIAC7 || MGEODEGX1 || MGEODE_LX || MCORE2 || MATOM) || X86_64
++	depends on (MWINCHIP3D || MCRUSOE || MEFFICEON || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MK8 || MVIAC3_2 || MVIAC7 || MGEODEGX1 || MGEODE_LX || MCORE2 || MATOM || MK8SSE3 || MK10 || MBARCELONA || MBOBCAT || MJAGUAR || MBULLDOZER || MPILEDRIVER || MSTEAMROLLER || MEXCAVATOR || MZEN || MZEN2 || MZEN3 || MNEHALEM || MWESTMERE || MSILVERMONT || MGOLDMONT || MGOLDMONTPLUS || MSANDYBRIDGE || MIVYBRIDGE || MHASWELL || MBROADWELL || MSKYLAKE || MSKYLAKEX || MCANNONLAKE || MICELAKE || MCASCADELAKE || MCOOPERLAKE || MTIGERLAKE || MSAPPHIRERAPIDS || MROCKETLAKE || MALDERLAKE || MNATIVE_INTEL || MNATIVE_AMD) || X86_64
+ 
+ config X86_CMPXCHG64
+ 	def_bool y
+-	depends on X86_PAE || X86_64 || MCORE2 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586TSC || M586MMX || MATOM || MGEODE_LX || MGEODEGX1 || MK6 || MK7 || MK8
++	depends on X86_PAE || X86_64 || MCORE2 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586TSC || M586MMX || MATOM || MGEODE_LX || MGEODEGX1 || MK6 || MK7 || MK8 || MK8SSE3 || MK10 || MBARCELONA || MBOBCAT || MJAGUAR || MBULLDOZER || MPILEDRIVER || MSTEAMROLLER || MEXCAVATOR || MZEN || MZEN2 || MZEN3 || MNEHALEM || MWESTMERE || MSILVERMONT || MGOLDMONT || MGOLDMONTPLUS || MSANDYBRIDGE || MIVYBRIDGE || MHASWELL || MBROADWELL || MSKYLAKE || MSKYLAKEX || MCANNONLAKE || MICELAKE || MCASCADELAKE || MCOOPERLAKE || MTIGERLAKE || MSAPPHIRERAPIDS || MROCKETLAKE || MALDERLAKE || MNATIVE_INTEL || MNATIVE_AMD
+ 
+ # this should be set for all -march=.. options where the compiler
+ # generates cmov.
+ config X86_CMOV
+ 	def_bool y
+-	depends on (MK8 || MK7 || MCORE2 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7 || MCRUSOE || MEFFICEON || X86_64 || MATOM || MGEODE_LX)
++	depends on (MK8 || MK7 || MCORE2 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7 || MCRUSOE || MEFFICEON || X86_64 || MATOM || MGEODE_LX || MK8SSE3 || MK10 || MBARCELONA || MBOBCAT || MJAGUAR || MBULLDOZER || MPILEDRIVER || MSTEAMROLLER || MEXCAVATOR || MZEN || MZEN2 || MZEN3 || MNEHALEM || MWESTMERE || MSILVERMONT || MGOLDMONT || MGOLDMONTPLUS || MSANDYBRIDGE || MIVYBRIDGE || MHASWELL || MBROADWELL || MSKYLAKE || MSKYLAKEX || MCANNONLAKE || MICELAKE || MCASCADELAKE || MCOOPERLAKE || MTIGERLAKE || MSAPPHIRERAPIDS || MROCKETLAKE || MALDERLAKE || MNATIVE_INTEL || MNATIVE_AMD)
+ 
+ config X86_MINIMUM_CPU_FAMILY
+ 	int
+ 	default "64" if X86_64
+-	default "6" if X86_32 && (MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7 || MEFFICEON || MATOM || MCRUSOE || MCORE2 || MK7 || MK8)
++	default "6" if X86_32 && (MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7 || MEFFICEON || MATOM || MCRUSOE || MCORE2 || MK7 || MK8 ||  MK8SSE3 || MK10 || MBARCELONA || MBOBCAT || MJAGUAR || MBULLDOZER || MPILEDRIVER || MSTEAMROLLER || MEXCAVATOR || MZEN || MZEN2 || MZEN3 || MNEHALEM || MWESTMERE || MSILVERMONT || MGOLDMONT || MGOLDMONTPLUS || MSANDYBRIDGE || MIVYBRIDGE || MHASWELL || MBROADWELL || MSKYLAKE || MSKYLAKEX || MCANNONLAKE || MICELAKE || MCASCADELAKE || MCOOPERLAKE || MTIGERLAKE || MSAPPHIRERAPIDS || MROCKETLAKE || MALDERLAKE || MNATIVE_INTEL || MNATIVE_AMD)
+ 	default "5" if X86_32 && X86_CMPXCHG64
+ 	default "4"
+ 
+diff --git a/arch/x86/Makefile b/arch/x86/Makefile
+index bafbd905e6e7..bc336020df59 100644
+--- a/arch/x86/Makefile
++++ b/arch/x86/Makefile
+@@ -67,7 +67,8 @@ export BITS
+ #
+ #    https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53383
+ #
+-KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx
++KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -mno-avx2 \
++		   -mno-avx512f -O3
+ 
+ ifeq ($(CONFIG_X86_KERNEL_IBT),y)
+ #
+@@ -147,14 +148,6 @@ else
+ 	# Use -mskip-rax-setup if supported.
+ 	KBUILD_CFLAGS += $(call cc-option,-mskip-rax-setup)
+ 
+-        # FIXME - should be integrated in Makefile.cpu (Makefile_32.cpu)
+-        cflags-$(CONFIG_MK8)		+= -march=k8
+-        cflags-$(CONFIG_MPSC)		+= -march=nocona
+-        cflags-$(CONFIG_MCORE2)		+= -march=core2
+-        cflags-$(CONFIG_MATOM)		+= -march=atom
+-        cflags-$(CONFIG_GENERIC_CPU)	+= -mtune=generic
+-        KBUILD_CFLAGS += $(cflags-y)
+-
+         KBUILD_CFLAGS += -mno-red-zone
+         KBUILD_CFLAGS += -mcmodel=kernel
+ endif
+diff --git a/arch/x86/Makefile.postlink b/arch/x86/Makefile.postlink
+new file mode 100644
+index 000000000000..b38ffa4defb3
+--- /dev/null
++++ b/arch/x86/Makefile.postlink
+@@ -0,0 +1,41 @@
++# SPDX-License-Identifier: GPL-2.0
++# ===========================================================================
++# Post-link x86 pass
++# ===========================================================================
++#
++# 1. Separate relocations from vmlinux into vmlinux.relocs.
++# 2. Strip relocations from vmlinux.
++
++PHONY := __archpost
++__archpost:
++
++-include include/config/auto.conf
++include scripts/Kbuild.include
++
++CMD_RELOCS = arch/x86/tools/relocs
++quiet_cmd_relocs = RELOCS  $@.relocs
++      cmd_relocs = $(CMD_RELOCS) $@ > $@.relocs;$(CMD_RELOCS) --abs-relocs $@
++
++quiet_cmd_strip_relocs = RSTRIP  $@
++      cmd_strip_relocs = $(OBJCOPY) --remove-section='.rel.*' --remove-section='.rel__*' --remove-section='.rela.*' --remove-section='.rela__*' $@
++
++# `@true` prevents complaint when there is nothing to be done
++
++vmlinux: FORCE
++	@true
++ifeq ($(CONFIG_X86_NEED_RELOCS),y)
++	$(call cmd,relocs)
++	$(call cmd,strip_relocs)
++endif
++
++%.ko: FORCE
++	@true
++
++clean:
++	@rm -f vmlinux.relocs
++
++PHONY += FORCE clean
++
++FORCE:
++
++.PHONY: $(PHONY)
+diff --git a/arch/x86/Makefile_32.cpu b/arch/x86/Makefile_32.cpu
+index 94834c4b5e5e..81923b4afdf8 100644
+--- a/arch/x86/Makefile_32.cpu
++++ b/arch/x86/Makefile_32.cpu
+@@ -10,44 +10,3 @@ else
+ align		:= -falign-functions=0 -falign-jumps=0 -falign-loops=0
+ endif
+ 
+-cflags-$(CONFIG_M486SX)		+= -march=i486
+-cflags-$(CONFIG_M486)		+= -march=i486
+-cflags-$(CONFIG_M586)		+= -march=i586
+-cflags-$(CONFIG_M586TSC)	+= -march=i586
+-cflags-$(CONFIG_M586MMX)	+= -march=pentium-mmx
+-cflags-$(CONFIG_M686)		+= -march=i686
+-cflags-$(CONFIG_MPENTIUMII)	+= -march=i686 $(call tune,pentium2)
+-cflags-$(CONFIG_MPENTIUMIII)	+= -march=i686 $(call tune,pentium3)
+-cflags-$(CONFIG_MPENTIUMM)	+= -march=i686 $(call tune,pentium3)
+-cflags-$(CONFIG_MPENTIUM4)	+= -march=i686 $(call tune,pentium4)
+-cflags-$(CONFIG_MK6)		+= -march=k6
+-# Please note, that patches that add -march=athlon-xp and friends are pointless.
+-# They make zero difference whatsosever to performance at this time.
+-cflags-$(CONFIG_MK7)		+= -march=athlon
+-cflags-$(CONFIG_MK8)		+= $(call cc-option,-march=k8,-march=athlon)
+-cflags-$(CONFIG_MCRUSOE)	+= -march=i686 $(align)
+-cflags-$(CONFIG_MEFFICEON)	+= -march=i686 $(call tune,pentium3) $(align)
+-cflags-$(CONFIG_MWINCHIPC6)	+= $(call cc-option,-march=winchip-c6,-march=i586)
+-cflags-$(CONFIG_MWINCHIP3D)	+= $(call cc-option,-march=winchip2,-march=i586)
+-cflags-$(CONFIG_MCYRIXIII)	+= $(call cc-option,-march=c3,-march=i486) $(align)
+-cflags-$(CONFIG_MVIAC3_2)	+= $(call cc-option,-march=c3-2,-march=i686)
+-cflags-$(CONFIG_MVIAC7)		+= -march=i686
+-cflags-$(CONFIG_MCORE2)		+= -march=i686 $(call tune,core2)
+-cflags-$(CONFIG_MATOM)		+= $(call cc-option,-march=atom,$(call cc-option,-march=core2,-march=i686)) \
+-	$(call cc-option,-mtune=atom,$(call cc-option,-mtune=generic))
+-
+-# AMD Elan support
+-cflags-$(CONFIG_MELAN)		+= -march=i486
+-
+-# Geode GX1 support
+-cflags-$(CONFIG_MGEODEGX1)	+= -march=pentium-mmx
+-cflags-$(CONFIG_MGEODE_LX)	+= $(call cc-option,-march=geode,-march=pentium-mmx)
+-# add at the end to overwrite eventual tuning options from earlier
+-# cpu entries
+-cflags-$(CONFIG_X86_GENERIC) 	+= $(call tune,generic,$(call tune,i686))
+-
+-# Bug fix for binutils: this option is required in order to keep
+-# binutils from generating NOPL instructions against our will.
+-ifneq ($(CONFIG_X86_P6_NOP),y)
+-cflags-y			+= $(call cc-option,-Wa$(comma)-mtune=generic32,)
+-endif
+diff --git a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
+index 35ce1a64068b..eba7709d75ae 100644
+--- a/arch/x86/boot/compressed/Makefile
++++ b/arch/x86/boot/compressed/Makefile
+@@ -120,14 +120,12 @@ $(obj)/vmlinux.bin: vmlinux FORCE
+ 
+ targets += $(patsubst $(obj)/%,%,$(vmlinux-objs-y)) vmlinux.bin.all vmlinux.relocs
+ 
+-CMD_RELOCS = arch/x86/tools/relocs
+-quiet_cmd_relocs = RELOCS  $@
+-      cmd_relocs = $(CMD_RELOCS) $< > $@;$(CMD_RELOCS) --abs-relocs $<
+-$(obj)/vmlinux.relocs: vmlinux FORCE
+-	$(call if_changed,relocs)
++# vmlinux.relocs is created by the vmlinux postlink step.
++vmlinux.relocs: vmlinux
++	@true
+ 
+ vmlinux.bin.all-y := $(obj)/vmlinux.bin
+-vmlinux.bin.all-$(CONFIG_X86_NEED_RELOCS) += $(obj)/vmlinux.relocs
++vmlinux.bin.all-$(CONFIG_X86_NEED_RELOCS) += vmlinux.relocs
+ 
+ $(obj)/vmlinux.bin.gz: $(vmlinux.bin.all-y) FORCE
+ 	$(call if_changed,gzip)
+diff --git a/arch/x86/include/asm/vermagic.h b/arch/x86/include/asm/vermagic.h
+index 75884d2cdec3..4e6a08d4c7e5 100644
+--- a/arch/x86/include/asm/vermagic.h
++++ b/arch/x86/include/asm/vermagic.h
+@@ -17,6 +17,48 @@
+ #define MODULE_PROC_FAMILY "586MMX "
+ #elif defined CONFIG_MCORE2
+ #define MODULE_PROC_FAMILY "CORE2 "
++#elif defined CONFIG_MNATIVE_INTEL
++#define MODULE_PROC_FAMILY "NATIVE_INTEL "
++#elif defined CONFIG_MNATIVE_AMD
++#define MODULE_PROC_FAMILY "NATIVE_AMD "
++#elif defined CONFIG_MNEHALEM
++#define MODULE_PROC_FAMILY "NEHALEM "
++#elif defined CONFIG_MWESTMERE
++#define MODULE_PROC_FAMILY "WESTMERE "
++#elif defined CONFIG_MSILVERMONT
++#define MODULE_PROC_FAMILY "SILVERMONT "
++#elif defined CONFIG_MGOLDMONT
++#define MODULE_PROC_FAMILY "GOLDMONT "
++#elif defined CONFIG_MGOLDMONTPLUS
++#define MODULE_PROC_FAMILY "GOLDMONTPLUS "
++#elif defined CONFIG_MSANDYBRIDGE
++#define MODULE_PROC_FAMILY "SANDYBRIDGE "
++#elif defined CONFIG_MIVYBRIDGE
++#define MODULE_PROC_FAMILY "IVYBRIDGE "
++#elif defined CONFIG_MHASWELL
++#define MODULE_PROC_FAMILY "HASWELL "
++#elif defined CONFIG_MBROADWELL
++#define MODULE_PROC_FAMILY "BROADWELL "
++#elif defined CONFIG_MSKYLAKE
++#define MODULE_PROC_FAMILY "SKYLAKE "
++#elif defined CONFIG_MSKYLAKEX
++#define MODULE_PROC_FAMILY "SKYLAKEX "
++#elif defined CONFIG_MCANNONLAKE
++#define MODULE_PROC_FAMILY "CANNONLAKE "
++#elif defined CONFIG_MICELAKE
++#define MODULE_PROC_FAMILY "ICELAKE "
++#elif defined CONFIG_MCASCADELAKE
++#define MODULE_PROC_FAMILY "CASCADELAKE "
++#elif defined CONFIG_MCOOPERLAKE
++#define MODULE_PROC_FAMILY "COOPERLAKE "
++#elif defined CONFIG_MTIGERLAKE
++#define MODULE_PROC_FAMILY "TIGERLAKE "
++#elif defined CONFIG_MSAPPHIRERAPIDS
++#define MODULE_PROC_FAMILY "SAPPHIRERAPIDS "
++#elif defined CONFIG_ROCKETLAKE
++#define MODULE_PROC_FAMILY "ROCKETLAKE "
++#elif defined CONFIG_MALDERLAKE
++#define MODULE_PROC_FAMILY "ALDERLAKE "
+ #elif defined CONFIG_MATOM
+ #define MODULE_PROC_FAMILY "ATOM "
+ #elif defined CONFIG_M686
+@@ -35,6 +77,30 @@
+ #define MODULE_PROC_FAMILY "K7 "
+ #elif defined CONFIG_MK8
+ #define MODULE_PROC_FAMILY "K8 "
++#elif defined CONFIG_MK8SSE3
++#define MODULE_PROC_FAMILY "K8SSE3 "
++#elif defined CONFIG_MK10
++#define MODULE_PROC_FAMILY "K10 "
++#elif defined CONFIG_MBARCELONA
++#define MODULE_PROC_FAMILY "BARCELONA "
++#elif defined CONFIG_MBOBCAT
++#define MODULE_PROC_FAMILY "BOBCAT "
++#elif defined CONFIG_MBULLDOZER
++#define MODULE_PROC_FAMILY "BULLDOZER "
++#elif defined CONFIG_MPILEDRIVER
++#define MODULE_PROC_FAMILY "PILEDRIVER "
++#elif defined CONFIG_MSTEAMROLLER
++#define MODULE_PROC_FAMILY "STEAMROLLER "
++#elif defined CONFIG_MJAGUAR
++#define MODULE_PROC_FAMILY "JAGUAR "
++#elif defined CONFIG_MEXCAVATOR
++#define MODULE_PROC_FAMILY "EXCAVATOR "
++#elif defined CONFIG_MZEN
++#define MODULE_PROC_FAMILY "ZEN "
++#elif defined CONFIG_MZEN2
++#define MODULE_PROC_FAMILY "ZEN2 "
++#elif defined CONFIG_MZEN3
++#define MODULE_PROC_FAMILY "ZEN3 "
+ #elif defined CONFIG_MELAN
+ #define MODULE_PROC_FAMILY "ELAN "
+ #elif defined CONFIG_MCRUSOE
+diff --git a/block/bfq-iosched.c b/block/bfq-iosched.c
+index c740b41fe0a4..ac24b8222bd1 100644
+--- a/block/bfq-iosched.c
++++ b/block/bfq-iosched.c
+@@ -7463,6 +7463,7 @@ MODULE_ALIAS("bfq-iosched");
+ static int __init bfq_init(void)
+ {
+ 	int ret;
++	char msg[60] = "BFQ I/O-scheduler: BFQ-CachyOS v6.0";
+ 
+ #ifdef CONFIG_BFQ_GROUP_IOSCHED
+ 	ret = blkcg_policy_register(&blkcg_policy_bfq);
+@@ -7494,6 +7495,11 @@ static int __init bfq_init(void)
+ 	if (ret)
+ 		goto slab_kill;
+ 
++#ifdef CONFIG_BFQ_GROUP_IOSCHED
++	strcat(msg, " (with cgroups support)");
++#endif
++	pr_info("%s", msg);
++
+ 	return 0;
+ 
+ slab_kill:
+diff --git a/block/elevator.c b/block/elevator.c
+index bd71f0fc4e4b..389cb51389af 100644
+--- a/block/elevator.c
++++ b/block/elevator.c
+@@ -640,8 +640,13 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
+ 
+ 	if (q->nr_hw_queues != 1 &&
+ 	    !blk_mq_is_shared_tags(q->tag_set->flags))
++#if defined(CONFIG_CACHY) && defined(CONFIG_MQ_IOSCHED_KYBER)
++		return elevator_get(q, "kyber", false);
++#elif defined(CONFIG_CACHY)
++		return elevator_get(q, "mq-deadline", false);
++#else
+ 		return NULL;
+-
++#endif
+ 	return elevator_get(q, "mq-deadline", false);
+ }
+ 
+diff --git a/drivers/i2c/busses/Kconfig b/drivers/i2c/busses/Kconfig
+index 7284206b278b..6849fe2af246 100644
+--- a/drivers/i2c/busses/Kconfig
++++ b/drivers/i2c/busses/Kconfig
+@@ -229,6 +229,15 @@ config I2C_CHT_WC
+ 	  combined with a FUSB302 Type-C port-controller as such it is advised
+ 	  to also select CONFIG_TYPEC_FUSB302=m.
+ 
++config I2C_NCT6775
++	tristate "Nuvoton NCT6775 and compatible SMBus controller"
++	help
++		If you say yes to this option, support will be included for the
++		Nuvoton NCT6775 and compatible SMBus controllers.
++
++		This driver can also be built as a module.  If so, the module
++		will be called i2c-nct6775.
++
+ config I2C_NFORCE2
+ 	tristate "Nvidia nForce2, nForce3 and nForce4"
+ 	depends on PCI
+diff --git a/drivers/i2c/busses/Makefile b/drivers/i2c/busses/Makefile
+index c5cac15f075c..245012554359 100644
+--- a/drivers/i2c/busses/Makefile
++++ b/drivers/i2c/busses/Makefile
+@@ -20,6 +20,7 @@ obj-$(CONFIG_I2C_CHT_WC)	+= i2c-cht-wc.o
+ obj-$(CONFIG_I2C_I801)		+= i2c-i801.o
+ obj-$(CONFIG_I2C_ISCH)		+= i2c-isch.o
+ obj-$(CONFIG_I2C_ISMT)		+= i2c-ismt.o
++obj-$(CONFIG_I2C_NCT6775)   += i2c-nct6775.o
+ obj-$(CONFIG_I2C_NFORCE2)	+= i2c-nforce2.o
+ obj-$(CONFIG_I2C_NFORCE2_S4985)	+= i2c-nforce2-s4985.o
+ obj-$(CONFIG_I2C_NVIDIA_GPU)	+= i2c-nvidia-gpu.o
+diff --git a/drivers/i2c/busses/i2c-nct6775.c b/drivers/i2c/busses/i2c-nct6775.c
+new file mode 100644
+index 000000000000..0462f0952043
+--- /dev/null
++++ b/drivers/i2c/busses/i2c-nct6775.c
+@@ -0,0 +1,647 @@
++/*
++ * i2c-nct6775 - Driver for the SMBus master functionality of
++ *	       Nuvoton NCT677x Super-I/O chips
++ *
++ * Copyright (C) 2019  Adam Honse <calcprogrammer1@gmail.com>
++ *
++ * Derived from nct6775 hwmon driver
++ * Copyright (C) 2012  Guenter Roeck <linux@roeck-us.net>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++ *
++ */
++
++#include <linux/module.h>
++#include <linux/init.h>
++#include <linux/slab.h>
++#include <linux/jiffies.h>
++#include <linux/platform_device.h>
++#include <linux/hwmon.h>
++#include <linux/hwmon-sysfs.h>
++#include <linux/hwmon-vid.h>
++#include <linux/err.h>
++#include <linux/mutex.h>
++#include <linux/delay.h>
++#include <linux/ioport.h>
++#include <linux/i2c.h>
++#include <linux/acpi.h>
++#include <linux/bitops.h>
++#include <linux/dmi.h>
++#include <linux/io.h>
++#include <linux/nospec.h>
++
++#define DRVNAME "i2c-nct6775"
++
++/* Nuvoton SMBus address offsets */
++#define SMBHSTDAT       (0 + nuvoton_nct6793d_smba)
++#define SMBBLKSZ        (1 + nuvoton_nct6793d_smba)
++#define SMBHSTCMD       (2 + nuvoton_nct6793d_smba)
++#define SMBHSTIDX       (3 + nuvoton_nct6793d_smba)  //Index field is the Command field on other controllers
++#define SMBHSTCTL       (4 + nuvoton_nct6793d_smba)
++#define SMBHSTADD       (5 + nuvoton_nct6793d_smba)
++#define SMBHSTERR       (9 + nuvoton_nct6793d_smba)
++#define SMBHSTSTS       (0xE + nuvoton_nct6793d_smba)
++
++/* Command register */
++#define NCT6793D_READ_BYTE      0
++#define NCT6793D_READ_WORD      1
++#define NCT6793D_READ_BLOCK     2
++#define NCT6793D_BLOCK_WRITE_READ_PROC_CALL 3
++#define NCT6793D_PROC_CALL      4
++#define NCT6793D_WRITE_BYTE     8
++#define NCT6793D_WRITE_WORD     9
++#define NCT6793D_WRITE_BLOCK    10
++
++/* Control register */
++#define NCT6793D_MANUAL_START   128
++#define NCT6793D_SOFT_RESET     64
++
++/* Error register */
++#define NCT6793D_NO_ACK         32
++
++/* Status register */
++#define NCT6793D_FIFO_EMPTY     1
++#define NCT6793D_FIFO_FULL      2
++#define NCT6793D_MANUAL_ACTIVE  4
++
++#define NCT6775_LD_SMBUS		0x0B
++
++/* Other settings */
++#define MAX_RETRIES		400
++
++enum kinds { nct6106, nct6775, nct6776, nct6779, nct6791, nct6792, nct6793,
++	     nct6795, nct6796, nct6798 };
++
++struct nct6775_sio_data {
++	int sioreg;
++	enum kinds kind;
++};
++
++/* used to set data->name = nct6775_device_names[data->sio_kind] */
++static const char * const nct6775_device_names[] = {
++	"nct6106",
++	"nct6775",
++	"nct6776",
++	"nct6779",
++	"nct6791",
++	"nct6792",
++	"nct6793",
++	"nct6795",
++	"nct6796",
++	"nct6798",
++};
++
++static const char * const nct6775_sio_names[] __initconst = {
++	"NCT6106D",
++	"NCT6775F",
++	"NCT6776D/F",
++	"NCT6779D",
++	"NCT6791D",
++	"NCT6792D",
++	"NCT6793D",
++	"NCT6795D",
++	"NCT6796D",
++	"NCT6798D",
++};
++
++#define SIO_REG_LDSEL		0x07	/* Logical device select */
++#define SIO_REG_DEVID		0x20	/* Device ID (2 bytes) */
++#define SIO_REG_SMBA		0x62	/* SMBus base address register */
++
++#define SIO_NCT6106_ID		0xc450
++#define SIO_NCT6775_ID		0xb470
++#define SIO_NCT6776_ID		0xc330
++#define SIO_NCT6779_ID		0xc560
++#define SIO_NCT6791_ID		0xc800
++#define SIO_NCT6792_ID		0xc910
++#define SIO_NCT6793_ID		0xd120
++#define SIO_NCT6795_ID		0xd350
++#define SIO_NCT6796_ID		0xd420
++#define SIO_NCT6798_ID		0xd428
++#define SIO_ID_MASK			0xFFF0
++
++static inline void
++superio_outb(int ioreg, int reg, int val)
++{
++	outb(reg, ioreg);
++	outb(val, ioreg + 1);
++}
++
++static inline int
++superio_inb(int ioreg, int reg)
++{
++	outb(reg, ioreg);
++	return inb(ioreg + 1);
++}
++
++static inline void
++superio_select(int ioreg, int ld)
++{
++	outb(SIO_REG_LDSEL, ioreg);
++	outb(ld, ioreg + 1);
++}
++
++static inline int
++superio_enter(int ioreg)
++{
++	/*
++	 * Try to reserve <ioreg> and <ioreg + 1> for exclusive access.
++	 */
++	if (!request_muxed_region(ioreg, 2, DRVNAME))
++		return -EBUSY;
++
++	outb(0x87, ioreg);
++	outb(0x87, ioreg);
++
++	return 0;
++}
++
++static inline void
++superio_exit(int ioreg)
++{
++	outb(0xaa, ioreg);
++	outb(0x02, ioreg);
++	outb(0x02, ioreg + 1);
++	release_region(ioreg, 2);
++}
++
++/*
++ * ISA constants
++ */
++
++#define IOREGION_ALIGNMENT	(~7)
++#define IOREGION_LENGTH		2
++#define ADDR_REG_OFFSET		0
++#define DATA_REG_OFFSET		1
++
++#define NCT6775_REG_BANK	0x4E
++#define NCT6775_REG_CONFIG	0x40
++
++static struct i2c_adapter *nct6775_adapter;
++
++struct i2c_nct6775_adapdata {
++	unsigned short smba;
++};
++
++/* Return negative errno on error. */
++static s32 nct6775_access(struct i2c_adapter * adap, u16 addr,
++		 unsigned short flags, char read_write,
++		 u8 command, int size, union i2c_smbus_data * data)
++{
++	struct i2c_nct6775_adapdata *adapdata = i2c_get_adapdata(adap);
++	unsigned short nuvoton_nct6793d_smba = adapdata->smba;
++	int i, len, cnt;
++	union i2c_smbus_data tmp_data;
++	int timeout = 0;
++
++	tmp_data.word = 0;
++	cnt = 0;
++	len = 0;
++
++	outb_p(NCT6793D_SOFT_RESET, SMBHSTCTL);
++
++	switch (size) {
++		case I2C_SMBUS_QUICK:
++			outb_p((addr << 1) | read_write,
++			       SMBHSTADD);
++			break;
++		case I2C_SMBUS_BYTE_DATA:
++			tmp_data.byte = data->byte;
++		case I2C_SMBUS_BYTE:
++			outb_p((addr << 1) | read_write,
++			       SMBHSTADD);
++			outb_p(command, SMBHSTIDX);
++			if (read_write == I2C_SMBUS_WRITE) {
++				outb_p(tmp_data.byte, SMBHSTDAT);
++				outb_p(NCT6793D_WRITE_BYTE, SMBHSTCMD);
++			}
++			else {
++				outb_p(NCT6793D_READ_BYTE, SMBHSTCMD);
++			}
++			break;
++		case I2C_SMBUS_WORD_DATA:
++			outb_p((addr << 1) | read_write,
++			       SMBHSTADD);
++			outb_p(command, SMBHSTIDX);
++			if (read_write == I2C_SMBUS_WRITE) {
++				outb_p(data->word & 0xff, SMBHSTDAT);
++				outb_p((data->word & 0xff00) >> 8, SMBHSTDAT);
++				outb_p(NCT6793D_WRITE_WORD, SMBHSTCMD);
++			}
++			else {
++				outb_p(NCT6793D_READ_WORD, SMBHSTCMD);
++			}
++			break;
++		case I2C_SMBUS_BLOCK_DATA:
++			outb_p((addr << 1) | read_write,
++			       SMBHSTADD);
++			outb_p(command, SMBHSTIDX);
++			if (read_write == I2C_SMBUS_WRITE) {
++				len = data->block[0];
++				if (len == 0 || len > I2C_SMBUS_BLOCK_MAX)
++					return -EINVAL;
++				outb_p(len, SMBBLKSZ);
++
++				cnt = 1;
++				if (len >= 4) {
++					for (i = cnt; i <= 4; i++) {
++						outb_p(data->block[i], SMBHSTDAT);
++					}
++
++					len -= 4;
++					cnt += 4;
++				}
++				else {
++					for (i = cnt; i <= len; i++ ) {
++						outb_p(data->block[i], SMBHSTDAT);
++					}
++
++					len = 0;
++				}
++
++				outb_p(NCT6793D_WRITE_BLOCK, SMBHSTCMD);
++			}
++			else {
++				return -ENOTSUPP;
++			}
++			break;
++		default:
++			dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
++			return -EOPNOTSUPP;
++	}
++
++	outb_p(NCT6793D_MANUAL_START, SMBHSTCTL);
++
++	while ((size == I2C_SMBUS_BLOCK_DATA) && (len > 0)) {
++		if (read_write == I2C_SMBUS_WRITE) {
++			timeout = 0;
++			while ((inb_p(SMBHSTSTS) & NCT6793D_FIFO_EMPTY) == 0)
++			{
++				if(timeout > MAX_RETRIES)
++				{
++					return -ETIMEDOUT;
++				}
++				usleep_range(250, 500);
++				timeout++;
++			}
++
++			//Load more bytes into FIFO
++			if (len >= 4) {
++				for (i = cnt; i <= (cnt + 4); i++) {
++					outb_p(data->block[i], SMBHSTDAT);
++				}
++
++				len -= 4;
++				cnt += 4;
++			}
++			else {
++				for (i = cnt; i <= (cnt + len); i++) {
++					outb_p(data->block[i], SMBHSTDAT);
++				}
++
++				len = 0;
++			}
++		}
++		else {
++			return -ENOTSUPP;
++		}
++		
++	}
++
++	//wait for manual mode to complete
++	timeout = 0;
++	while ((inb_p(SMBHSTSTS) & NCT6793D_MANUAL_ACTIVE) != 0)
++	{
++		if(timeout > MAX_RETRIES)
++		{
++			return -ETIMEDOUT;
++		}
++		usleep_range(250, 500);
++		timeout++;
++	}
++
++	if ((inb_p(SMBHSTERR) & NCT6793D_NO_ACK) != 0) {    	
++		return -ENXIO;
++	}
++	else if ((read_write == I2C_SMBUS_WRITE) || (size == I2C_SMBUS_QUICK)) {
++		return 0;
++	}
++
++	switch (size) {
++		case I2C_SMBUS_QUICK:
++		case I2C_SMBUS_BYTE_DATA:
++			data->byte = inb_p(SMBHSTDAT);
++			break;
++		case I2C_SMBUS_WORD_DATA:
++			data->word = inb_p(SMBHSTDAT) + (inb_p(SMBHSTDAT) << 8);
++			break;
++	}
++	return 0;
++}
++
++static u32 nct6775_func(struct i2c_adapter *adapter)
++{
++	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
++	    I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
++	    I2C_FUNC_SMBUS_BLOCK_DATA;
++}
++
++static const struct i2c_algorithm smbus_algorithm = {
++	.smbus_xfer	= nct6775_access,
++	.functionality	= nct6775_func,
++};
++
++static int nct6775_add_adapter(unsigned short smba, const char *name, struct i2c_adapter **padap)
++{
++	struct i2c_adapter *adap;
++	struct i2c_nct6775_adapdata *adapdata;
++	int retval;
++
++	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
++	if (adap == NULL) {
++		return -ENOMEM;
++	}
++
++	adap->owner = THIS_MODULE;
++	adap->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
++	adap->algo = &smbus_algorithm;
++
++	adapdata = kzalloc(sizeof(*adapdata), GFP_KERNEL);
++	if (adapdata == NULL) {
++		kfree(adap);
++		return -ENOMEM;
++	}
++
++	adapdata->smba = smba;
++
++	snprintf(adap->name, sizeof(adap->name),
++		"SMBus NCT67xx adapter%s at %04x", name, smba);
++
++	i2c_set_adapdata(adap, adapdata);
++
++	retval = i2c_add_adapter(adap);
++	if (retval) {
++		kfree(adapdata);
++		kfree(adap);
++		return retval;
++	}
++
++	*padap = adap;
++	return 0;
++}
++
++static void nct6775_remove_adapter(struct i2c_adapter *adap)
++{
++	struct i2c_nct6775_adapdata *adapdata = i2c_get_adapdata(adap);
++
++	if (adapdata->smba) {
++		i2c_del_adapter(adap);
++		kfree(adapdata);
++		kfree(adap);
++	}
++}
++
++//static SIMPLE_DEV_PM_OPS(nct6775_dev_pm_ops, nct6775_suspend, nct6775_resume);
++
++/*
++ * when Super-I/O functions move to a separate file, the Super-I/O
++ * bus will manage the lifetime of the device and this module will only keep
++ * track of the nct6775 driver. But since we use platform_device_alloc(), we
++ * must keep track of the device
++ */
++static struct platform_device *pdev[2];
++
++static int nct6775_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	struct nct6775_sio_data *sio_data = dev_get_platdata(dev);
++	struct resource *res;
++
++	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
++	if (!devm_request_region(&pdev->dev, res->start, IOREGION_LENGTH,
++				 DRVNAME))
++		return -EBUSY;
++
++	switch (sio_data->kind) {
++	case nct6791:
++	case nct6792:
++	case nct6793:
++	case nct6795:
++	case nct6796:
++	case nct6798:
++		nct6775_add_adapter(res->start, "", &nct6775_adapter);
++		break;
++	default:
++		return -ENODEV;
++	}
++
++	return 0;
++}
++/*
++static void nct6791_enable_io_mapping(int sioaddr)
++{
++	int val;
++
++	val = superio_inb(sioaddr, NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE);
++	if (val & 0x10) {
++		pr_info("Enabling hardware monitor logical device mappings.\n");
++		superio_outb(sioaddr, NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE,
++			     val & ~0x10);
++	}
++}*/
++
++static struct platform_driver i2c_nct6775_driver = {
++	.driver = {
++		.name	= DRVNAME,
++//		.pm	= &nct6775_dev_pm_ops,
++	},
++	.probe		= nct6775_probe,
++};
++
++static void __exit i2c_nct6775_exit(void)
++{
++	int i;
++
++	if(nct6775_adapter)
++		nct6775_remove_adapter(nct6775_adapter);
++
++	for (i = 0; i < ARRAY_SIZE(pdev); i++) {
++		if (pdev[i])
++			platform_device_unregister(pdev[i]);
++	}
++	platform_driver_unregister(&i2c_nct6775_driver);
++}
++
++/* nct6775_find() looks for a '627 in the Super-I/O config space */
++static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
++{
++	u16 val;
++	int err;
++	int addr;
++
++	err = superio_enter(sioaddr);
++	if (err)
++		return err;
++
++	val = (superio_inb(sioaddr, SIO_REG_DEVID) << 8) |
++		superio_inb(sioaddr, SIO_REG_DEVID + 1);
++
++	switch (val & SIO_ID_MASK) {
++	case SIO_NCT6106_ID:
++		sio_data->kind = nct6106;
++		break;
++	case SIO_NCT6775_ID:
++		sio_data->kind = nct6775;
++		break;
++	case SIO_NCT6776_ID:
++		sio_data->kind = nct6776;
++		break;
++	case SIO_NCT6779_ID:
++		sio_data->kind = nct6779;
++		break;
++	case SIO_NCT6791_ID:
++		sio_data->kind = nct6791;
++		break;
++	case SIO_NCT6792_ID:
++		sio_data->kind = nct6792;
++		break;
++	case SIO_NCT6793_ID:
++		sio_data->kind = nct6793;
++		break;
++	case SIO_NCT6795_ID:
++		sio_data->kind = nct6795;
++		break;
++	case SIO_NCT6796_ID:
++		sio_data->kind = nct6796;
++		break;
++	case SIO_NCT6798_ID:
++		sio_data->kind = nct6798;
++		break;
++	default:
++		if (val != 0xffff)
++			pr_debug("unsupported chip ID: 0x%04x\n", val);
++		superio_exit(sioaddr);
++		return -ENODEV;
++	}
++
++	/* We have a known chip, find the SMBus I/O address */
++	superio_select(sioaddr, NCT6775_LD_SMBUS);
++	val = (superio_inb(sioaddr, SIO_REG_SMBA) << 8)
++	    | superio_inb(sioaddr, SIO_REG_SMBA + 1);
++	addr = val & IOREGION_ALIGNMENT;
++	if (addr == 0) {
++		pr_err("Refusing to enable a Super-I/O device with a base I/O port 0\n");
++		superio_exit(sioaddr);
++		return -ENODEV;
++	}
++
++	//if (sio_data->kind == nct6791 || sio_data->kind == nct6792 ||
++	//    sio_data->kind == nct6793 || sio_data->kind == nct6795 ||
++	//    sio_data->kind == nct6796)
++	//	nct6791_enable_io_mapping(sioaddr);
++
++	superio_exit(sioaddr);
++	pr_info("Found %s or compatible chip at %#x:%#x\n",
++		nct6775_sio_names[sio_data->kind], sioaddr, addr);
++	sio_data->sioreg = sioaddr;
++
++	return addr;
++}
++
++static int __init i2c_nct6775_init(void)
++{
++	int i, err;
++	bool found = false;
++	int address;
++	struct resource res;
++	struct nct6775_sio_data sio_data;
++	int sioaddr[2] = { 0x2e, 0x4e };
++
++	err = platform_driver_register(&i2c_nct6775_driver);
++	if (err)
++		return err;
++
++	/*
++	 * initialize sio_data->kind and sio_data->sioreg.
++	 *
++	 * when Super-I/O functions move to a separate file, the Super-I/O
++	 * driver will probe 0x2e and 0x4e and auto-detect the presence of a
++	 * nct6775 hardware monitor, and call probe()
++	 */
++	for (i = 0; i < ARRAY_SIZE(pdev); i++) {
++		address = nct6775_find(sioaddr[i], &sio_data);
++		if (address <= 0)
++			continue;
++
++		found = true;
++
++		pdev[i] = platform_device_alloc(DRVNAME, address);
++		if (!pdev[i]) {
++			err = -ENOMEM;
++			goto exit_device_unregister;
++		}
++
++		err = platform_device_add_data(pdev[i], &sio_data,
++					       sizeof(struct nct6775_sio_data));
++		if (err)
++			goto exit_device_put;
++
++		memset(&res, 0, sizeof(res));
++		res.name = DRVNAME;
++		res.start = address;
++		res.end = address + IOREGION_LENGTH - 1;
++		res.flags = IORESOURCE_IO;
++
++		err = acpi_check_resource_conflict(&res);
++		if (err) {
++			platform_device_put(pdev[i]);
++			pdev[i] = NULL;
++			continue;
++		}
++
++		err = platform_device_add_resources(pdev[i], &res, 1);
++		if (err)
++			goto exit_device_put;
++
++		/* platform_device_add calls probe() */
++		err = platform_device_add(pdev[i]);
++		if (err)
++			goto exit_device_put;
++	}
++	if (!found) {
++		err = -ENODEV;
++		goto exit_unregister;
++	}
++
++	return 0;
++
++exit_device_put:
++	platform_device_put(pdev[i]);
++exit_device_unregister:
++	while (--i >= 0) {
++		if (pdev[i])
++			platform_device_unregister(pdev[i]);
++	}
++exit_unregister:
++	platform_driver_unregister(&i2c_nct6775_driver);
++	return err;
++}
++
++MODULE_AUTHOR("Adam Honse <calcprogrammer1@gmail.com>");
++MODULE_DESCRIPTION("SMBus driver for NCT6775F and compatible chips");
++MODULE_LICENSE("GPL");
++
++module_init(i2c_nct6775_init);
++module_exit(i2c_nct6775_exit);
+diff --git a/drivers/i2c/busses/i2c-piix4.c b/drivers/i2c/busses/i2c-piix4.c
+index 809fbd014cd6..d54b35b147ee 100644
+--- a/drivers/i2c/busses/i2c-piix4.c
++++ b/drivers/i2c/busses/i2c-piix4.c
+@@ -568,11 +568,11 @@ static int piix4_transaction(struct i2c_adapter *piix4_adapter)
+ 	if (srvrworks_csb5_delay) /* Extra delay for SERVERWORKS_CSB5 */
+ 		usleep_range(2000, 2100);
+ 	else
+-		usleep_range(250, 500);
++		usleep_range(25, 50);
+ 
+ 	while ((++timeout < MAX_TIMEOUT) &&
+ 	       ((temp = inb_p(SMBHSTSTS)) & 0x01))
+-		usleep_range(250, 500);
++		usleep_range(25, 50);
+ 
+ 	/* If the SMBus is still busy, we give up */
+ 	if (timeout == MAX_TIMEOUT) {
+diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
+index 2653516bcdef..cdf9d8c7b556 100644
+--- a/drivers/md/dm-crypt.c
++++ b/drivers/md/dm-crypt.c
+@@ -3137,6 +3137,11 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
+ 		}
+ 	}
+ 
++#ifdef CONFIG_CACHY
++	set_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags);
++	set_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags);
++#endif
++
+ 	return 0;
+ }
+ 
+diff --git a/drivers/pci/quirks.c b/drivers/pci/quirks.c
+index 4944798e75b5..d11a9aeb1096 100644
+--- a/drivers/pci/quirks.c
++++ b/drivers/pci/quirks.c
+@@ -3612,6 +3612,106 @@ static void quirk_no_bus_reset(struct pci_dev *dev)
+ 	dev->dev_flags |= PCI_DEV_FLAGS_NO_BUS_RESET;
+ }
+ 
++static bool acs_on_downstream;
++static bool acs_on_multifunction;
++
++#define NUM_ACS_IDS 16
++struct acs_on_id {
++	unsigned short vendor;
++	unsigned short device;
++};
++static struct acs_on_id acs_on_ids[NUM_ACS_IDS];
++static u8 max_acs_id;
++
++static __init int pcie_acs_override_setup(char *p)
++{
++	if (!p)
++		return -EINVAL;
++
++	while (*p) {
++		if (!strncmp(p, "downstream", 10))
++			acs_on_downstream = true;
++		if (!strncmp(p, "multifunction", 13))
++			acs_on_multifunction = true;
++		if (!strncmp(p, "id:", 3)) {
++			char opt[5];
++			int ret;
++			long val;
++
++			if (max_acs_id >= NUM_ACS_IDS - 1) {
++				pr_warn("Out of PCIe ACS override slots (%d)\n",
++						NUM_ACS_IDS);
++				goto next;
++			}
++
++			p += 3;
++			snprintf(opt, 5, "%s", p);
++			ret = kstrtol(opt, 16, &val);
++			if (ret) {
++				pr_warn("PCIe ACS ID parse error %d\n", ret);
++				goto next;
++			}
++			acs_on_ids[max_acs_id].vendor = val;
++
++			p += strcspn(p, ":");
++			if (*p != ':') {
++				pr_warn("PCIe ACS invalid ID\n");
++				goto next;
++			}
++
++			p++;
++			snprintf(opt, 5, "%s", p);
++			ret = kstrtol(opt, 16, &val);
++			if (ret) {
++				pr_warn("PCIe ACS ID parse error %d\n", ret);
++				goto next;
++			}
++			acs_on_ids[max_acs_id].device = val;
++			max_acs_id++;
++		}
++next:
++		p += strcspn(p, ",");
++		if (*p == ',')
++			p++;
++	}
++
++	if (acs_on_downstream || acs_on_multifunction || max_acs_id)
++		pr_warn("Warning: PCIe ACS overrides enabled; This may allow non-IOMMU protected peer-to-peer DMA\n");
++
++	return 0;
++}
++early_param("pcie_acs_override", pcie_acs_override_setup);
++
++static int pcie_acs_overrides(struct pci_dev *dev, u16 acs_flags)
++{
++	int i;
++
++	/* Never override ACS for legacy devices or devices with ACS caps */
++	if (!pci_is_pcie(dev) ||
++		pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ACS))
++			return -ENOTTY;
++
++	for (i = 0; i < max_acs_id; i++)
++		if (acs_on_ids[i].vendor == dev->vendor &&
++			acs_on_ids[i].device == dev->device)
++				return 1;
++
++	switch (pci_pcie_type(dev)) {
++	case PCI_EXP_TYPE_DOWNSTREAM:
++	case PCI_EXP_TYPE_ROOT_PORT:
++		if (acs_on_downstream)
++			return 1;
++		break;
++	case PCI_EXP_TYPE_ENDPOINT:
++	case PCI_EXP_TYPE_UPSTREAM:
++	case PCI_EXP_TYPE_LEG_END:
++	case PCI_EXP_TYPE_RC_END:
++		if (acs_on_multifunction && dev->multifunction)
++			return 1;
++	}
++
++	return -ENOTTY;
++}
+ /*
+  * Some NVIDIA GPU devices do not work with bus reset, SBR needs to be
+  * prevented for those affected devices.
+@@ -4980,6 +5080,7 @@ static const struct pci_dev_acs_enabled {
+ 	{ PCI_VENDOR_ID_NXP, 0x8d9b, pci_quirk_nxp_rp_acs },
+ 	/* Zhaoxin Root/Downstream Ports */
+ 	{ PCI_VENDOR_ID_ZHAOXIN, PCI_ANY_ID, pci_quirk_zhaoxin_pcie_ports_acs },
++	{ PCI_ANY_ID, PCI_ANY_ID, pcie_acs_overrides },
+ 	{ 0 }
+ };
+ 
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 0178b2040ea3..39f05e00dac4 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -1183,7 +1183,7 @@ struct readahead_control {
+ 		._index = i,						\
+ 	}
+ 
+-#define VM_READAHEAD_PAGES	(SZ_128K / PAGE_SIZE)
++#define VM_READAHEAD_PAGES	(SZ_8M / PAGE_SIZE)
+ 
+ void page_cache_ra_unbounded(struct readahead_control *,
+ 		unsigned long nr_to_read, unsigned long lookahead_count);
+diff --git a/include/linux/user_namespace.h b/include/linux/user_namespace.h
+index 33a4240e6a6f..82213f9c4c17 100644
+--- a/include/linux/user_namespace.h
++++ b/include/linux/user_namespace.h
+@@ -139,6 +139,8 @@ static inline void set_rlimit_ucount_max(struct user_namespace *ns,
+ 
+ #ifdef CONFIG_USER_NS
+ 
++extern int unprivileged_userns_clone;
++
+ static inline struct user_namespace *get_user_ns(struct user_namespace *ns)
+ {
+ 	if (ns)
+@@ -172,6 +174,8 @@ extern bool current_in_userns(const struct user_namespace *target_ns);
+ struct ns_common *ns_get_owner(struct ns_common *ns);
+ #else
+ 
++#define unprivileged_userns_clone 0
++
+ static inline struct user_namespace *get_user_ns(struct user_namespace *ns)
+ {
+ 	return &init_user_ns;
+diff --git a/init/Kconfig b/init/Kconfig
+index d1d779d6ba43..96d0f05a4a7e 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -112,6 +112,10 @@ config THREAD_INFO_IN_TASK
+ 
+ menu "General setup"
+ 
++config CACHY
++    bool "Some kernel tweaks by CachyOS"
++    default y
++
+ config BROKEN
+ 	bool
+ 
+@@ -334,6 +338,19 @@ config KERNEL_UNCOMPRESSED
+ 
+ endchoice
+ 
++menu "ZSTD compression options"
++	depends on KERNEL_ZSTD
++
++config ZSTD_COMP_VAL
++	int "Compression level (1-22)"
++	range 1 22
++	default "22"
++	help
++	  Choose a compression level for zstd kernel compression.
++	  Default is 22, which is the maximum.
++
++endmenu
++
+ config DEFAULT_INIT
+ 	string "Default init path"
+ 	default ""
+@@ -1241,6 +1258,22 @@ config USER_NS
+ 
+ 	  If unsure, say N.
+ 
++config USER_NS_UNPRIVILEGED
++	bool "Allow unprivileged users to create namespaces"
++	default y
++	depends on USER_NS
++	help
++	  When disabled, unprivileged users will not be able to create
++	  new namespaces. Allowing users to create their own namespaces
++	  has been part of several recent local privilege escalation
++	  exploits, so if you need user namespaces but are
++	  paranoid^Wsecurity-conscious you want to disable this.
++
++	  This setting can be overridden at runtime via the
++	  kernel.unprivileged_userns_clone sysctl.
++
++	  If unsure, say Y.
++
+ config PID_NS
+ 	bool "PID Namespaces"
+ 	default y
+@@ -1407,6 +1440,12 @@ config CC_OPTIMIZE_FOR_PERFORMANCE
+ 	  with the "-O2" compiler flag for best performance and most
+ 	  helpful compile-time warnings.
+ 
++config CC_OPTIMIZE_FOR_PERFORMANCE_O3
++	bool "Optimize more for performance (-O3)"
++	help
++	  Choosing this option will pass "-O3" to your compiler to optimize
++	  the kernel yet more for performance.
++
+ config CC_OPTIMIZE_FOR_SIZE
+ 	bool "Optimize for size (-Os)"
+ 	help
+diff --git a/kernel/Kconfig.hz b/kernel/Kconfig.hz
+index 38ef6d06888e..0f78364efd4f 100644
+--- a/kernel/Kconfig.hz
++++ b/kernel/Kconfig.hz
+@@ -40,6 +40,27 @@ choice
+ 	 on SMP and NUMA systems and exactly dividing by both PAL and
+ 	 NTSC frame rates for video and multimedia work.
+ 
++	config HZ_500
++		bool "500 HZ"
++	help
++	 500 Hz is a balanced timer frequency. Provides fast interactivity
++	 on desktops with good smoothness without increasing CPU power
++	 consumption and sacrificing the battery life on laptops.
++
++	config HZ_600
++		bool "600 HZ"
++	help
++	 600 Hz is a balanced timer frequency. Provides fast interactivity
++	 on desktops with good smoothness without increasing CPU power
++	 consumption and sacrificing the battery life on laptops.
++
++	config HZ_750
++		bool "750 HZ"
++	help
++	 750 Hz is a balanced timer frequency. Provides fast interactivity
++	 on desktops with good smoothness without increasing CPU power
++	 consumption and sacrificing the battery life on laptops.
++
+ 	config HZ_1000
+ 		bool "1000 HZ"
+ 	help
+@@ -53,6 +74,9 @@ config HZ
+ 	default 100 if HZ_100
+ 	default 250 if HZ_250
+ 	default 300 if HZ_300
++	default 500 if HZ_500
++	default 600 if HZ_600
++	default 750 if HZ_750
+ 	default 1000 if HZ_1000
+ 
+ config SCHED_HRTICK
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 2b6bd511c6ed..704fe6bc9cb4 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -99,6 +99,10 @@
+ #include <linux/bpf.h>
+ #include <linux/sched/mm.h>
+ 
++#ifdef CONFIG_USER_NS
++#include <linux/user_namespace.h>
++#endif
++
+ #include <asm/pgalloc.h>
+ #include <linux/uaccess.h>
+ #include <asm/mmu_context.h>
+@@ -2009,6 +2013,10 @@ static __latent_entropy struct task_struct *copy_process(
+ 	if ((clone_flags & (CLONE_NEWUSER|CLONE_FS)) == (CLONE_NEWUSER|CLONE_FS))
+ 		return ERR_PTR(-EINVAL);
+ 
++	if ((clone_flags & CLONE_NEWUSER) && !unprivileged_userns_clone)
++		if (!capable(CAP_SYS_ADMIN))
++			return ERR_PTR(-EPERM);
++
+ 	/*
+ 	 * Thread groups must share signals as well, and detached threads
+ 	 * can only be started up within the thread group.
+@@ -3159,6 +3167,12 @@ int ksys_unshare(unsigned long unshare_flags)
+ 	if (unshare_flags & CLONE_NEWNS)
+ 		unshare_flags |= CLONE_FS;
+ 
++	if ((unshare_flags & CLONE_NEWUSER) && !unprivileged_userns_clone) {
++		err = -EPERM;
++		if (!capable(CAP_SYS_ADMIN))
++			goto bad_unshare_out;
++	}
++
+ 	err = check_unshare_flags(unshare_flags);
+ 	if (err)
+ 		goto bad_unshare_out;
+diff --git a/kernel/module/Kconfig b/kernel/module/Kconfig
+index 26ea5d04f56c..e5311101b93d 100644
+--- a/kernel/module/Kconfig
++++ b/kernel/module/Kconfig
+@@ -219,6 +219,31 @@ config MODULE_COMPRESS_ZSTD
+ 
+ endchoice
+ 
++menu "ZSTD module compression options"
++    depends on MODULE_COMPRESS_ZSTD
++
++config MODULE_COMPRESS_ZSTD_LEVEL
++	int "Compression level (1-19)"
++	range 1 19
++	default 9
++	help
++	  Compression level used by zstd for compressing modules.
++
++config MODULE_COMPRESS_ZSTD_ULTRA
++	bool "Enable ZSTD ultra compression"
++	help
++	  Compress modules with ZSTD using the highest possible compression.
++
++config MODULE_COMPRESS_ZSTD_LEVEL_ULTRA
++	int "Compression level (20-22)"
++	depends on MODULE_COMPRESS_ZSTD_ULTRA
++	range 20 22
++	default 20
++	help
++	  Ultra compression level used by zstd for compressing modules.
++
++endmenu
++
+ config MODULE_DECOMPRESS
+ 	bool "Support in-kernel module decompression"
+ 	depends on MODULE_COMPRESS_GZIP || MODULE_COMPRESS_XZ
+diff --git a/kernel/rcu/Kconfig b/kernel/rcu/Kconfig
+index d471d22a5e21..e945e522969e 100644
+--- a/kernel/rcu/Kconfig
++++ b/kernel/rcu/Kconfig
+@@ -282,9 +282,9 @@ config RCU_NOCB_CPU_CB_BOOST
+ 	depends on RCU_NOCB_CPU && RCU_BOOST
+ 	default y if PREEMPT_RT
+ 	help
+-	  Use this option to invoke offloaded callbacks as SCHED_FIFO
++	  Use this option to invoke offloaded callbacks as SCHED_RR
+ 	  to avoid starvation by heavy SCHED_OTHER background load.
+-	  Of course, running as SCHED_FIFO during callback floods will
++	  Of course, running as SCHED_RR during callback floods will
+ 	  cause the rcuo[ps] kthreads to monopolize the CPU for hundreds
+ 	  of milliseconds or more.  Therefore, when enabling this option,
+ 	  it is your responsibility to ensure that latency-sensitive
+diff --git a/kernel/rcu/rcutorture.c b/kernel/rcu/rcutorture.c
+index d8e1b270a065..c543c348e7c0 100644
+--- a/kernel/rcu/rcutorture.c
++++ b/kernel/rcu/rcutorture.c
+@@ -2156,7 +2156,7 @@ static int rcutorture_booster_init(unsigned int cpu)
+ 		t = per_cpu(ksoftirqd, cpu);
+ 		WARN_ON_ONCE(!t);
+ 		sp.sched_priority = 2;
+-		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
++		sched_setscheduler_nocheck(t, SCHED_RR, &sp);
+ 	}
+ 
+ 	/* Don't allow time recalculation while creating a new task. */
+diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+index 5b52727dcc1c..759d73a3411c 100644
+--- a/kernel/rcu/tree.c
++++ b/kernel/rcu/tree.c
+@@ -4239,8 +4239,8 @@ static void __init rcu_start_exp_gp_kworkers(void)
+ 		return;
+ 	}
+ 
+-	sched_setscheduler_nocheck(rcu_exp_gp_kworker->task, SCHED_FIFO, &param);
+-	sched_setscheduler_nocheck(rcu_exp_par_gp_kworker->task, SCHED_FIFO,
++	sched_setscheduler_nocheck(rcu_exp_gp_kworker->task, SCHED_RR, &param);
++	sched_setscheduler_nocheck(rcu_exp_par_gp_kworker->task, SCHED_RR,
+ 				   &param);
+ }
+ 
+@@ -4278,7 +4278,7 @@ static int __init rcu_spawn_gp_kthread(void)
+ 		return 0;
+ 	if (kthread_prio) {
+ 		sp.sched_priority = kthread_prio;
+-		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
++		sched_setscheduler_nocheck(t, SCHED_RR, &sp);
+ 	}
+ 	rnp = rcu_get_root();
+ 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
+diff --git a/kernel/rcu/tree_nocb.h b/kernel/rcu/tree_nocb.h
+index a8f574d8850d..34325fbc0cf0 100644
+--- a/kernel/rcu/tree_nocb.h
++++ b/kernel/rcu/tree_nocb.h
+@@ -1319,7 +1319,7 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
+ 		}
+ 		WRITE_ONCE(rdp_gp->nocb_gp_kthread, t);
+ 		if (kthread_prio)
+-			sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
++			sched_setscheduler_nocheck(t, SCHED_RR, &sp);
+ 	}
+ 	mutex_unlock(&rdp_gp->nocb_gp_kthread_mutex);
+ 
+@@ -1330,7 +1330,7 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
+ 		goto end;
+ 
+ 	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_CB_BOOST) && kthread_prio)
+-		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
++		sched_setscheduler_nocheck(t, SCHED_RR, &sp);
+ 
+ 	WRITE_ONCE(rdp->nocb_cb_kthread, t);
+ 	WRITE_ONCE(rdp->nocb_gp_kthread, rdp_gp->nocb_gp_kthread);
+diff --git a/kernel/rcu/tree_plugin.h b/kernel/rcu/tree_plugin.h
+index 49468b4d1b43..304c8c20acbc 100644
+--- a/kernel/rcu/tree_plugin.h
++++ b/kernel/rcu/tree_plugin.h
+@@ -1007,7 +1007,7 @@ static void rcu_cpu_kthread_setup(unsigned int cpu)
+ 	struct sched_param sp;
+ 
+ 	sp.sched_priority = kthread_prio;
+-	sched_setscheduler_nocheck(current, SCHED_FIFO, &sp);
++	sched_setscheduler_nocheck(current, SCHED_RR, &sp);
+ #endif /* #ifdef CONFIG_RCU_BOOST */
+ 
+ 	WRITE_ONCE(rdp->rcuc_activity, jiffies);
+@@ -1206,7 +1206,7 @@ static void rcu_spawn_one_boost_kthread(struct rcu_node *rnp)
+ 	rnp->boost_kthread_task = t;
+ 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+ 	sp.sched_priority = kthread_prio;
+-	sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
++	sched_setscheduler_nocheck(t, SCHED_RR, &sp);
+ 	wake_up_process(t); /* get to TASK_INTERRUPTIBLE quickly. */
+ 
+  out:
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index ee28253c9ac0..6a4417178679 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -728,7 +728,7 @@ static void update_rq_clock_task(struct rq *rq, s64 delta)
+ 	if ((irq_delta + steal) && sched_feat(NONTASK_CAPACITY))
+ 		update_irq_load_avg(rq, irq_delta + steal);
+ #endif
+-	update_rq_clock_pelt(rq, delta);
++	update_rq_clock_task_mult(rq, delta);
+ }
+ 
+ void update_rq_clock(struct rq *rq)
+@@ -3725,13 +3725,6 @@ void sched_ttwu_pending(void *arg)
+ 	if (!llist)
+ 		return;
+ 
+-	/*
+-	 * rq::ttwu_pending racy indication of out-standing wakeups.
+-	 * Races such that false-negatives are possible, since they
+-	 * are shorter lived that false-positives would be.
+-	 */
+-	WRITE_ONCE(rq->ttwu_pending, 0);
+-
+ 	rq_lock_irqsave(rq, &rf);
+ 	update_rq_clock(rq);
+ 
+@@ -3745,6 +3738,17 @@ void sched_ttwu_pending(void *arg)
+ 		ttwu_do_activate(rq, p, p->sched_remote_wakeup ? WF_MIGRATED : 0, &rf);
+ 	}
+ 
++	/*
++	 * Must be after enqueueing at least once task such that
++	 * idle_cpu() does not observe a false-negative -- if it does,
++	 * it is possible for select_idle_siblings() to stack a number
++	 * of tasks on this CPU during that window.
++	 *
++	 * It is ok to clear ttwu_pending when another task pending.
++	 * We will receive IPI after local irq enabled and then enqueue it.
++	 * Since now nr_running > 0, idle_cpu() will always get correct result.
++	 */
++	WRITE_ONCE(rq->ttwu_pending, 0);
+ 	rq_unlock_irqrestore(rq, &rf);
+ }
+ 
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 914096c5b1ae..c4fd77e7e8f3 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -68,9 +68,13 @@
+  *
+  * (default: 6ms * (1 + ilog(ncpus)), units: nanoseconds)
+  */
++#ifdef CONFIG_CACHY
++unsigned int sysctl_sched_latency			= 3000000ULL;
++static unsigned int normalized_sysctl_sched_latency	= 3000000ULL;
++#else
+ unsigned int sysctl_sched_latency			= 6000000ULL;
+ static unsigned int normalized_sysctl_sched_latency	= 6000000ULL;
+-
++#endif
+ /*
+  * The initial- and re-scaling of tunables is configurable
+  *
+@@ -89,8 +93,13 @@ unsigned int sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_LOG;
+  *
+  * (default: 0.75 msec * (1 + ilog(ncpus)), units: nanoseconds)
+  */
++#ifdef CONFIG_CACHY
++unsigned int sysctl_sched_min_granularity			= 400000ULL;
++static unsigned int normalized_sysctl_sched_min_granularity	= 400000ULL;
++#else
+ unsigned int sysctl_sched_min_granularity			= 750000ULL;
+ static unsigned int normalized_sysctl_sched_min_granularity	= 750000ULL;
++#endif
+ 
+ /*
+  * Minimal preemption granularity for CPU-bound SCHED_IDLE tasks.
+@@ -120,8 +129,13 @@ unsigned int sysctl_sched_child_runs_first __read_mostly;
+  *
+  * (default: 1 msec * (1 + ilog(ncpus)), units: nanoseconds)
+  */
++#ifdef CONFIG_CACHY
++unsigned int sysctl_sched_wakeup_granularity			= 500000UL;
++static unsigned int normalized_sysctl_sched_wakeup_granularity	= 500000UL;
++#else
+ unsigned int sysctl_sched_wakeup_granularity			= 1000000UL;
+ static unsigned int normalized_sysctl_sched_wakeup_granularity	= 1000000UL;
++#endif
+ 
+ const_debug unsigned int sysctl_sched_migration_cost	= 500000UL;
+ 
+@@ -174,8 +188,12 @@ int __weak arch_asym_cpu_priority(int cpu)
+  *
+  * (default: 5 msec, units: microseconds)
+  */
++#ifdef CONFIG_CACHY
++static unsigned int sysctl_sched_cfs_bandwidth_slice		= 3000UL;
++#else
+ static unsigned int sysctl_sched_cfs_bandwidth_slice		= 5000UL;
+ #endif
++#endif
+ 
+ #ifdef CONFIG_SYSCTL
+ static struct ctl_table sched_fair_sysctls[] = {
+@@ -4573,7 +4591,13 @@ check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
+ 	struct sched_entity *se;
+ 	s64 delta;
+ 
+-	ideal_runtime = sched_slice(cfs_rq, curr);
++	/*
++	 * When many tasks blow up the sched_period; it is possible that
++	 * sched_slice() reports unusually large results (when many tasks are
++	 * very light for example). Therefore impose a maximum.
++	 */
++	ideal_runtime = min_t(u64, sched_slice(cfs_rq, curr), sysctl_sched_latency);
++
+ 	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
+ 	if (delta_exec > ideal_runtime) {
+ 		resched_curr(rq_of(cfs_rq));
+diff --git a/kernel/sched/pelt.c b/kernel/sched/pelt.c
+index 0f310768260c..036b0e2cd2b4 100644
+--- a/kernel/sched/pelt.c
++++ b/kernel/sched/pelt.c
+@@ -467,3 +467,63 @@ int update_irq_load_avg(struct rq *rq, u64 running)
+ 	return ret;
+ }
+ #endif
++
++__read_mostly unsigned int sched_pelt_lshift;
++
++#ifdef CONFIG_SYSCTL
++static unsigned int sysctl_sched_pelt_multiplier = 1;
++
++int sched_pelt_multiplier(struct ctl_table *table, int write, void *buffer,
++			  size_t *lenp, loff_t *ppos)
++{
++	static DEFINE_MUTEX(mutex);
++	unsigned int old;
++	int ret;
++
++	mutex_lock(&mutex);
++	old = sysctl_sched_pelt_multiplier;
++	ret = proc_dointvec(table, write, buffer, lenp, ppos);
++	if (ret)
++		goto undo;
++	if (!write)
++		goto done;
++
++	switch (sysctl_sched_pelt_multiplier)  {
++	case 1:
++		fallthrough;
++	case 2:
++		fallthrough;
++	case 4:
++		WRITE_ONCE(sched_pelt_lshift,
++			   sysctl_sched_pelt_multiplier >> 1);
++		goto done;
++	default:
++		ret = -EINVAL;
++	}
++
++undo:
++	sysctl_sched_pelt_multiplier = old;
++done:
++	mutex_unlock(&mutex);
++
++	return ret;
++}
++
++static struct ctl_table sched_pelt_sysctls[] = {
++	{
++		.procname       = "sched_pelt_multiplier",
++		.data           = &sysctl_sched_pelt_multiplier,
++		.maxlen         = sizeof(unsigned int),
++		.mode           = 0644,
++		.proc_handler   = sched_pelt_multiplier,
++	},
++	{}
++};
++
++static int __init sched_pelt_sysctl_init(void)
++{
++	register_sysctl_init("kernel", sched_pelt_sysctls);
++	return 0;
++}
++late_initcall(sched_pelt_sysctl_init);
++#endif
+diff --git a/kernel/sched/pelt.h b/kernel/sched/pelt.h
+index 3a0e0dc28721..9b35b5072bae 100644
+--- a/kernel/sched/pelt.h
++++ b/kernel/sched/pelt.h
+@@ -61,6 +61,14 @@ static inline void cfs_se_util_change(struct sched_avg *avg)
+ 	WRITE_ONCE(avg->util_est.enqueued, enqueued);
+ }
+ 
++static inline u64 rq_clock_task_mult(struct rq *rq)
++{
++	lockdep_assert_rq_held(rq);
++	assert_clock_updated(rq);
++
++	return rq->clock_task_mult;
++}
++
+ static inline u64 rq_clock_pelt(struct rq *rq)
+ {
+ 	lockdep_assert_rq_held(rq);
+@@ -72,7 +80,7 @@ static inline u64 rq_clock_pelt(struct rq *rq)
+ /* The rq is idle, we can sync to clock_task */
+ static inline void _update_idle_rq_clock_pelt(struct rq *rq)
+ {
+-	rq->clock_pelt  = rq_clock_task(rq);
++	rq->clock_pelt = rq_clock_task_mult(rq);
+ 
+ 	u64_u32_store(rq->clock_idle, rq_clock(rq));
+ 	/* Paired with smp_rmb in migrate_se_pelt_lag() */
+@@ -121,6 +129,27 @@ static inline void update_rq_clock_pelt(struct rq *rq, s64 delta)
+ 	rq->clock_pelt += delta;
+ }
+ 
++extern unsigned int sched_pelt_lshift;
++
++/*
++ * absolute time   |1      |2      |3      |4      |5      |6      |
++ * @ mult = 1      --------****************--------****************-
++ * @ mult = 2      --------********----------------********---------
++ * @ mult = 4      --------****--------------------****-------------
++ * clock task mult
++ * @ mult = 2      |   |   |2  |3  |   |   |   |   |5  |6  |   |   |
++ * @ mult = 4      | | | | |2|3| | | | | | | | | | |5|6| | | | | | |
++ *
++ */
++static inline void update_rq_clock_task_mult(struct rq *rq, s64 delta)
++{
++	delta <<= READ_ONCE(sched_pelt_lshift);
++
++	rq->clock_task_mult += delta;
++
++	update_rq_clock_pelt(rq, delta);
++}
++
+ /*
+  * When rq becomes idle, we have to check if it has lost idle time
+  * because it was fully busy. A rq is fully used when the /Sum util_sum
+@@ -147,7 +176,7 @@ static inline void update_idle_rq_clock_pelt(struct rq *rq)
+ 	 * rq's clock_task.
+ 	 */
+ 	if (util_sum >= divider)
+-		rq->lost_idle_time += rq_clock_task(rq) - rq->clock_pelt;
++		rq->lost_idle_time += rq_clock_task_mult(rq) - rq->clock_pelt;
+ 
+ 	_update_idle_rq_clock_pelt(rq);
+ }
+@@ -218,13 +247,18 @@ update_irq_load_avg(struct rq *rq, u64 running)
+ 	return 0;
+ }
+ 
+-static inline u64 rq_clock_pelt(struct rq *rq)
++static inline u64 rq_clock_task_mult(struct rq *rq)
+ {
+ 	return rq_clock_task(rq);
+ }
+ 
++static inline u64 rq_clock_pelt(struct rq *rq)
++{
++	return rq_clock_task_mult(rq);
++}
++
+ static inline void
+-update_rq_clock_pelt(struct rq *rq, s64 delta) { }
++update_rq_clock_task_mult(struct rq *rq, s64 delta) { }
+ 
+ static inline void
+ update_idle_rq_clock_pelt(struct rq *rq) { }
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index f34b489636ff..8485f5407eb8 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -1024,6 +1024,7 @@ struct rq {
+ 	u64			clock;
+ 	/* Ensure that all clocks are in the same cache line */
+ 	u64			clock_task ____cacheline_aligned;
++	u64			clock_task_mult;
+ 	u64			clock_pelt;
+ 	unsigned long		lost_idle_time;
+ 	u64			clock_pelt_idle;
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index e9a3094c52e5..9623c2fc774b 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -89,6 +89,9 @@
+ #ifdef CONFIG_PERF_EVENTS
+ static const int six_hundred_forty_kb = 640 * 1024;
+ #endif
++#ifdef CONFIG_USER_NS
++#include <linux/user_namespace.h>
++#endif
+ 
+ 
+ static const int ngroups_max = NGROUPS_MAX;
+@@ -1649,6 +1652,15 @@ static struct ctl_table kern_table[] = {
+ 		.mode		= 0644,
+ 		.proc_handler	= proc_dointvec,
+ 	},
++#ifdef CONFIG_USER_NS
++	{
++		.procname	= "unprivileged_userns_clone",
++		.data		= &unprivileged_userns_clone,
++		.maxlen		= sizeof(int),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec,
++	},
++#endif
+ #ifdef CONFIG_PROC_SYSCTL
+ 	{
+ 		.procname	= "tainted",
+diff --git a/kernel/user_namespace.c b/kernel/user_namespace.c
+index 5481ba44a8d6..423ab2563ad7 100644
+--- a/kernel/user_namespace.c
++++ b/kernel/user_namespace.c
+@@ -21,6 +21,13 @@
+ #include <linux/bsearch.h>
+ #include <linux/sort.h>
+ 
++/* sysctl */
++#ifdef CONFIG_USER_NS_UNPRIVILEGED
++int unprivileged_userns_clone = 1;
++#else
++int unprivileged_userns_clone;
++#endif
++
+ static struct kmem_cache *user_ns_cachep __read_mostly;
+ static DEFINE_MUTEX(userns_state_mutex);
+ 
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index 88f34cdeef02..2c579d965266 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -312,8 +312,21 @@ config DEBUG_INFO_REDUCED
+ 	  DEBUG_INFO build and compile times are reduced too.
+ 	  Only works with newer gcc versions.
+ 
+-config DEBUG_INFO_COMPRESSED
+-	bool "Compressed debugging information"
++choice
++	prompt "Compressed Debug information"
++	help
++	  Compress the resulting debug info. Results in smaller debug info sections,
++	  but requires that consumers are able to decompress the results.
++
++	  If unsure, choose DEBUG_INFO_COMPRESSED_NONE.
++
++config DEBUG_INFO_COMPRESSED_NONE
++	bool "Don't compress debug information"
++	help
++	  Don't compress debug info sections.
++
++config DEBUG_INFO_COMPRESSED_ZLIB
++	bool "Compress debugging information with zlib"
+ 	depends on $(cc-option,-gz=zlib)
+ 	depends on $(ld-option,--compress-debug-sections=zlib)
+ 	help
+@@ -327,6 +340,18 @@ config DEBUG_INFO_COMPRESSED
+ 	  preferable to setting $KDEB_COMPRESS to "none" which would be even
+ 	  larger.
+ 
++config DEBUG_INFO_COMPRESSED_ZSTD
++	bool "Compress debugging information with zstd"
++	depends on $(cc-option,-gz=zstd)
++	depends on $(ld-option,--compress-debug-sections=zstd)
++	help
++	  Compress the debug information using zstd.  This may provide better
++	  compression than zlib, for about the same time costs, but requires newer
++	  toolchain support.  Requires GCC 13.0+ or Clang 16.0+, binutils 2.40+, and
++	  zstd.
++
++endchoice # "Compressed Debug information"
++
+ config DEBUG_INFO_SPLIT
+ 	bool "Produce split debuginfo in .dwo files"
+ 	depends on $(cc-option,-gsplit-dwarf)
+diff --git a/lib/string.c b/lib/string.c
+index 6f334420f687..2e60e9e40535 100644
+--- a/lib/string.c
++++ b/lib/string.c
+@@ -866,24 +866,61 @@ char *strnstr(const char *s1, const char *s2, size_t len)
+ EXPORT_SYMBOL(strnstr);
+ #endif
+ 
++#if defined(CONFIG_ARCH_HAS_FAST_MULTIPLIER) && BITS_PER_LONG == 64
++
++#define MEMCHR_MASK_GEN(mask) (mask *= 0x0101010101010101ULL)
++
++#elif defined(CONFIG_ARCH_HAS_FAST_MULTIPLIER)
++
++#define MEMCHR_MASK_GEN(mask)                                                  \
++	do {                                                                   \
++		mask *= 0x01010101;                                            \
++		mask |= mask << 32;                                            \
++	} while (0)
++
++#else
++
++#define MEMCHR_MASK_GEN(mask)                                                  \
++	do {                                                                   \
++		mask |= mask << 8;                                             \
++		mask |= mask << 16;                                            \
++		mask |= mask << 32;                                            \
++	} while (0)
++
++#endif
++
+ #ifndef __HAVE_ARCH_MEMCHR
+ /**
+  * memchr - Find a character in an area of memory.
+- * @s: The memory area
++ * @p: The memory area
+  * @c: The byte to search for
+- * @n: The size of the area.
++ * @length: The size of the area.
+  *
+  * returns the address of the first occurrence of @c, or %NULL
+  * if @c is not found
+  */
+-void *memchr(const void *s, int c, size_t n)
++void *memchr(const void *p, int c, unsigned long length)
+ {
+-	const unsigned char *p = s;
+-	while (n-- != 0) {
+-        	if ((unsigned char)c == *p++) {
+-			return (void *)(p - 1);
++	u64 mask, val;
++	const void *end = p + length;
++
++	c &= 0xff;
++	if (p <= end - 8) {
++		mask = c;
++		MEMCHR_MASK_GEN(mask);
++
++		for (; p <= end - 8; p += 8) {
++			val = *(u64 *)p ^ mask;
++			if ((val + 0xfefefefefefefeffu) &
++			    (~val & 0x8080808080808080u))
++				break;
+ 		}
+ 	}
++
++	for (; p < end; p++)
++		if (*(unsigned char *)p == c)
++			return (void *)p;
++
+ 	return NULL;
+ }
+ EXPORT_SYMBOL(memchr);
+@@ -919,16 +956,7 @@ void *memchr_inv(const void *start, int c, size_t bytes)
+ 		return check_bytes8(start, value, bytes);
+ 
+ 	value64 = value;
+-#if defined(CONFIG_ARCH_HAS_FAST_MULTIPLIER) && BITS_PER_LONG == 64
+-	value64 *= 0x0101010101010101ULL;
+-#elif defined(CONFIG_ARCH_HAS_FAST_MULTIPLIER)
+-	value64 *= 0x01010101;
+-	value64 |= value64 << 32;
+-#else
+-	value64 |= value64 << 8;
+-	value64 |= value64 << 16;
+-	value64 |= value64 << 32;
+-#endif
++	MEMCHR_MASK_GEN(value64);
+ 
+ 	prefix = (unsigned long)start % 8;
+ 	if (prefix) {
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 0331f1461f81..d5373a23902c 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -149,6 +149,12 @@ config ZSWAP_ZPOOL_DEFAULT_ZSMALLOC
+ 	select ZSMALLOC
+ 	help
+ 	  Use the zsmalloc allocator as the default allocator.
++
++config ZSWAP_ZPOOL_DEFAULT_ZBLOCK
++	bool "zblock"
++	select ZBLOCK
++	help
++	  Use the zblock allocator as the default allocator.
+ endchoice
+ 
+ config ZSWAP_ZPOOL_DEFAULT
+@@ -157,6 +163,7 @@ config ZSWAP_ZPOOL_DEFAULT
+        default "zbud" if ZSWAP_ZPOOL_DEFAULT_ZBUD
+        default "z3fold" if ZSWAP_ZPOOL_DEFAULT_Z3FOLD
+        default "zsmalloc" if ZSWAP_ZPOOL_DEFAULT_ZSMALLOC
++	default "zblock" if ZSWAP_ZPOOL_DEFAULT_ZBLOCK
+        default ""
+ 
+ config ZBUD
+@@ -187,6 +194,16 @@ config ZSMALLOC
+ 	  pages of various compression levels efficiently. It achieves
+ 	  the highest storage density with the least amount of fragmentation.
+ 
++config ZBLOCK
++	tristate "Simple block allocator (zblock)"
++	depends on ZPOOL
++	help
++	  A special purpose allocator for storing compressed pages.
++	  It stores integer number of compressed pages per block and
++	  each block consists of number of physical pages being a power of 2.
++	  zblock provides fast read/write, limited worst case time for
++	  operations and good compression ratio in most scenarios.
++
+ config ZSMALLOC_STAT
+ 	bool "Export zsmalloc statistics"
+ 	depends on ZSMALLOC
+diff --git a/mm/Makefile b/mm/Makefile
+index 9a564f836403..eb7235da6e61 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -110,6 +110,7 @@ obj-$(CONFIG_ZPOOL)	+= zpool.o
+ obj-$(CONFIG_ZBUD)	+= zbud.o
+ obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o
+ obj-$(CONFIG_Z3FOLD)	+= z3fold.o
++obj-$(CONFIG_ZBLOCK)	+= zblock.o
+ obj-$(CONFIG_GENERIC_EARLY_IOREMAP) += early_ioremap.o
+ obj-$(CONFIG_CMA)	+= cma.o
+ obj-$(CONFIG_MEMORY_BALLOON) += balloon_compaction.o
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 88fea74c3a86..9745eb6cfb57 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1727,7 +1727,7 @@ typedef enum {
+  * Allow userspace to control policy on scanning the unevictable LRU for
+  * compactable pages.
+  */
+-#ifdef CONFIG_PREEMPT_RT
++#if defined(CONFIG_PREEMPT_RT) || defined(CONFIG_CACHY)
+ int sysctl_compact_unevictable_allowed __read_mostly = 0;
+ #else
+ int sysctl_compact_unevictable_allowed __read_mostly = 1;
+@@ -2719,7 +2719,11 @@ static void compact_nodes(void)
+  * aggressively the kernel should compact memory in the
+  * background. It takes values in the range [0, 100].
+  */
++#ifdef CONFIG_CACHY
++unsigned int __read_mostly sysctl_compaction_proactiveness;
++#else
+ unsigned int __read_mostly sysctl_compaction_proactiveness = 20;
++#endif
+ 
+ int compaction_proactiveness_sysctl_handler(struct ctl_table *table, int write,
+ 		void *buffer, size_t *length, loff_t *ppos)
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 032a7bf8d259..cbcecd565c16 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -70,7 +70,11 @@ static long ratelimit_pages = 32;
+ /*
+  * Start background writeback (via writeback threads) at this percentage
+  */
++#ifdef CONFIG_CACHY
++static int dirty_background_ratio = 5;
++#else
+ static int dirty_background_ratio = 10;
++#endif
+ 
+ /*
+  * dirty_background_bytes starts at 0 (disabled) so that it is a function of
+@@ -98,7 +102,11 @@ static unsigned long vm_dirty_bytes;
+ /*
+  * The interval between `kupdate'-style writebacks
+  */
++#ifdef CONFIG_CACHY
++unsigned int dirty_writeback_interval = 10 * 100; /* centiseconds */
++#else
+ unsigned int dirty_writeback_interval = 5 * 100; /* centiseconds */
++#endif
+ 
+ EXPORT_SYMBOL_GPL(dirty_writeback_interval);
+ 
+diff --git a/mm/swap.c b/mm/swap.c
+index 9cee7f6a3809..186b4e5dcecf 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -1070,6 +1070,10 @@ EXPORT_SYMBOL(pagevec_lookup_range_tag);
+  */
+ void __init swap_setup(void)
+ {
++#ifdef CONFIG_CACHY
++	/* Only swap-in pages requested, avoid readahead */
++	page_cluster = 0;
++#else
+ 	unsigned long megs = totalram_pages() >> (20 - PAGE_SHIFT);
+ 
+ 	/* Use a smaller cluster for small-memory machines */
+@@ -1081,4 +1085,5 @@ void __init swap_setup(void)
+ 	 * Right now other parts of the system means that we
+ 	 * _really_ don't want to cluster much more
+ 	 */
++#endif
+ }
+diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+index b52644771cc4..11a4b0e3b583 100644
+--- a/mm/vmpressure.c
++++ b/mm/vmpressure.c
+@@ -43,7 +43,11 @@ static const unsigned long vmpressure_win = SWAP_CLUSTER_MAX * 16;
+  * essence, they are percents: the higher the value, the more number
+  * unsuccessful reclaims there were.
+  */
++#ifdef CONFIG_CACHY
++static const unsigned int vmpressure_level_med = 65;
++#else
+ static const unsigned int vmpressure_level_med = 60;
++#endif
+ static const unsigned int vmpressure_level_critical = 95;
+ 
+ /*
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a69f32dd5ce5..52699ada5be2 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -178,7 +178,11 @@ struct scan_control {
+ /*
+  * From 0 .. 200.  Higher means more swappy.
+  */
++#ifdef CONFIG_CACHY
++int vm_swappiness = 20;
++#else
+ int vm_swappiness = 60;
++#endif
+ 
+ static void set_task_reclaim_state(struct task_struct *task,
+ 				   struct reclaim_state *rs)
+diff --git a/mm/zblock.c b/mm/zblock.c
+new file mode 100644
+index 000000000000..4767a367fa71
+--- /dev/null
++++ b/mm/zblock.c
+@@ -0,0 +1,642 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * zblock.c
++ *
++ * Author: Ananda Badmaev <a.badmaev@clicknet.pro>
++ * Copyright (C) 2022, Konsulko AB.
++ *
++ * This implementation is based on z3fold written by Vitaly Wool.
++ * Zblock is a small object allocator with the intention to serve as a
++ * zpool backend. It operates on page blocks which consist of number
++ * of physical pages being a power of 2 and store integer number of
++ * compressed pages per block which results in determinism and simplicity.
++ *
++ * zblock doesn't export any API and is meant to be used via zpool API.
++ */
++
++#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
++
++#include <linux/atomic.h>
++#include <linux/list.h>
++#include <linux/mm.h>
++#include <linux/module.h>
++#include <linux/preempt.h>
++#include <linux/slab.h>
++#include <linux/spinlock.h>
++#include <linux/zpool.h>
++
++#define SLOT_FREE 0
++#define SLOT_OCCUPIED 1
++#define SLOT_MAPPED 2
++#define SLOT_UNMAPPED 3
++
++#define SLOT_BITS 5
++#define MAX_SLOTS (1 << SLOT_BITS)
++#define SLOT_MASK ((0x1UL << SLOT_BITS) - 1)
++
++#define BLOCK_DATA_SIZE(order) ((PAGE_SIZE << order) - sizeof(struct zblock_block))
++#define SLOT_SIZE(nslots, order) (round_down((BLOCK_DATA_SIZE(order) / nslots), sizeof(long)))
++
++#define BLOCK_CACHE_SIZE 32
++
++struct zblock_pool;
++
++struct zblock_ops {
++	int (*evict)(struct zblock_pool *pool, unsigned long handle);
++};
++
++/**
++ * struct zblock_block - block metadata
++ * Block consists of several (1/2/4/8) pages and contains fixed
++ * integer number of slots for allocating compressed pages.
++ *
++ * lock:		protects block
++ * block_node:		links block into the relevant list in the pool
++ * slot_info:		contains data about free/occupied slots
++ * free_slots:		number of free slots in the block
++ * under_reclaim:	if true shows that block is being evicted
++ */
++struct zblock_block {
++	spinlock_t lock;
++	struct list_head block_node;
++	u8 slot_info[MAX_SLOTS];
++	unsigned int free_slots;
++	bool under_reclaim;
++};
++/**
++ * struct block_desc - general metadata for block lists
++ * Each block list stores only blocks of corresponding type which means
++ * that all blocks in it have the same number and size of slots.
++ * All slots are aligned to size of long.
++ *
++ * slot_size:		size of slot for this list
++ * slots_per_block:	number of slots per block for this list
++ * order:		order for __get_free_pages
++ */
++static const struct block_desc {
++	const unsigned int slot_size;
++	const unsigned short slots_per_block;
++	const unsigned short order;
++} block_desc[] = {
++	{ SLOT_SIZE(32, 0), 32, 0 },
++	{ SLOT_SIZE(22, 0), 22, 0 },
++	{ SLOT_SIZE(17, 0), 17, 0 },
++	{ SLOT_SIZE(13, 0), 13, 0 },
++	{ SLOT_SIZE(11, 0), 11, 0 },
++	{ SLOT_SIZE(9, 0), 9, 0 },
++	{ SLOT_SIZE(8, 0), 8, 0 },
++	{ SLOT_SIZE(14, 1), 14, 1 },
++	{ SLOT_SIZE(12, 1), 12, 1 },
++	{ SLOT_SIZE(11, 1), 11, 1 },
++	{ SLOT_SIZE(10, 1), 10, 1 },
++	{ SLOT_SIZE(9, 1), 9, 1 },
++	{ SLOT_SIZE(8, 1), 8, 1 },
++	{ SLOT_SIZE(15, 2), 15, 2 },
++	{ SLOT_SIZE(14, 2), 14, 2 },
++	{ SLOT_SIZE(13, 2), 13, 2 },
++	{ SLOT_SIZE(12, 2), 12, 2 },
++	{ SLOT_SIZE(11, 2), 11, 2 },
++	{ SLOT_SIZE(10, 2), 10, 2 },
++	{ SLOT_SIZE(9, 2), 9, 2 },
++	{ SLOT_SIZE(8, 2), 8, 2 },
++	{ SLOT_SIZE(15, 3), 15, 3 },
++	{ SLOT_SIZE(14, 3), 14, 3 },
++	{ SLOT_SIZE(13, 3), 13, 3 },
++	{ SLOT_SIZE(12, 3), 12, 3 },
++	{ SLOT_SIZE(11, 3), 11, 3 },
++	{ SLOT_SIZE(10, 3), 10, 3 },
++	{ SLOT_SIZE(9, 3), 9, 3 },
++	{ SLOT_SIZE(7, 3), 7, 3 }
++};
++
++/**
++ * struct block_list - stores metadata of particular list
++ * lock:		protects list
++ * head:		head of this list
++ * block_cache:	blocks with free slots
++ * block_count:	total number of blocks in the list
++ */
++struct block_list {
++	spinlock_t lock;
++	struct list_head head;
++	struct zblock_block *block_cache[BLOCK_CACHE_SIZE];
++	unsigned long block_count;
++};
++
++/**
++ * struct zblock_pool - stores metadata for each zblock pool
++ * @block_lists:	array of block lists
++ * @ops:		pointer to a structure of user defined operations specified at
++ *			pool creation time.
++ * @zpool:		zpool driver
++ * @zpool_ops:		zpool operations structure with an evict callback
++ * @alloc_flag:	protects block allocation from memory leak
++ *
++ * This structure is allocated at pool creation time and maintains metadata
++ * for a particular zblock pool.
++ */
++struct zblock_pool {
++	struct block_list block_lists[ARRAY_SIZE(block_desc)];
++	const struct zblock_ops *ops;
++	struct zpool *zpool;
++	const struct zpool_ops *zpool_ops;
++	atomic_t alloc_flag;
++};
++
++/*****************
++ * Helpers
++ *****************/
++
++static void cache_insert_block(struct zblock_block *block, struct block_list *list)
++{
++	unsigned int i, min_free_slots, min_index;
++
++	min_free_slots = MAX_SLOTS;
++	for (i = 0; i < BLOCK_CACHE_SIZE; i++) {
++		if (!list->block_cache[i] || !(list->block_cache[i])->free_slots) {
++			list->block_cache[i] = block;
++			return;
++		}
++		if ((list->block_cache[i])->free_slots < min_free_slots) {
++			min_free_slots = (list->block_cache[i])->free_slots;
++			min_index = i;
++		}
++	}
++	list->block_cache[min_index] = block;
++}
++
++static struct zblock_block *cache_find_block(struct block_list *list)
++{
++	int i;
++
++	for (i = 0; i < BLOCK_CACHE_SIZE; i++) {
++		if (list->block_cache[i] && (list->block_cache[i])->free_slots)
++			return list->block_cache[i];
++	}
++	return NULL;
++}
++
++static int is_in_cache(struct zblock_block *block, struct block_list *list)
++{
++	int i;
++
++	for (i = 0; i < BLOCK_CACHE_SIZE; i++) {
++		if (block == list->block_cache[i])
++			return i;
++	}
++	return -1;
++}
++
++/*
++ * allocate new block and add it to corresponding block list
++ */
++static struct zblock_block *alloc_block(struct zblock_pool *pool,
++					int block_type, gfp_t gfp)
++{
++	struct zblock_block *block;
++	struct block_list *list;
++
++	block = (void *)__get_free_pages(gfp, block_desc[block_type].order);
++	if (!block)
++		return NULL;
++
++	list = &(pool->block_lists)[block_type];
++
++	/* init block data  */
++	spin_lock_init(&block->lock);
++	memset(block->slot_info, SLOT_FREE, block_desc[block_type].slots_per_block);
++	block->free_slots = block_desc[block_type].slots_per_block;
++	block->under_reclaim = false;
++
++	spin_lock(&list->lock);
++	/* inserting block into list */
++	INIT_LIST_HEAD(&block->block_node);
++	list_add(&block->block_node, &list->head);
++	cache_insert_block(block, list);
++	list->block_count++;
++	spin_unlock(&list->lock);
++	return block;
++}
++
++/*
++ * Encodes the handle of a particular slot in the pool using metadata
++ */
++static inline unsigned long metadata_to_handle(struct zblock_block *block,
++					unsigned int block_type, unsigned int slot)
++{
++	return (unsigned long)(block) + (block_type << SLOT_BITS) + slot;
++}
++
++/* Returns block, block type and slot in the pool corresponding to handle */
++static inline struct zblock_block *handle_to_metadata(unsigned long handle,
++					unsigned int *block_type, unsigned int *slot)
++{
++	*block_type = (handle & (PAGE_SIZE - 1)) >> SLOT_BITS;
++	*slot = handle & SLOT_MASK;
++	return (struct zblock_block *)(handle & PAGE_MASK);
++}
++
++
++/*****************
++ * API Functions
++ *****************/
++/**
++ * zblock_create_pool() - create a new zblock pool
++ * @gfp: gfp flags when allocating the zblock pool structure
++ * @ops: user-defined operations for the zblock pool
++ *
++ * Return: pointer to the new zblock pool or NULL if the metadata allocation
++ * failed.
++ */
++static struct zblock_pool *zblock_create_pool(gfp_t gfp, const struct zblock_ops *ops)
++{
++	struct zblock_pool *pool;
++	struct block_list *list;
++	int i, j, arr_sz;
++
++	pool = kmalloc(sizeof(struct zblock_pool), gfp);
++	if (!pool)
++		return NULL;
++
++	arr_sz = ARRAY_SIZE(block_desc);
++	if (block_desc[arr_sz - 1].slot_size < PAGE_SIZE)
++		return NULL;
++
++	/* init each block list */
++	for (i = 0; i < arr_sz; i++) {
++		list = &(pool->block_lists)[i];
++		spin_lock_init(&list->lock);
++		INIT_LIST_HEAD(&list->head);
++		for (j = 0; j < BLOCK_CACHE_SIZE; j++)
++			list->block_cache[j] = NULL;
++		list->block_count = 0;
++	}
++	pool->ops = ops;
++	atomic_set(&pool->alloc_flag, 0);
++	return pool;
++}
++
++/**
++ * zblock_destroy_pool() - destroys an existing zblock pool
++ * @pool: the zblock pool to be destroyed
++ *
++ */
++static void zblock_destroy_pool(struct zblock_pool *pool)
++{
++	kfree(pool);
++}
++
++
++/**
++ * zblock_alloc() - allocates a slot of appropriate size
++ * @pool:	zblock pool from which to allocate
++ * @size:	size in bytes of the desired allocation
++ * @gfp:	gfp flags used if the pool needs to grow
++ * @handle:	handle of the new allocation
++ *
++ * Return: 0 if success and handle is set, otherwise -EINVAL if the size or
++ * gfp arguments are invalid or -ENOMEM if the pool was unable to allocate
++ * a new slot.
++ */
++static int zblock_alloc(struct zblock_pool *pool, size_t size, gfp_t gfp,
++			unsigned long *handle)
++{
++	unsigned int block_type, slot;
++	struct zblock_block *block;
++	struct block_list *list;
++
++	if (!size)
++		return -EINVAL;
++
++	if (size > PAGE_SIZE)
++		return -ENOSPC;
++
++	/* find basic block type with suitable slot size */
++	for (block_type = 0; block_type < ARRAY_SIZE(block_desc); block_type++) {
++		if (size <= block_desc[block_type].slot_size)
++			break;
++	}
++	list = &(pool->block_lists[block_type]);
++
++check:
++	spin_lock(&list->lock);
++	/* check if there are free slots in cache */
++	block = cache_find_block(list);
++	if (block)
++		goto found;
++	spin_unlock(&list->lock);
++
++	/* not found block with free slots try to allocate new empty block */
++	if (atomic_cmpxchg(&pool->alloc_flag, 0, 1))
++		goto check;
++	block = alloc_block(pool, block_type, gfp & ~(__GFP_HIGHMEM | __GFP_MOVABLE));
++	if (block) {
++		spin_lock(&list->lock);
++		goto found;
++	}
++	atomic_set(&pool->alloc_flag, 0);
++	return -ENOMEM;
++
++found:
++	spin_lock(&block->lock);
++	block->free_slots--;
++	spin_unlock(&list->lock);
++	/* find the first free slot in block */
++	for (slot = 0; slot < block_desc[block_type].slots_per_block; slot++) {
++		if (block->slot_info[slot] == SLOT_FREE)
++			break;
++	}
++	block->slot_info[slot] = SLOT_OCCUPIED;
++	spin_unlock(&block->lock);
++	*handle = metadata_to_handle(block, block_type, slot);
++	atomic_set(&pool->alloc_flag, 0);
++	return 0;
++}
++
++/**
++ * zblock_free() - frees the allocation associated with the given handle
++ * @pool:	pool in which the allocation resided
++ * @handle:	handle associated with the allocation returned by zblock_alloc()
++ *
++ */
++static void zblock_free(struct zblock_pool *pool, unsigned long handle)
++{
++	unsigned int slot, block_type;
++	struct zblock_block *block;
++	struct block_list *list;
++	int i;
++
++	block = handle_to_metadata(handle, &block_type, &slot);
++	list = &(pool->block_lists[block_type]);
++
++	if (block->under_reclaim)
++		return;
++	spin_lock(&list->lock);
++	i = is_in_cache(block, list);
++	block->free_slots++;
++	/* if all slots in block are empty delete whole block */
++	if (block->free_slots == block_desc[block_type].slots_per_block) {
++		list_del(&block->block_node);
++		list->block_count--;
++
++		/* if cached block to be deleted */
++		if (i != -1)
++			list->block_cache[i] = NULL;
++		spin_unlock(&list->lock);
++		free_pages((unsigned long)block, block_desc[block_type].order);
++		return;
++	}
++	/* if block is not cached update cache */
++	if (i == -1)
++		cache_insert_block(block, list);
++
++	spin_lock(&block->lock);
++	spin_unlock(&list->lock);
++	block->slot_info[slot] = SLOT_FREE;
++	spin_unlock(&block->lock);
++}
++
++/**
++ * zblock_reclaim_block() - evicts allocations from block and frees it
++ * @pool: pool from which a block will attempt to be evicted
++ *
++ * Returns: pages reclaimed count if block is successfully freed
++ *          otherwise -EINVAL if there are no blocks to evict
++ */
++static int zblock_reclaim_block(struct zblock_pool *pool)
++{
++	struct zblock_block *block;
++	struct block_list *list;
++	unsigned long handle;
++	int ret, i, reclaimed, block_type, slot;
++
++	/* start with list storing blocks with the worst compression and try
++	 * to evict the first added (oldest) block in this list
++	 */
++	for (block_type = ARRAY_SIZE(block_desc) - 1; block_type >= 0; --block_type) {
++		list = &(pool->block_lists[block_type]);
++		spin_lock(&list->lock);
++
++		/* find the oldest block in list */
++		block = list_last_entry(&list->head, struct zblock_block, block_node);
++
++		if (!block) {
++			spin_unlock(&list->lock);
++			continue;
++		}
++		i = is_in_cache(block, list);
++		/* skip iteration if this block is cached */
++		if (i != -1) {
++			spin_unlock(&list->lock);
++			continue;
++		}
++		block->under_reclaim = true;
++		spin_unlock(&list->lock);
++		reclaimed = 0;
++
++		/* try to evict all OCCUPIED and UNMAPPED slots in block */
++		for (slot = 0; slot < block_desc[block_type].slots_per_block; ++slot) {
++			if (block->slot_info[slot] == SLOT_OCCUPIED ||
++				block->slot_info[slot] == SLOT_UNMAPPED) {
++				handle = metadata_to_handle(block, block_type, slot);
++				ret = pool->ops->evict(pool, handle);
++				if (ret)
++					break;
++
++				++reclaimed;
++				spin_lock(&block->lock);
++				block->slot_info[slot] = SLOT_FREE;
++				spin_unlock(&block->lock);
++				block->free_slots++;
++			}
++		}
++		spin_lock(&list->lock);
++		/* some occupied slots remained - insert block */
++		if (block->free_slots != block_desc[block_type].slots_per_block) {
++			block->under_reclaim = false;
++			cache_insert_block(block, list);
++			spin_unlock(&list->lock);
++		} else {
++		/* all slots are free - delete this block */
++			list_del(&block->block_node);
++			list->block_count--;
++			spin_unlock(&list->lock);
++			free_pages((unsigned long)block, block_desc[block_type].order);
++		}
++		if (reclaimed != 0)
++			return reclaimed;
++		return -EAGAIN;
++	}
++	return -EINVAL;
++}
++
++
++/**
++ * zblock_map() - maps the allocation associated with the given handle
++ * @pool:	pool in which the allocation resides
++ * @handle:	handle associated with the allocation to be mapped
++ *
++ *
++ * Returns: a pointer to the mapped allocation
++ */
++static void *zblock_map(struct zblock_pool *pool, unsigned long handle)
++{
++	unsigned int block_type, slot;
++	struct zblock_block *block;
++
++	block = handle_to_metadata(handle, &block_type, &slot);
++	spin_lock(&block->lock);
++	block->slot_info[slot] = SLOT_MAPPED;
++	spin_unlock(&block->lock);
++	return (void *)(block + 1) + slot * block_desc[block_type].slot_size;
++}
++
++/**
++ * zblock_unmap() - unmaps the allocation associated with the given handle
++ * @pool:	pool in which the allocation resides
++ * @handle:	handle associated with the allocation to be unmapped
++ */
++static void zblock_unmap(struct zblock_pool *pool, unsigned long handle)
++{
++	unsigned int block_type, slot;
++	struct zblock_block *block;
++
++	block = handle_to_metadata(handle, &block_type, &slot);
++	spin_lock(&block->lock);
++	block->slot_info[slot] = SLOT_UNMAPPED;
++	spin_unlock(&block->lock);
++}
++
++/**
++ * zblock_get_pool_size() - gets the zblock pool size in bytes
++ * @pool: pool whose size is being queried
++ *
++ * Returns: size in bytes of the given pool.
++ */
++static u64 zblock_get_pool_size(struct zblock_pool *pool)
++{
++	u64 total_size;
++	int i;
++
++	total_size = 0;
++	for (i = 0; i < ARRAY_SIZE(block_desc); i++) {
++		total_size += (pool->block_lists)[i].block_count
++				* (PAGE_SIZE << block_desc[i].order);
++	}
++	return total_size;
++}
++
++/*****************
++ * zpool
++ ****************/
++
++static int zblock_zpool_evict(struct zblock_pool *pool, unsigned long handle)
++{
++	if (pool->zpool && pool->zpool_ops && pool->zpool_ops->evict)
++		return pool->zpool_ops->evict(pool->zpool, handle);
++	else
++		return -ENOENT;
++}
++
++static const struct zblock_ops zblock_zpool_ops = {
++	.evict = zblock_zpool_evict
++};
++
++static void *zblock_zpool_create(const char *name, gfp_t gfp,
++				const struct zpool_ops *zpool_ops,
++				struct zpool *zpool)
++{
++	struct zblock_pool *pool;
++
++	pool = zblock_create_pool(gfp, &zblock_zpool_ops);
++	if (pool) {
++		pool->zpool = zpool;
++		pool->zpool_ops = zpool_ops;
++	}
++	return pool;
++}
++
++static void zblock_zpool_destroy(void *pool)
++{
++	zblock_destroy_pool(pool);
++}
++
++static int zblock_zpool_malloc(void *pool, size_t size, gfp_t gfp,
++			unsigned long *handle)
++{
++	return zblock_alloc(pool, size, gfp, handle);
++}
++
++static void zblock_zpool_free(void *pool, unsigned long handle)
++{
++	zblock_free(pool, handle);
++}
++
++static int zblock_zpool_shrink(void *pool, unsigned int pages,
++			unsigned int *reclaimed)
++{
++	unsigned int total = 0;
++	int ret = -EINVAL;
++
++	while (total < pages) {
++		ret = zblock_reclaim_block(pool);
++		if (ret < 0)
++			break;
++		total += ret;
++	}
++	if (reclaimed)
++		*reclaimed = total;
++
++	return ret;
++}
++
++static void *zblock_zpool_map(void *pool, unsigned long handle,
++			enum zpool_mapmode mm)
++{
++	return zblock_map(pool, handle);
++}
++
++static void zblock_zpool_unmap(void *pool, unsigned long handle)
++{
++	zblock_unmap(pool, handle);
++}
++
++static u64 zblock_zpool_total_size(void *pool)
++{
++	return zblock_get_pool_size(pool);
++}
++
++static struct zpool_driver zblock_zpool_driver = {
++	.type =		"zblock",
++	.owner =	THIS_MODULE,
++	.create =	zblock_zpool_create,
++	.destroy =	zblock_zpool_destroy,
++	.malloc =	zblock_zpool_malloc,
++	.free =		zblock_zpool_free,
++	.shrink =	zblock_zpool_shrink,
++	.map =		zblock_zpool_map,
++	.unmap =	zblock_zpool_unmap,
++	.total_size =	zblock_zpool_total_size,
++};
++
++MODULE_ALIAS("zpool-zblock");
++
++static int __init init_zblock(void)
++{
++	pr_info("loaded\n");
++	zpool_register_driver(&zblock_zpool_driver);
++	return 0;
++}
++
++static void __exit exit_zblock(void)
++{
++	zpool_unregister_driver(&zblock_zpool_driver);
++	pr_info("unloaded\n");
++}
++
++module_init(init_zblock);
++module_exit(exit_zblock);
++
++MODULE_LICENSE("GPL");
++MODULE_AUTHOR("Ananda Badmaeb <a.badmaev@clicknet.pro>");
++MODULE_DESCRIPTION("Block allocator for compressed pages");
+diff --git a/scripts/Makefile.debug b/scripts/Makefile.debug
+index 8cf1cb22dd93..f831e836bd99 100644
+--- a/scripts/Makefile.debug
++++ b/scripts/Makefile.debug
+@@ -22,10 +22,14 @@ DEBUG_CFLAGS	+= -femit-struct-debug-baseonly
+ endif
+ endif
+ 
+-ifdef CONFIG_DEBUG_INFO_COMPRESSED
++ifdef CONFIG_DEBUG_INFO_COMPRESSED_ZLIB
+ DEBUG_CFLAGS	+= -gz=zlib
+ KBUILD_AFLAGS	+= -gz=zlib
+ KBUILD_LDFLAGS	+= --compress-debug-sections=zlib
++else ifdef CONFIG_DEBUG_INFO_COMPRESSED_ZSTD
++DEBUG_CFLAGS	+= -gz=zstd
++KBUILD_AFLAGS	+= -gz=zstd
++KBUILD_LDFLAGS	+= --compress-debug-sections=zstd
+ endif
+ 
+ KBUILD_CFLAGS	+= $(DEBUG_CFLAGS)
+diff --git a/scripts/Makefile.lib b/scripts/Makefile.lib
+index 3fb6a99e78c4..f62770a0a84f 100644
+--- a/scripts/Makefile.lib
++++ b/scripts/Makefile.lib
+@@ -504,14 +504,21 @@ quiet_cmd_xzmisc = XZMISC  $@
+ # decompression is used, like initramfs decompression, zstd22 should likely not
+ # be used because it would require zstd to allocate a 128 MB buffer.
+ 
++ifdef CONFIG_ZSTD_COMP_VAL
++zstd_comp_val	:= $(CONFIG_ZSTD_COMP_VAL)
++ifeq ($(shell test $(zstd_comp_val) -gt 19; echo $$?),0)
++zstd_comp_val	+= --ultra
++endif
++endif
++
+ quiet_cmd_zstd = ZSTD    $@
+-      cmd_zstd = cat $(real-prereqs) | $(ZSTD) -19 > $@
++      cmd_zstd = cat $(real-prereqs) | $(ZSTD) -T0 -19 > $@
+ 
+ quiet_cmd_zstd22 = ZSTD22  $@
+-      cmd_zstd22 = cat $(real-prereqs) | $(ZSTD) -22 --ultra > $@
++      cmd_zstd22 = cat $(real-prereqs) | $(ZSTD) -T0 -22 --ultra > $@
+ 
+ quiet_cmd_zstd22_with_size = ZSTD22  $@
+-      cmd_zstd22_with_size = { cat $(real-prereqs) | $(ZSTD) -22 --ultra; $(size_append); } > $@
++      cmd_zstd22_with_size = { cat $(real-prereqs) | $(ZSTD) -T0 -$(zstd_comp_val); $(size_append); } > $@
+ 
+ # ASM offsets
+ # ---------------------------------------------------------------------------
+diff --git a/scripts/Makefile.modinst b/scripts/Makefile.modinst
+index a4c987c23750..132863cf3183 100644
+--- a/scripts/Makefile.modinst
++++ b/scripts/Makefile.modinst
+@@ -96,8 +96,13 @@ quiet_cmd_gzip = GZIP    $@
+       cmd_gzip = $(KGZIP) -n -f $<
+ quiet_cmd_xz = XZ      $@
+       cmd_xz = $(XZ) --lzma2=dict=2MiB -f $<
++ifdef CONFIG_MODULE_COMPRESS_ZSTD_ULTRA
+ quiet_cmd_zstd = ZSTD    $@
+-      cmd_zstd = $(ZSTD) -T0 --rm -f -q $<
++      cmd_zstd = $(ZSTD) -$(CONFIG_MODULE_COMPRESS_ZSTD_LEVEL_ULTRA) --ultra --zstd=wlog=21 -T0 --rm -f -q $<
++else
++quiet_cmd_zstd = ZSTD    $@
++      cmd_zstd = $(ZSTD) -$(CONFIG_MODULE_COMPRESS_ZSTD_LEVEL) --zstd=wlog=21 -T0 --rm -f -q $<
++endif
+ 
+ $(dst)/%.ko.gz: $(dst)/%.ko FORCE
+ 	$(call cmd,gzip)
+-- 
+2.39.0.rc2
+

@@ -1,0 +1,259 @@
+From 12cc08825064bffbf559920c6485b2841837123d Mon Sep 17 00:00:00 2001
+From: "P. Jung" <ptr1337@cachyos.org>
+Date: Fri, 3 Dec 2021 21:36:34 +0000
+Subject: [PATCH] misc
+
+Signed-off-by: P. Jung <ptr1337@cachyos.org>
+---
+ drivers/cpufreq/cpufreq_ondemand.c |  6 +++---
+ drivers/hid/usbhid/hid-core.c      |  8 ++++++++
+ fs/dcache.c                        |  2 +-
+ include/linux/pagemap.h            |  2 +-
+ kernel/Kconfig.hz                  | 16 ++++++++++++++++
+ kernel/sched/core.c                |  4 ++--
+ kernel/sched/fair.c                | 14 +++++++-------
+ mm/page-writeback.c                |  4 ++--
+ mm/vmpressure.c                    |  5 ++---
+ mm/vmscan.c                        |  2 +-
+ 10 files changed, 43 insertions(+), 20 deletions(-)
+
+diff --git drivers/cpufreq/cpufreq_ondemand.c drivers/cpufreq/cpufreq_ondemand.c
+index eb4320b619c9..71ec5040b29f 100644
+--- drivers/cpufreq/cpufreq_ondemand.c
++++ drivers/cpufreq/cpufreq_ondemand.c
+@@ -18,10 +18,10 @@
+ #include "cpufreq_ondemand.h"
+ 
+ /* On-demand governor macros */
+-#define DEF_FREQUENCY_UP_THRESHOLD		(80)
+-#define DEF_SAMPLING_DOWN_FACTOR		(1)
++#define DEF_FREQUENCY_UP_THRESHOLD		(65)
++#define DEF_SAMPLING_DOWN_FACTOR		(10)
+ #define MAX_SAMPLING_DOWN_FACTOR		(100000)
+-#define MICRO_FREQUENCY_UP_THRESHOLD		(95)
++#define MICRO_FREQUENCY_UP_THRESHOLD		(85)
+ #define MICRO_FREQUENCY_MIN_SAMPLE_RATE		(10000)
+ #define MIN_FREQUENCY_UP_THRESHOLD		(1)
+ #define MAX_FREQUENCY_UP_THRESHOLD		(100)
+diff --git drivers/hid/usbhid/hid-core.c drivers/hid/usbhid/hid-core.c
+index 2dcaf31eb9cd..57ed054deeca 100644
+--- drivers/hid/usbhid/hid-core.c
++++ drivers/hid/usbhid/hid-core.c
+@@ -45,6 +45,10 @@
+  * Module parameters.
+  */
+ 
++static unsigned int hid_poll_interval;
++module_param_named(poll, hid_poll_interval, uint, 0644);
++MODULE_PARM_DESC(poll, "Polling interval of any device");
++
+ static unsigned int hid_mousepoll_interval;
+ module_param_named(mousepoll, hid_mousepoll_interval, uint, 0644);
+ MODULE_PARM_DESC(mousepoll, "Polling interval of mice");
+@@ -1107,6 +1111,10 @@ static int usbhid_start(struct hid_device *hid)
+ 				hid->name, endpoint->bInterval, interval);
+ 		}
+ 
++		/* First set polling interval for all devices */
++		if (hid_poll_interval > 0)
++			interval = hid_poll_interval;
++		
+ 		/* Change the polling interval of mice, joysticks
+ 		 * and keyboards.
+ 		 */
+diff --git fs/dcache.c fs/dcache.c
+index cf871a81f4fd..21a59833d270 100644
+--- fs/dcache.c
++++ fs/dcache.c
+@@ -71,7 +71,7 @@
+  * If no ancestor relationship:
+  * arbitrary, since it's serialized on rename_lock
+  */
+-int sysctl_vfs_cache_pressure __read_mostly = 100;
++int sysctl_vfs_cache_pressure __read_mostly = 80;
+ EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
+ 
+ __cacheline_aligned_in_smp DEFINE_SEQLOCK(rename_lock);
+diff --git include/linux/pagemap.h include/linux/pagemap.h
+index 62db6b0176b9..221331739fd1 100644
+--- include/linux/pagemap.h
++++ include/linux/pagemap.h
+@@ -851,7 +851,7 @@ struct readahead_control {
+ 		._index = i,						\
+ 	}
+ 
+-#define VM_READAHEAD_PAGES	(SZ_128K / PAGE_SIZE)
++#define VM_READAHEAD_PAGES	(SZ_8M / PAGE_SIZE)
+ 
+ void page_cache_ra_unbounded(struct readahead_control *,
+ 		unsigned long nr_to_read, unsigned long lookahead_count);
+diff --git kernel/Kconfig.hz kernel/Kconfig.hz
+index 38ef6d06888e..eb1ccd2481a9 100644
+--- kernel/Kconfig.hz
++++ kernel/Kconfig.hz
+@@ -40,6 +40,20 @@ choice
+ 	 on SMP and NUMA systems and exactly dividing by both PAL and
+ 	 NTSC frame rates for video and multimedia work.
+ 
++	config HZ_600
++		bool "600 HZ"
++	help
++	 600 Hz is a balanced timer frequency. Provides fast interactivity
++	 on desktops with good smoothness without increasing CPU power
++	 consumption and sacrificing the battery life on laptops.
++
++	config HZ_750
++ 		bool "750 HZ"
++ 	help
++ 	 750 Hz is a balanced timer frequency. Provides fast interactivity
++ 	 on desktops with good smoothness without increasing CPU power
++ 	 consumption and sacrificing the battery life on laptops.
++
+ 	config HZ_1000
+ 		bool "1000 HZ"
+ 	help
+@@ -53,6 +67,8 @@ config HZ
+ 	default 100 if HZ_100
+ 	default 250 if HZ_250
+ 	default 300 if HZ_300
++	default 600 if HZ_600
++	default 750 if HZ_750
+ 	default 1000 if HZ_1000
+ 
+ config SCHED_HRTICK
+diff --git kernel/sched/core.c kernel/sched/core.c
+index 6f4625f8276f..c42ec5171fe6 100644
+--- kernel/sched/core.c
++++ kernel/sched/core.c
+@@ -74,7 +74,7 @@ __read_mostly int sysctl_resched_latency_warn_once = 1;
+  * Number of tasks to iterate in a single balance run.
+  * Limited because this is done with IRQs disabled.
+  */
+-const_debug unsigned int sysctl_sched_nr_migrate = 32;
++const_debug unsigned int sysctl_sched_nr_migrate = 256;
+ 
+ /*
+  * period over which we measure -rt task CPU usage in us.
+@@ -368,7 +368,7 @@ static inline void sched_core_dequeue(struct rq *rq, struct task_struct *p) { }
+  * part of the period that we allow rt tasks to run in us.
+  * default: 0.95s
+  */
+-int sysctl_sched_rt_runtime = 950000;
++int sysctl_sched_rt_runtime = 980000;
+ 
+ 
+ /*
+diff --git kernel/sched/fair.c kernel/sched/fair.c
+index 6f16dfb74246..bd4fefb45caa 100644
+--- kernel/sched/fair.c
++++ kernel/sched/fair.c
+@@ -35,8 +35,8 @@
+  *
+  * (default: 6ms * (1 + ilog(ncpus)), units: nanoseconds)
+  */
+-unsigned int sysctl_sched_latency			= 6000000ULL;
+-static unsigned int normalized_sysctl_sched_latency	= 6000000ULL;
++unsigned int sysctl_sched_latency			= 4000000ULL;
++static unsigned int normalized_sysctl_sched_latency	= 4000000ULL;
+ 
+ /*
+  * The initial- and re-scaling of tunables is configurable
+@@ -56,8 +56,8 @@ unsigned int sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_LOG;
+  *
+  * (default: 0.75 msec * (1 + ilog(ncpus)), units: nanoseconds)
+  */
+-unsigned int sysctl_sched_min_granularity			= 750000ULL;
+-static unsigned int normalized_sysctl_sched_min_granularity	= 750000ULL;
++unsigned int sysctl_sched_min_granularity			= 500000ULL;
++static unsigned int normalized_sysctl_sched_min_granularity	= 500000ULL;
+ 
+ /*
+  * This value is kept at sysctl_sched_latency/sysctl_sched_min_granularity
+@@ -79,8 +79,8 @@ unsigned int sysctl_sched_child_runs_first __read_mostly;
+  *
+  * (default: 1 msec * (1 + ilog(ncpus)), units: nanoseconds)
+  */
+-unsigned int sysctl_sched_wakeup_granularity			= 1000000UL;
+-static unsigned int normalized_sysctl_sched_wakeup_granularity	= 1000000UL;
++unsigned int sysctl_sched_wakeup_granularity			= 800000UL;
++static unsigned int normalized_sysctl_sched_wakeup_granularity	= 800000UL;
+ 
+ const_debug unsigned int sysctl_sched_migration_cost	= 500000UL;
+ 
+@@ -133,7 +133,7 @@ int __weak arch_asym_cpu_priority(int cpu)
+  *
+  * (default: 5 msec, units: microseconds)
+  */
+-unsigned int sysctl_sched_cfs_bandwidth_slice		= 5000UL;
++unsigned int sysctl_sched_cfs_bandwidth_slice		= 4000UL;
+ #endif
+ 
+ static inline void update_load_add(struct load_weight *lw, unsigned long inc)
+diff --git mm/page-writeback.c mm/page-writeback.c
+index 4812a17b288c..932f38ee246a 100644
+--- mm/page-writeback.c
++++ mm/page-writeback.c
+@@ -70,7 +70,7 @@ static long ratelimit_pages = 32;
+ /*
+  * Start background writeback (via writeback threads) at this percentage
+  */
+-int dirty_background_ratio = 10;
++int dirty_background_ratio = 5;
+ 
+ /*
+  * dirty_background_bytes starts at 0 (disabled) so that it is a function of
+@@ -98,7 +98,7 @@ unsigned long vm_dirty_bytes;
+ /*
+  * The interval between `kupdate'-style writebacks
+  */
+-unsigned int dirty_writeback_interval = 5 * 100; /* centiseconds */
++unsigned int dirty_writeback_interval = 10 * 100; /* centiseconds */
+ 
+ EXPORT_SYMBOL_GPL(dirty_writeback_interval);
+ 
+diff --git mm/vmpressure.c mm/vmpressure.c
+index 76518e4166dc..7dcfb0d035d4 100644
+--- mm/vmpressure.c
++++ mm/vmpressure.c
+@@ -11,7 +11,6 @@
+ 
+ #include <linux/cgroup.h>
+ #include <linux/fs.h>
+-#include <linux/log2.h>
+ #include <linux/sched.h>
+ #include <linux/mm.h>
+ #include <linux/vmstat.h>
+@@ -43,7 +42,7 @@ static const unsigned long vmpressure_win = SWAP_CLUSTER_MAX * 16;
+  * essence, they are percents: the higher the value, the more number
+  * unsuccessful reclaims there were.
+  */
+-static const unsigned int vmpressure_level_med = 60;
++static const unsigned int vmpressure_level_med = 65;
+ static const unsigned int vmpressure_level_critical = 95;
+ 
+ /*
+@@ -65,7 +64,7 @@ static const unsigned int vmpressure_level_critical = 95;
+  * scans 'lru_size >> prio' pages, so it is actually 12.5%, or one
+  * eights).
+  */
+-static const unsigned int vmpressure_level_critical_prio = ilog2(100 / 10);
++static const unsigned int vmpressure_level_critical_prio = 3;
+ 
+ static struct vmpressure *work_to_vmpressure(struct work_struct *work)
+ {
+diff --git mm/vmscan.c mm/vmscan.c
+index 74296c2d1fed..d08275fe7ebc 100644
+--- mm/vmscan.c
++++ mm/vmscan.c
+@@ -174,7 +174,7 @@ struct scan_control {
+ /*
+  * From 0 .. 200.  Higher means more swappy.
+  */
+-int vm_swappiness = 60;
++int vm_swappiness = 30;
+ 
+ static void set_task_reclaim_state(struct task_struct *task,
+ 				   struct reclaim_state *rs)
+-- 
+2.34.1
+

@@ -1,0 +1,2839 @@
+From e329e44b6553fcb70d52a33f5eb102cef512a2ad Mon Sep 17 00:00:00 2001
+From: Peter Jung <admin@ptr1337.dev>
+Date: Tue, 9 Aug 2022 13:34:11 +0200
+Subject: [PATCH 05/16] fixes
+
+Signed-off-by: Peter Jung <admin@ptr1337.dev>
+---
+ Documentation/ABI/stable/sysfs-block          |   10 +
+ .../testing/sysfs-class-led-trigger-blkdev    |   68 +
+ .../admin-guide/kernel-parameters.txt         |   12 +
+ Documentation/leds/index.rst                  |    1 +
+ Documentation/leds/ledtrig-blkdev.rst         |  155 +++
+ arch/x86/kvm/emulate.c                        |    9 +-
+ block/mq-deadline.c                           |    9 +-
+ drivers/acpi/resource.c                       |   10 +
+ drivers/cpufreq/Kconfig.x86                   |    2 -
+ drivers/cpufreq/intel_pstate.c                |    2 +
+ .../gpu/drm/amd/amdgpu/amdgpu_amdkfd_fence.c  |    9 +-
+ drivers/i2c/busses/Kconfig                    |    9 +
+ drivers/i2c/busses/Makefile                   |    1 +
+ drivers/i2c/busses/i2c-nct6775.c              |  647 ++++++++++
+ drivers/i2c/busses/i2c-piix4.c                |    4 +-
+ drivers/leds/trigger/Kconfig                  |    9 +
+ drivers/leds/trigger/Makefile                 |    1 +
+ drivers/leds/trigger/ledtrig-blkdev.c         | 1139 +++++++++++++++++
+ drivers/pci/quirks.c                          |  101 ++
+ drivers/watchdog/sp5100_tco.c                 |    1 +
+ fs/f2fs/f2fs.h                                |   10 -
+ fs/f2fs/file.c                                |    2 +-
+ include/linux/blkdev.h                        |    1 +
+ include/linux/compiler-gcc.h                  |   11 -
+ include/linux/pageblock-flags.h               |    2 +-
+ include/linux/swap.h                          |    5 +-
+ lib/Kconfig.debug                             |    4 +-
+ lib/list_debug.c                              |   12 +-
+ mm/memcontrol.c                               |   24 +-
+ mm/vmscan.c                                   |   27 +-
+ 30 files changed, 2238 insertions(+), 59 deletions(-)
+ create mode 100644 Documentation/ABI/testing/sysfs-class-led-trigger-blkdev
+ create mode 100644 Documentation/leds/ledtrig-blkdev.rst
+ create mode 100644 drivers/i2c/busses/i2c-nct6775.c
+ create mode 100644 drivers/leds/trigger/ledtrig-blkdev.c
+
+diff --git a/Documentation/ABI/stable/sysfs-block b/Documentation/ABI/stable/sysfs-block
+index e8797cd09aff..289c2447f66c 100644
+--- a/Documentation/ABI/stable/sysfs-block
++++ b/Documentation/ABI/stable/sysfs-block
+@@ -101,6 +101,16 @@ Description:
+ 		devices that support receiving integrity metadata.
+ 
+ 
++What:		/sys/block/<disk>/linked_leds
++Date:		March 2022
++Contact:	Ian Pilcher <arequipeno@gmail.com>
++Description:
++		Directory that contains symbolic links to all LEDs that
++		are associated with (linked to) this block device by the
++		blkdev LED trigger.  Only present when at least one LED
++		is linked.  (See Documentation/leds/ledtrig-blkdev.rst.)
++
++
+ What:		/sys/block/<disk>/<partition>/alignment_offset
+ Date:		April 2009
+ Contact:	Martin K. Petersen <martin.petersen@oracle.com>
+diff --git a/Documentation/ABI/testing/sysfs-class-led-trigger-blkdev b/Documentation/ABI/testing/sysfs-class-led-trigger-blkdev
+new file mode 100644
+index 000000000000..9214439b01c7
+--- /dev/null
++++ b/Documentation/ABI/testing/sysfs-class-led-trigger-blkdev
+@@ -0,0 +1,68 @@
++What:		/sys/class/leds/<led>/blink_time
++Date:		March 2022
++Contact:	Ian Pilcher <arequipeno@gmail.com>
++Description:
++		Time (in milliseconds) that the LED will be on during a single
++		"blink".
++
++What:		/sys/class/leds/<led>/check_interval
++Date:		March 2022
++Contact:	Ian Pilcher <arequipeno@gmail.com>
++Description:
++		Frequency (in milliseconds) with which block devices linked to
++		this LED will be checked for activity and the LED will
++		(potentially) be blinked.
++
++What:		/sys/class/leds/<led>/blink_on_read
++Date:		March 2022
++Contact:	Ian Pilcher <arequipeno@gmail.com>
++Description:
++		Boolean that determines whether the LED will blink in response
++		to read activity on any of its linked block devices.
++
++What:		/sys/class/leds/<led>/blink_on_write
++Date:		March 2022
++Contact:	Ian Pilcher <arequipeno@gmail.com>
++Description:
++		Boolean that determines whether the LED will blink in response
++		to write activity on any of its linked block devices.
++
++What:		/sys/class/leds/<led>/blink_on_discard
++Date:		March 2022
++Contact:	Ian Pilcher <arequipeno@gmail.com>
++Description:
++		Boolean that determines whether the LED will blink in response
++		to discard activity on any of its linked block devices.
++
++What:		/sys/class/leds/<led>/blink_on_flush
++Date:		March 2022
++Contact:	Ian Pilcher <arequipeno@gamil.com>
++Description:
++		Boolean that determines whether the LED will blink in response
++		to cache flush activity on any of its linked block devices.
++
++What:		/sys/class/leds/<led>/link_dev_by_path
++Date:		March 2022
++Contact:	Ian Pilcher <arequipeno@gmail.com>
++Description:
++		Associate a block device with this LED by writing the path to
++		the device special file (e.g. /dev/sda) to this attribute.
++		Symbolic links are followed.
++
++What:		/sys/class/leds/<led>/unlink_dev_by_path
++Date:		March 2022
++Contact:	Ian Pilcher <arequipeno@gmail.com>
++Description:
++		Remove the association between this LED and a block device by
++		writing the path to the device special file (e.g. /dev/sda) to
++		this attribute.  Symbolic links are followed.
++
++What:		/sys/class/leds/<led>/linked_devices
++Date:		March 2022
++Contact:	Ian Pilcher <arequipeno@gmail.com>
++Description:
++		Directory containing links to all block devices that are
++		associated with this LED.  (Note that the names of the
++		symbolic links in this directory are *kernel* names, which
++		may not match the device special file paths written to
++		link_device and unlink_device.)
+diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+index cc3ea8febc62..7dd12dc178f9 100644
+--- a/Documentation/admin-guide/kernel-parameters.txt
++++ b/Documentation/admin-guide/kernel-parameters.txt
+@@ -2057,6 +2057,9 @@
+ 			disable
+ 			  Do not enable intel_pstate as the default
+ 			  scaling driver for the supported processors
++			enable
++			  Enable intel_pstate in-case "disable" was passed
++			  previously in the kernel boot parameters
+ 			passive
+ 			  Use intel_pstate as a scaling driver, but configure it
+ 			  to work with generic cpufreq governors (instead of
+@@ -4084,6 +4087,15 @@
+ 		nomsi		[MSI] If the PCI_MSI kernel config parameter is
+ 				enabled, this kernel boot option can be used to
+ 				disable the use of MSI interrupts system-wide.
++		pcie_acs_override =
++					[PCIE] Override missing PCIe ACS support for:
++				downstream
++					All downstream ports - full ACS capabilities
++				multfunction
++					All multifunction devices - multifunction ACS subset
++				id:nnnn:nnnn
++					Specfic device - full ACS capabilities
++					Specified as vid:did (vendor/device ID) in hex
+ 		noioapicquirk	[APIC] Disable all boot interrupt quirks.
+ 				Safety option to keep boot IRQs enabled. This
+ 				should never be necessary.
+diff --git a/Documentation/leds/index.rst b/Documentation/leds/index.rst
+index e5d63b940045..e3c24e468cbc 100644
+--- a/Documentation/leds/index.rst
++++ b/Documentation/leds/index.rst
+@@ -10,6 +10,7 @@ LEDs
+    leds-class
+    leds-class-flash
+    leds-class-multicolor
++   ledtrig-blkdev
+    ledtrig-oneshot
+    ledtrig-transient
+    ledtrig-usbport
+diff --git a/Documentation/leds/ledtrig-blkdev.rst b/Documentation/leds/ledtrig-blkdev.rst
+new file mode 100644
+index 000000000000..ae92aa559257
+--- /dev/null
++++ b/Documentation/leds/ledtrig-blkdev.rst
+@@ -0,0 +1,155 @@
++.. SPDX-License-Identifier: GPL-2.0
++
++=================================
++Block Device (blkdev) LED Trigger
++=================================
++
++Available when ``CONFIG_LEDS_TRIGGER_BLKDEV=y`` or
++``CONFIG_LEDS_TRIGGER_BLKDEV=m``.
++
++See also:
++
++* ``Documentation/ABI/testing/sysfs-class-led-trigger-blkdev``
++* ``Documentation/ABI/stable/sysfs-block`` (``/sys/block/<disk>/linked_leds``)
++
++Overview
++========
++
++.. note::
++	The examples below use ``<LED>`` to refer to the name of a
++	system-specific LED.  If no suitable LED is available on a test
++	system (in a virtual machine, for example), it is possible to
++	use a userspace LED.  (See ``Documentation/leds/uleds.rst``.)
++
++Verify that the ``blkdev`` LED trigger is available::
++
++	# grep blkdev /sys/class/leds/<LED>/trigger
++	... rfkill-none blkdev
++
++(If the previous command produces no output, you may need to load the trigger
++module - ``modprobe ledtrig_blkdev``.  If the module is not available, check
++the value of ``CONFIG_LEDS_TRIGGER_BLKDEV`` in your kernel configuration.)
++
++Associate the LED with the ``blkdev`` LED trigger::
++
++	# echo blkdev > /sys/class/leds/<LED>/trigger
++
++	# cat /sys/class/leds/<LED>/trigger
++	... rfkill-none [blkdev]
++
++Note that several new device attributes are available in the
++``/sys/class/leds/<LED>`` directory.
++
++* ``link_dev_by_path`` and ``unlink_dev_by_path`` are used to manage the set of
++  block devices associated with this LED.  The LED will blink in response to
++  read or write activity on its linked devices.
++
++* ``blink_on_read``, ``blink_on_write``, ``blink_on_discard``, and
++  ``blink_on_flush`` are boolean values that determine whether the LED will
++  blink when a particular type of activity is detected on one of its linked
++  block devices.
++
++* ``blink_time`` is the duration (in milliseconds) of each blink of this LED.
++  (The minimum value is 10 milliseconds.)
++
++* ``check_interval`` is the frequency (in milliseconds) with which block devices
++  linked to this LED will be checked for activity and the LED blinked (if the
++  correct type of activity has occurred).
++
++* The ``linked_devices`` directory will contain a symbolic link to every device
++  that is associated with this LED.
++
++Link a block device to the LED::
++
++	# echo /dev/sda > /sys/class/leds/<LED>/link_dev_by_path
++
++	# ls /sys/class/leds/<LED>/linked_devices
++	sda
++
++(The value written to ``link_dev_by_path`` must be the path of the device
++special file, such as ``/dev/sda``, that represents the block device - or the
++path of a symbolic link to such a device special file.)
++
++Activity on the device will now cause the LED to blink.  The duration of each
++blink (in milliseconds) can be adjusted by setting
++``/sys/class/leds/<LED>/blink_time``.  (But see **check_interval and
++blink_time** below.)
++
++Associate a second device with the LED::
++
++	# echo /dev/sdb > /sys/class/leds/<LED>/link_dev_by_path
++
++	# ls /sys/class/leds/<LED>/linked_devices
++	sda  sdb
++
++When a block device is linked to one or more LEDs, the LEDs are linked from
++the device's ``linked_leds`` directory::
++
++	# ls /sys/class/block/sd{a,b}/linked_leds
++	/sys/class/block/sda/linked_leds:
++	<LED>
++
++	/sys/class/block/sdb/linked_leds:
++	<LED>
++
++(The ``linked_leds`` directory only exists when the block device is linked to
++at least one LED.)
++
++``check_interval`` and ``blink_time``
++=====================================
++
++* By default, linked block devices are checked for activity every 100
++  milliseconds.  This frequency can be changed for an LED via the
++  ``/sys/class/leds/<led>/check_interval`` attribute.  (The minimum value is 25
++  milliseconds.)
++
++* All block devices associated with an LED are checked for activity every
++  ``check_interval`` milliseconds, and a blink is triggered if the correct type
++  of activity (as determined by the LED's ``blink_on_*`` attributes) is
++  detected.  The duration of an LED's blink is determined by its ``blink_time``
++  attribute.  Thus (when the correct type of activity is detected), the LED will
++  be on for ``blink_time`` milliseconds and off for
++  ``check_interval - blink_time`` milliseconds.
++
++* The LED subsystem ignores new blink requests for an LED that is already in
++  in the process of blinking, so setting a ``blink_time`` greater than or equal
++  to ``check_interval`` will cause some blinks to be missed.
++
++* Because of processing times, scheduling latencies, etc., avoiding missed
++  blinks actually requires a difference of at least a few milliseconds between
++  the ``blink_time`` and ``check_interval``.  The required difference is likely
++  to vary from system to system.  As a  reference, a Thecus N5550 NAS requires a
++  difference of 7 milliseconds (e.g. ``check_interval == 100``,
++  ``blink_time == 93``).
++
++* The default values (``check_interval == 100``, ``blink_time == 75``) cause the
++  LED associated with a continuously active device to blink rapidly.  For a more
++  "always on" effect, increase the ``blink_time`` (but not too much; see the
++  previous bullet).
++
++Other Notes
++===========
++
++* Many (possibly all) types of block devices work with this trigger, including:
++
++  * SCSI (including SATA and USB) hard disk drives and SSDs
++  * SCSI (including SATA and USB) optical drives
++  * NVMe SSDs
++  * SD cards
++  * loopback block devices (``/dev/loop*``)
++  * device mapper devices, such as LVM logical volumes
++  * MD RAID devices
++  * zRAM compressed RAM-disks
++  * partitions on block devics that support them
++
++* The names of the symbolic links in ``/sys/class/leds/<LED>/linked_devices``
++  are **kernel** names, which may not match the paths used for
++  ``link_dev_by_path`` and ``unlink_dev_by_path``.  This is most likely when a
++  symbolic link is used to refer to the device (as is common with logical
++  volumes), but it can be true for any device, because nothing prevents the
++  creation of device special files with arbitrary names (e.g.
++  ``sudo mknod /foo b 8 0``).
++
++* The ``blkdev`` LED trigger supports many-to-many device/LED associations.
++  A device can be associated with multiple LEDs, and an LED can be associated
++  with multiple devices.
+diff --git a/arch/x86/kvm/emulate.c b/arch/x86/kvm/emulate.c
+index f8382abe22ff..1f096691b174 100644
+--- a/arch/x86/kvm/emulate.c
++++ b/arch/x86/kvm/emulate.c
+@@ -244,6 +244,9 @@ enum x86_transfer_type {
+ 
+ static ulong reg_read(struct x86_emulate_ctxt *ctxt, unsigned nr)
+ {
++	if (WARN_ON_ONCE(nr >= 16))
++		nr &= 16 - 1;
++
+ 	if (!(ctxt->regs_valid & (1 << nr))) {
+ 		ctxt->regs_valid |= 1 << nr;
+ 		ctxt->_regs[nr] = ctxt->ops->read_gpr(ctxt, nr);
+@@ -253,6 +256,9 @@ static ulong reg_read(struct x86_emulate_ctxt *ctxt, unsigned nr)
+ 
+ static ulong *reg_write(struct x86_emulate_ctxt *ctxt, unsigned nr)
+ {
++	if (WARN_ON_ONCE(nr >= 16))
++		nr &= 16 - 1;
++
+ 	ctxt->regs_valid |= 1 << nr;
+ 	ctxt->regs_dirty |= 1 << nr;
+ 	return &ctxt->_regs[nr];
+@@ -266,9 +272,10 @@ static ulong *reg_rmw(struct x86_emulate_ctxt *ctxt, unsigned nr)
+ 
+ static void writeback_registers(struct x86_emulate_ctxt *ctxt)
+ {
++	unsigned long dirty = ctxt->regs_dirty;
+ 	unsigned reg;
+ 
+-	for_each_set_bit(reg, (ulong *)&ctxt->regs_dirty, 16)
++	for_each_set_bit(reg, &dirty, 16)
+ 		ctxt->ops->write_gpr(ctxt, reg, ctxt->_regs[reg]);
+ }
+ 
+diff --git a/block/mq-deadline.c b/block/mq-deadline.c
+index 1a9e835e816c..0ae521ee112b 100644
+--- a/block/mq-deadline.c
++++ b/block/mq-deadline.c
+@@ -4,6 +4,9 @@
+  *  for the blk-mq scheduling framework
+  *
+  *  Copyright (C) 2016 Jens Axboe <axboe@kernel.dk>
++ *
++ *  Tunes for responsiveness by Alexandre Frade
++ *  (C) 2022 Alexandre Frade <kernel@xanmod.org>
+  */
+ #include <linux/kernel.h>
+ #include <linux/fs.h>
+@@ -30,13 +33,13 @@
+  * See Documentation/block/deadline-iosched.rst
+  */
+ static const int read_expire = HZ / 2;  /* max time before a read is submitted. */
+-static const int write_expire = 5 * HZ; /* ditto for writes, these limits are SOFT! */
++static const int write_expire = HZ;     /* ditto for writes, these limits are SOFT! */
+ /*
+  * Time after which to dispatch lower priority requests even if higher
+  * priority requests are pending.
+  */
+ static const int prio_aging_expire = 10 * HZ;
+-static const int writes_starved = 2;    /* max times reads can starve a write */
++static const int writes_starved = 1;    /* max times reads can starve a write */
+ static const int fifo_batch = 16;       /* # of sequential requests treated as one
+ 				     by the above parameters. For throughput. */
+ 
+@@ -635,7 +638,7 @@ static int dd_init_sched(struct request_queue *q, struct elevator_type *e)
+ 	dd->fifo_expire[DD_READ] = read_expire;
+ 	dd->fifo_expire[DD_WRITE] = write_expire;
+ 	dd->writes_starved = writes_starved;
+-	dd->front_merges = 1;
++	dd->front_merges = 0;
+ 	dd->last_dir = DD_WRITE;
+ 	dd->fifo_batch = fifo_batch;
+ 	dd->prio_aging_expire = prio_aging_expire;
+diff --git a/drivers/acpi/resource.c b/drivers/acpi/resource.c
+index c2d494784425..510cdec375c4 100644
+--- a/drivers/acpi/resource.c
++++ b/drivers/acpi/resource.c
+@@ -416,6 +416,16 @@ static bool acpi_dev_irq_override(u32 gsi, u8 triggering, u8 polarity,
+ {
+ 	int i;
+ 
++#ifdef CONFIG_X86
++	/*
++	 * IRQ override isn't needed on modern AMD Zen systems and
++	 * this override breaks active low IRQs on AMD Ryzen 6000 and
++	 * newer systems. Skip it.
++	 */
++	if (boot_cpu_has(X86_FEATURE_ZEN))
++		return false;
++#endif
++
+ 	for (i = 0; i < ARRAY_SIZE(skip_override_table); i++) {
+ 		const struct irq_override_cmp *entry = &skip_override_table[i];
+ 
+diff --git a/drivers/cpufreq/Kconfig.x86 b/drivers/cpufreq/Kconfig.x86
+index 55516043b656..c7b80779566b 100644
+--- a/drivers/cpufreq/Kconfig.x86
++++ b/drivers/cpufreq/Kconfig.x86
+@@ -9,7 +9,6 @@ config X86_INTEL_PSTATE
+ 	select ACPI_PROCESSOR if ACPI
+ 	select ACPI_CPPC_LIB if X86_64 && ACPI && SCHED_MC_PRIO
+ 	select CPU_FREQ_GOV_PERFORMANCE
+-	select CPU_FREQ_GOV_SCHEDUTIL if SMP
+ 	help
+ 	  This driver provides a P state for Intel core processors.
+ 	  The driver implements an internal governor and will become
+@@ -39,7 +38,6 @@ config X86_AMD_PSTATE
+ 	depends on X86 && ACPI
+ 	select ACPI_PROCESSOR
+ 	select ACPI_CPPC_LIB if X86_64
+-	select CPU_FREQ_GOV_SCHEDUTIL if SMP
+ 	help
+ 	  This driver adds a CPUFreq driver which utilizes a fine grain
+ 	  processor performance frequency control range instead of legacy
+diff --git a/drivers/cpufreq/intel_pstate.c b/drivers/cpufreq/intel_pstate.c
+index 50881662b45b..d5f7afee6030 100644
+--- a/drivers/cpufreq/intel_pstate.c
++++ b/drivers/cpufreq/intel_pstate.c
+@@ -3547,6 +3547,8 @@ static int __init intel_pstate_setup(char *str)
+ 
+ 	if (!strcmp(str, "disable"))
+ 		no_load = 1;
++	else if (!strcmp(str, "enable"))
++		no_load = 0;
+ 	else if (!strcmp(str, "active"))
+ 		default_driver = &intel_pstate;
+ 	else if (!strcmp(str, "passive"))
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_fence.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_fence.c
+index 1d0dbff87d3f..469785d33791 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_fence.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_amdkfd_fence.c
+@@ -159,11 +159,14 @@ static void amdkfd_fence_release(struct dma_fence *f)
+ }
+ 
+ /**
+- * amdkfd_fence_check_mm - Check if @mm is same as that of the fence @f
+- *  if same return TRUE else return FALSE.
++ * amdkfd_fence_check_mm - Check whether to prevent eviction of @f by @mm
+  *
+  * @f: [IN] fence
+  * @mm: [IN] mm that needs to be verified
++ *
++ * Check if @mm is same as that of the fence @f, if same return TRUE else
++ * return FALSE.
++ * For svm bo, which support vram overcommitment, always return FALSE.
+  */
+ bool amdkfd_fence_check_mm(struct dma_fence *f, struct mm_struct *mm)
+ {
+@@ -171,7 +174,7 @@ bool amdkfd_fence_check_mm(struct dma_fence *f, struct mm_struct *mm)
+ 
+ 	if (!fence)
+ 		return false;
+-	else if (fence->mm == mm)
++	else if (fence->mm == mm  && !fence->svm_bo)
+ 		return true;
+ 
+ 	return false;
+diff --git a/drivers/i2c/busses/Kconfig b/drivers/i2c/busses/Kconfig
+index a1bae59208e3..901471a36cab 100644
+--- a/drivers/i2c/busses/Kconfig
++++ b/drivers/i2c/busses/Kconfig
+@@ -227,6 +227,15 @@ config I2C_CHT_WC
+ 	  combined with a FUSB302 Type-C port-controller as such it is advised
+ 	  to also select CONFIG_TYPEC_FUSB302=m.
+ 
++config I2C_NCT6775
++	tristate "Nuvoton NCT6775 and compatible SMBus controller"
++	help
++		If you say yes to this option, support will be included for the
++		Nuvoton NCT6775 and compatible SMBus controllers.
++
++		This driver can also be built as a module.  If so, the module
++		will be called i2c-nct6775.
++
+ config I2C_NFORCE2
+ 	tristate "Nvidia nForce2, nForce3 and nForce4"
+ 	depends on PCI
+diff --git a/drivers/i2c/busses/Makefile b/drivers/i2c/busses/Makefile
+index 479f60e4ee3d..e8f6d8b41781 100644
+--- a/drivers/i2c/busses/Makefile
++++ b/drivers/i2c/busses/Makefile
+@@ -20,6 +20,7 @@ obj-$(CONFIG_I2C_CHT_WC)	+= i2c-cht-wc.o
+ obj-$(CONFIG_I2C_I801)		+= i2c-i801.o
+ obj-$(CONFIG_I2C_ISCH)		+= i2c-isch.o
+ obj-$(CONFIG_I2C_ISMT)		+= i2c-ismt.o
++obj-$(CONFIG_I2C_NCT6775)   += i2c-nct6775.o
+ obj-$(CONFIG_I2C_NFORCE2)	+= i2c-nforce2.o
+ obj-$(CONFIG_I2C_NFORCE2_S4985)	+= i2c-nforce2-s4985.o
+ obj-$(CONFIG_I2C_NVIDIA_GPU)	+= i2c-nvidia-gpu.o
+diff --git a/drivers/i2c/busses/i2c-nct6775.c b/drivers/i2c/busses/i2c-nct6775.c
+new file mode 100644
+index 000000000000..0462f0952043
+--- /dev/null
++++ b/drivers/i2c/busses/i2c-nct6775.c
+@@ -0,0 +1,647 @@
++/*
++ * i2c-nct6775 - Driver for the SMBus master functionality of
++ *	       Nuvoton NCT677x Super-I/O chips
++ *
++ * Copyright (C) 2019  Adam Honse <calcprogrammer1@gmail.com>
++ *
++ * Derived from nct6775 hwmon driver
++ * Copyright (C) 2012  Guenter Roeck <linux@roeck-us.net>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++ *
++ */
++
++#include <linux/module.h>
++#include <linux/init.h>
++#include <linux/slab.h>
++#include <linux/jiffies.h>
++#include <linux/platform_device.h>
++#include <linux/hwmon.h>
++#include <linux/hwmon-sysfs.h>
++#include <linux/hwmon-vid.h>
++#include <linux/err.h>
++#include <linux/mutex.h>
++#include <linux/delay.h>
++#include <linux/ioport.h>
++#include <linux/i2c.h>
++#include <linux/acpi.h>
++#include <linux/bitops.h>
++#include <linux/dmi.h>
++#include <linux/io.h>
++#include <linux/nospec.h>
++
++#define DRVNAME "i2c-nct6775"
++
++/* Nuvoton SMBus address offsets */
++#define SMBHSTDAT       (0 + nuvoton_nct6793d_smba)
++#define SMBBLKSZ        (1 + nuvoton_nct6793d_smba)
++#define SMBHSTCMD       (2 + nuvoton_nct6793d_smba)
++#define SMBHSTIDX       (3 + nuvoton_nct6793d_smba)  //Index field is the Command field on other controllers
++#define SMBHSTCTL       (4 + nuvoton_nct6793d_smba)
++#define SMBHSTADD       (5 + nuvoton_nct6793d_smba)
++#define SMBHSTERR       (9 + nuvoton_nct6793d_smba)
++#define SMBHSTSTS       (0xE + nuvoton_nct6793d_smba)
++
++/* Command register */
++#define NCT6793D_READ_BYTE      0
++#define NCT6793D_READ_WORD      1
++#define NCT6793D_READ_BLOCK     2
++#define NCT6793D_BLOCK_WRITE_READ_PROC_CALL 3
++#define NCT6793D_PROC_CALL      4
++#define NCT6793D_WRITE_BYTE     8
++#define NCT6793D_WRITE_WORD     9
++#define NCT6793D_WRITE_BLOCK    10
++
++/* Control register */
++#define NCT6793D_MANUAL_START   128
++#define NCT6793D_SOFT_RESET     64
++
++/* Error register */
++#define NCT6793D_NO_ACK         32
++
++/* Status register */
++#define NCT6793D_FIFO_EMPTY     1
++#define NCT6793D_FIFO_FULL      2
++#define NCT6793D_MANUAL_ACTIVE  4
++
++#define NCT6775_LD_SMBUS		0x0B
++
++/* Other settings */
++#define MAX_RETRIES		400
++
++enum kinds { nct6106, nct6775, nct6776, nct6779, nct6791, nct6792, nct6793,
++	     nct6795, nct6796, nct6798 };
++
++struct nct6775_sio_data {
++	int sioreg;
++	enum kinds kind;
++};
++
++/* used to set data->name = nct6775_device_names[data->sio_kind] */
++static const char * const nct6775_device_names[] = {
++	"nct6106",
++	"nct6775",
++	"nct6776",
++	"nct6779",
++	"nct6791",
++	"nct6792",
++	"nct6793",
++	"nct6795",
++	"nct6796",
++	"nct6798",
++};
++
++static const char * const nct6775_sio_names[] __initconst = {
++	"NCT6106D",
++	"NCT6775F",
++	"NCT6776D/F",
++	"NCT6779D",
++	"NCT6791D",
++	"NCT6792D",
++	"NCT6793D",
++	"NCT6795D",
++	"NCT6796D",
++	"NCT6798D",
++};
++
++#define SIO_REG_LDSEL		0x07	/* Logical device select */
++#define SIO_REG_DEVID		0x20	/* Device ID (2 bytes) */
++#define SIO_REG_SMBA		0x62	/* SMBus base address register */
++
++#define SIO_NCT6106_ID		0xc450
++#define SIO_NCT6775_ID		0xb470
++#define SIO_NCT6776_ID		0xc330
++#define SIO_NCT6779_ID		0xc560
++#define SIO_NCT6791_ID		0xc800
++#define SIO_NCT6792_ID		0xc910
++#define SIO_NCT6793_ID		0xd120
++#define SIO_NCT6795_ID		0xd350
++#define SIO_NCT6796_ID		0xd420
++#define SIO_NCT6798_ID		0xd428
++#define SIO_ID_MASK			0xFFF0
++
++static inline void
++superio_outb(int ioreg, int reg, int val)
++{
++	outb(reg, ioreg);
++	outb(val, ioreg + 1);
++}
++
++static inline int
++superio_inb(int ioreg, int reg)
++{
++	outb(reg, ioreg);
++	return inb(ioreg + 1);
++}
++
++static inline void
++superio_select(int ioreg, int ld)
++{
++	outb(SIO_REG_LDSEL, ioreg);
++	outb(ld, ioreg + 1);
++}
++
++static inline int
++superio_enter(int ioreg)
++{
++	/*
++	 * Try to reserve <ioreg> and <ioreg + 1> for exclusive access.
++	 */
++	if (!request_muxed_region(ioreg, 2, DRVNAME))
++		return -EBUSY;
++
++	outb(0x87, ioreg);
++	outb(0x87, ioreg);
++
++	return 0;
++}
++
++static inline void
++superio_exit(int ioreg)
++{
++	outb(0xaa, ioreg);
++	outb(0x02, ioreg);
++	outb(0x02, ioreg + 1);
++	release_region(ioreg, 2);
++}
++
++/*
++ * ISA constants
++ */
++
++#define IOREGION_ALIGNMENT	(~7)
++#define IOREGION_LENGTH		2
++#define ADDR_REG_OFFSET		0
++#define DATA_REG_OFFSET		1
++
++#define NCT6775_REG_BANK	0x4E
++#define NCT6775_REG_CONFIG	0x40
++
++static struct i2c_adapter *nct6775_adapter;
++
++struct i2c_nct6775_adapdata {
++	unsigned short smba;
++};
++
++/* Return negative errno on error. */
++static s32 nct6775_access(struct i2c_adapter * adap, u16 addr,
++		 unsigned short flags, char read_write,
++		 u8 command, int size, union i2c_smbus_data * data)
++{
++	struct i2c_nct6775_adapdata *adapdata = i2c_get_adapdata(adap);
++	unsigned short nuvoton_nct6793d_smba = adapdata->smba;
++	int i, len, cnt;
++	union i2c_smbus_data tmp_data;
++	int timeout = 0;
++
++	tmp_data.word = 0;
++	cnt = 0;
++	len = 0;
++
++	outb_p(NCT6793D_SOFT_RESET, SMBHSTCTL);
++
++	switch (size) {
++		case I2C_SMBUS_QUICK:
++			outb_p((addr << 1) | read_write,
++			       SMBHSTADD);
++			break;
++		case I2C_SMBUS_BYTE_DATA:
++			tmp_data.byte = data->byte;
++		case I2C_SMBUS_BYTE:
++			outb_p((addr << 1) | read_write,
++			       SMBHSTADD);
++			outb_p(command, SMBHSTIDX);
++			if (read_write == I2C_SMBUS_WRITE) {
++				outb_p(tmp_data.byte, SMBHSTDAT);
++				outb_p(NCT6793D_WRITE_BYTE, SMBHSTCMD);
++			}
++			else {
++				outb_p(NCT6793D_READ_BYTE, SMBHSTCMD);
++			}
++			break;
++		case I2C_SMBUS_WORD_DATA:
++			outb_p((addr << 1) | read_write,
++			       SMBHSTADD);
++			outb_p(command, SMBHSTIDX);
++			if (read_write == I2C_SMBUS_WRITE) {
++				outb_p(data->word & 0xff, SMBHSTDAT);
++				outb_p((data->word & 0xff00) >> 8, SMBHSTDAT);
++				outb_p(NCT6793D_WRITE_WORD, SMBHSTCMD);
++			}
++			else {
++				outb_p(NCT6793D_READ_WORD, SMBHSTCMD);
++			}
++			break;
++		case I2C_SMBUS_BLOCK_DATA:
++			outb_p((addr << 1) | read_write,
++			       SMBHSTADD);
++			outb_p(command, SMBHSTIDX);
++			if (read_write == I2C_SMBUS_WRITE) {
++				len = data->block[0];
++				if (len == 0 || len > I2C_SMBUS_BLOCK_MAX)
++					return -EINVAL;
++				outb_p(len, SMBBLKSZ);
++
++				cnt = 1;
++				if (len >= 4) {
++					for (i = cnt; i <= 4; i++) {
++						outb_p(data->block[i], SMBHSTDAT);
++					}
++
++					len -= 4;
++					cnt += 4;
++				}
++				else {
++					for (i = cnt; i <= len; i++ ) {
++						outb_p(data->block[i], SMBHSTDAT);
++					}
++
++					len = 0;
++				}
++
++				outb_p(NCT6793D_WRITE_BLOCK, SMBHSTCMD);
++			}
++			else {
++				return -ENOTSUPP;
++			}
++			break;
++		default:
++			dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
++			return -EOPNOTSUPP;
++	}
++
++	outb_p(NCT6793D_MANUAL_START, SMBHSTCTL);
++
++	while ((size == I2C_SMBUS_BLOCK_DATA) && (len > 0)) {
++		if (read_write == I2C_SMBUS_WRITE) {
++			timeout = 0;
++			while ((inb_p(SMBHSTSTS) & NCT6793D_FIFO_EMPTY) == 0)
++			{
++				if(timeout > MAX_RETRIES)
++				{
++					return -ETIMEDOUT;
++				}
++				usleep_range(250, 500);
++				timeout++;
++			}
++
++			//Load more bytes into FIFO
++			if (len >= 4) {
++				for (i = cnt; i <= (cnt + 4); i++) {
++					outb_p(data->block[i], SMBHSTDAT);
++				}
++
++				len -= 4;
++				cnt += 4;
++			}
++			else {
++				for (i = cnt; i <= (cnt + len); i++) {
++					outb_p(data->block[i], SMBHSTDAT);
++				}
++
++				len = 0;
++			}
++		}
++		else {
++			return -ENOTSUPP;
++		}
++		
++	}
++
++	//wait for manual mode to complete
++	timeout = 0;
++	while ((inb_p(SMBHSTSTS) & NCT6793D_MANUAL_ACTIVE) != 0)
++	{
++		if(timeout > MAX_RETRIES)
++		{
++			return -ETIMEDOUT;
++		}
++		usleep_range(250, 500);
++		timeout++;
++	}
++
++	if ((inb_p(SMBHSTERR) & NCT6793D_NO_ACK) != 0) {    	
++		return -ENXIO;
++	}
++	else if ((read_write == I2C_SMBUS_WRITE) || (size == I2C_SMBUS_QUICK)) {
++		return 0;
++	}
++
++	switch (size) {
++		case I2C_SMBUS_QUICK:
++		case I2C_SMBUS_BYTE_DATA:
++			data->byte = inb_p(SMBHSTDAT);
++			break;
++		case I2C_SMBUS_WORD_DATA:
++			data->word = inb_p(SMBHSTDAT) + (inb_p(SMBHSTDAT) << 8);
++			break;
++	}
++	return 0;
++}
++
++static u32 nct6775_func(struct i2c_adapter *adapter)
++{
++	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
++	    I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
++	    I2C_FUNC_SMBUS_BLOCK_DATA;
++}
++
++static const struct i2c_algorithm smbus_algorithm = {
++	.smbus_xfer	= nct6775_access,
++	.functionality	= nct6775_func,
++};
++
++static int nct6775_add_adapter(unsigned short smba, const char *name, struct i2c_adapter **padap)
++{
++	struct i2c_adapter *adap;
++	struct i2c_nct6775_adapdata *adapdata;
++	int retval;
++
++	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
++	if (adap == NULL) {
++		return -ENOMEM;
++	}
++
++	adap->owner = THIS_MODULE;
++	adap->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
++	adap->algo = &smbus_algorithm;
++
++	adapdata = kzalloc(sizeof(*adapdata), GFP_KERNEL);
++	if (adapdata == NULL) {
++		kfree(adap);
++		return -ENOMEM;
++	}
++
++	adapdata->smba = smba;
++
++	snprintf(adap->name, sizeof(adap->name),
++		"SMBus NCT67xx adapter%s at %04x", name, smba);
++
++	i2c_set_adapdata(adap, adapdata);
++
++	retval = i2c_add_adapter(adap);
++	if (retval) {
++		kfree(adapdata);
++		kfree(adap);
++		return retval;
++	}
++
++	*padap = adap;
++	return 0;
++}
++
++static void nct6775_remove_adapter(struct i2c_adapter *adap)
++{
++	struct i2c_nct6775_adapdata *adapdata = i2c_get_adapdata(adap);
++
++	if (adapdata->smba) {
++		i2c_del_adapter(adap);
++		kfree(adapdata);
++		kfree(adap);
++	}
++}
++
++//static SIMPLE_DEV_PM_OPS(nct6775_dev_pm_ops, nct6775_suspend, nct6775_resume);
++
++/*
++ * when Super-I/O functions move to a separate file, the Super-I/O
++ * bus will manage the lifetime of the device and this module will only keep
++ * track of the nct6775 driver. But since we use platform_device_alloc(), we
++ * must keep track of the device
++ */
++static struct platform_device *pdev[2];
++
++static int nct6775_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	struct nct6775_sio_data *sio_data = dev_get_platdata(dev);
++	struct resource *res;
++
++	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
++	if (!devm_request_region(&pdev->dev, res->start, IOREGION_LENGTH,
++				 DRVNAME))
++		return -EBUSY;
++
++	switch (sio_data->kind) {
++	case nct6791:
++	case nct6792:
++	case nct6793:
++	case nct6795:
++	case nct6796:
++	case nct6798:
++		nct6775_add_adapter(res->start, "", &nct6775_adapter);
++		break;
++	default:
++		return -ENODEV;
++	}
++
++	return 0;
++}
++/*
++static void nct6791_enable_io_mapping(int sioaddr)
++{
++	int val;
++
++	val = superio_inb(sioaddr, NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE);
++	if (val & 0x10) {
++		pr_info("Enabling hardware monitor logical device mappings.\n");
++		superio_outb(sioaddr, NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE,
++			     val & ~0x10);
++	}
++}*/
++
++static struct platform_driver i2c_nct6775_driver = {
++	.driver = {
++		.name	= DRVNAME,
++//		.pm	= &nct6775_dev_pm_ops,
++	},
++	.probe		= nct6775_probe,
++};
++
++static void __exit i2c_nct6775_exit(void)
++{
++	int i;
++
++	if(nct6775_adapter)
++		nct6775_remove_adapter(nct6775_adapter);
++
++	for (i = 0; i < ARRAY_SIZE(pdev); i++) {
++		if (pdev[i])
++			platform_device_unregister(pdev[i]);
++	}
++	platform_driver_unregister(&i2c_nct6775_driver);
++}
++
++/* nct6775_find() looks for a '627 in the Super-I/O config space */
++static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
++{
++	u16 val;
++	int err;
++	int addr;
++
++	err = superio_enter(sioaddr);
++	if (err)
++		return err;
++
++	val = (superio_inb(sioaddr, SIO_REG_DEVID) << 8) |
++		superio_inb(sioaddr, SIO_REG_DEVID + 1);
++
++	switch (val & SIO_ID_MASK) {
++	case SIO_NCT6106_ID:
++		sio_data->kind = nct6106;
++		break;
++	case SIO_NCT6775_ID:
++		sio_data->kind = nct6775;
++		break;
++	case SIO_NCT6776_ID:
++		sio_data->kind = nct6776;
++		break;
++	case SIO_NCT6779_ID:
++		sio_data->kind = nct6779;
++		break;
++	case SIO_NCT6791_ID:
++		sio_data->kind = nct6791;
++		break;
++	case SIO_NCT6792_ID:
++		sio_data->kind = nct6792;
++		break;
++	case SIO_NCT6793_ID:
++		sio_data->kind = nct6793;
++		break;
++	case SIO_NCT6795_ID:
++		sio_data->kind = nct6795;
++		break;
++	case SIO_NCT6796_ID:
++		sio_data->kind = nct6796;
++		break;
++	case SIO_NCT6798_ID:
++		sio_data->kind = nct6798;
++		break;
++	default:
++		if (val != 0xffff)
++			pr_debug("unsupported chip ID: 0x%04x\n", val);
++		superio_exit(sioaddr);
++		return -ENODEV;
++	}
++
++	/* We have a known chip, find the SMBus I/O address */
++	superio_select(sioaddr, NCT6775_LD_SMBUS);
++	val = (superio_inb(sioaddr, SIO_REG_SMBA) << 8)
++	    | superio_inb(sioaddr, SIO_REG_SMBA + 1);
++	addr = val & IOREGION_ALIGNMENT;
++	if (addr == 0) {
++		pr_err("Refusing to enable a Super-I/O device with a base I/O port 0\n");
++		superio_exit(sioaddr);
++		return -ENODEV;
++	}
++
++	//if (sio_data->kind == nct6791 || sio_data->kind == nct6792 ||
++	//    sio_data->kind == nct6793 || sio_data->kind == nct6795 ||
++	//    sio_data->kind == nct6796)
++	//	nct6791_enable_io_mapping(sioaddr);
++
++	superio_exit(sioaddr);
++	pr_info("Found %s or compatible chip at %#x:%#x\n",
++		nct6775_sio_names[sio_data->kind], sioaddr, addr);
++	sio_data->sioreg = sioaddr;
++
++	return addr;
++}
++
++static int __init i2c_nct6775_init(void)
++{
++	int i, err;
++	bool found = false;
++	int address;
++	struct resource res;
++	struct nct6775_sio_data sio_data;
++	int sioaddr[2] = { 0x2e, 0x4e };
++
++	err = platform_driver_register(&i2c_nct6775_driver);
++	if (err)
++		return err;
++
++	/*
++	 * initialize sio_data->kind and sio_data->sioreg.
++	 *
++	 * when Super-I/O functions move to a separate file, the Super-I/O
++	 * driver will probe 0x2e and 0x4e and auto-detect the presence of a
++	 * nct6775 hardware monitor, and call probe()
++	 */
++	for (i = 0; i < ARRAY_SIZE(pdev); i++) {
++		address = nct6775_find(sioaddr[i], &sio_data);
++		if (address <= 0)
++			continue;
++
++		found = true;
++
++		pdev[i] = platform_device_alloc(DRVNAME, address);
++		if (!pdev[i]) {
++			err = -ENOMEM;
++			goto exit_device_unregister;
++		}
++
++		err = platform_device_add_data(pdev[i], &sio_data,
++					       sizeof(struct nct6775_sio_data));
++		if (err)
++			goto exit_device_put;
++
++		memset(&res, 0, sizeof(res));
++		res.name = DRVNAME;
++		res.start = address;
++		res.end = address + IOREGION_LENGTH - 1;
++		res.flags = IORESOURCE_IO;
++
++		err = acpi_check_resource_conflict(&res);
++		if (err) {
++			platform_device_put(pdev[i]);
++			pdev[i] = NULL;
++			continue;
++		}
++
++		err = platform_device_add_resources(pdev[i], &res, 1);
++		if (err)
++			goto exit_device_put;
++
++		/* platform_device_add calls probe() */
++		err = platform_device_add(pdev[i]);
++		if (err)
++			goto exit_device_put;
++	}
++	if (!found) {
++		err = -ENODEV;
++		goto exit_unregister;
++	}
++
++	return 0;
++
++exit_device_put:
++	platform_device_put(pdev[i]);
++exit_device_unregister:
++	while (--i >= 0) {
++		if (pdev[i])
++			platform_device_unregister(pdev[i]);
++	}
++exit_unregister:
++	platform_driver_unregister(&i2c_nct6775_driver);
++	return err;
++}
++
++MODULE_AUTHOR("Adam Honse <calcprogrammer1@gmail.com>");
++MODULE_DESCRIPTION("SMBus driver for NCT6775F and compatible chips");
++MODULE_LICENSE("GPL");
++
++module_init(i2c_nct6775_init);
++module_exit(i2c_nct6775_exit);
+diff --git a/drivers/i2c/busses/i2c-piix4.c b/drivers/i2c/busses/i2c-piix4.c
+index 39cb1b7bb865..9d0b0c24b94e 100644
+--- a/drivers/i2c/busses/i2c-piix4.c
++++ b/drivers/i2c/busses/i2c-piix4.c
+@@ -568,11 +568,11 @@ static int piix4_transaction(struct i2c_adapter *piix4_adapter)
+ 	if (srvrworks_csb5_delay) /* Extra delay for SERVERWORKS_CSB5 */
+ 		usleep_range(2000, 2100);
+ 	else
+-		usleep_range(250, 500);
++		usleep_range(25, 50);
+ 
+ 	while ((++timeout < MAX_TIMEOUT) &&
+ 	       ((temp = inb_p(SMBHSTSTS)) & 0x01))
+-		usleep_range(250, 500);
++		usleep_range(25, 50);
+ 
+ 	/* If the SMBus is still busy, we give up */
+ 	if (timeout == MAX_TIMEOUT) {
+diff --git a/drivers/leds/trigger/Kconfig b/drivers/leds/trigger/Kconfig
+index dc6816d36d06..bda249068182 100644
+--- a/drivers/leds/trigger/Kconfig
++++ b/drivers/leds/trigger/Kconfig
+@@ -154,4 +154,13 @@ config LEDS_TRIGGER_TTY
+ 
+ 	  When build as a module this driver will be called ledtrig-tty.
+ 
++config LEDS_TRIGGER_BLKDEV
++	tristate "LED Trigger for block devices"
++	depends on BLOCK
++	help
++	  The blkdev LED trigger allows LEDs to be controlled by block device
++	  activity (reads and writes).
++
++	  See Documentation/leds/ledtrig-blkdev.rst.
++
+ endif # LEDS_TRIGGERS
+diff --git a/drivers/leds/trigger/Makefile b/drivers/leds/trigger/Makefile
+index 25c4db97cdd4..d53bab5d93f1 100644
+--- a/drivers/leds/trigger/Makefile
++++ b/drivers/leds/trigger/Makefile
+@@ -16,3 +16,4 @@ obj-$(CONFIG_LEDS_TRIGGER_NETDEV)	+= ledtrig-netdev.o
+ obj-$(CONFIG_LEDS_TRIGGER_PATTERN)	+= ledtrig-pattern.o
+ obj-$(CONFIG_LEDS_TRIGGER_AUDIO)	+= ledtrig-audio.o
+ obj-$(CONFIG_LEDS_TRIGGER_TTY)		+= ledtrig-tty.o
++obj-$(CONFIG_LEDS_TRIGGER_BLKDEV)	+= ledtrig-blkdev.o
+diff --git a/drivers/leds/trigger/ledtrig-blkdev.c b/drivers/leds/trigger/ledtrig-blkdev.c
+new file mode 100644
+index 000000000000..999c48a7a45a
+--- /dev/null
++++ b/drivers/leds/trigger/ledtrig-blkdev.c
+@@ -0,0 +1,1139 @@
++// SPDX-License-Identifier: GPL-2.0-only
++
++/*
++ *	Block device LED trigger
++ *
++ *	Copyright 2021-2022 Ian Pilcher <arequipeno@gmail.com>
++ */
++
++#include <linux/blkdev.h>
++#include <linux/leds.h>
++#include <linux/module.h>
++#include <linux/part_stat.h>
++#include <linux/xarray.h>
++
++/* Default, minimum & maximum blink duration (milliseconds) */
++#define BLKDEV_TRIG_BLINK_DEF	75
++#define BLKDEV_TRIG_BLINK_MIN	10
++#define BLKDEV_TRIG_BLINK_MAX	86400000  /* 24 hours */
++
++/* Default, minimum & maximum activity check interval (milliseconds) */
++#define BLKDEV_TRIG_CHECK_DEF	100
++#define BLKDEV_TRIG_CHECK_MIN	25
++#define BLKDEV_TRIG_CHECK_MAX	86400000
++
++/*
++ * If blkdev_trig_check() can't lock the mutex, how long to wait before trying
++ * again (milliseconds)
++ */
++#define BLKDEV_TRIG_CHECK_RETRY	5
++
++/* Mode for blkdev_get_by_path() & blkdev_put() */
++#define BLKDEV_TRIG_FMODE	0
++
++/* When unlinking a block device from an LED, is the blkdev being released? */
++enum blkdev_trig_unlink_mode {
++	BLKDEV_TRIG_RELEASING,
++	BLKDEV_TRIG_NOT_RELEASING
++};
++
++/* Every block device linked to at least one LED gets a "BTB" */
++struct blkdev_trig_bdev {
++	unsigned long		last_checked;
++	unsigned long		last_activity[NR_STAT_GROUPS];
++	unsigned long		ios[NR_STAT_GROUPS];
++	unsigned long		index;
++	struct block_device	*bdev;
++	struct xarray		linked_leds;
++};
++
++/* Every LED associated with the blkdev trigger gets one of these */
++struct blkdev_trig_led {
++	unsigned long		last_checked;
++	unsigned long		index;
++	unsigned long		mode;  /* must be ulong for atomic bit ops */
++	struct led_classdev	*led_cdev;
++	unsigned int		blink_msec;
++	unsigned int		check_jiffies;
++	struct xarray		linked_btbs;
++	struct hlist_node	all_leds_node;
++};
++
++/* Forward declarations to make this file compile in a more readable order */
++static void blkdev_trig_check(struct work_struct *work);
++static struct blkdev_trig_bdev *blkdev_trig_get_btb(const char *buf,
++						    size_t size);
++static struct block_device *blkdev_trig_get_bdev(const char *buf, size_t size,
++						 fmode_t mode);
++static int blkdev_trig_link(struct blkdev_trig_led *led,
++			    struct blkdev_trig_bdev *btb);
++static void blkdev_trig_put_btb(struct blkdev_trig_bdev *btb);
++static void blkdev_trig_btb_release(struct device *dev, void *res);
++static void blkdev_trig_unlink(struct blkdev_trig_led *led,
++			       struct blkdev_trig_bdev *btb,
++			       enum blkdev_trig_unlink_mode unlink_mode);
++static void blkdev_trig_update_btb(struct blkdev_trig_bdev *btb,
++				   unsigned long now);
++static bool blkdev_trig_blink(const struct blkdev_trig_led *led,
++			      const struct blkdev_trig_bdev *btb);
++static void blkdev_trig_sched_led(const struct blkdev_trig_led *led);
++
++/* Index for next BTB or LED */
++static unsigned long blkdev_trig_next_index;
++
++/* Protects everything except sysfs attributes */
++static DEFINE_MUTEX(blkdev_trig_mutex);
++
++/* All LEDs associated with the trigger */
++static HLIST_HEAD(blkdev_trig_all_leds);
++
++/* Delayed work to periodically check for activity & blink LEDs */
++static DECLARE_DELAYED_WORK(blkdev_trig_work, blkdev_trig_check);
++
++/* When is the delayed work scheduled to run next (jiffies) */
++static unsigned long blkdev_trig_next_check;
++
++/* Total number of device-to-LED associations (links) */
++static unsigned int blkdev_trig_link_count;
++
++/* Empty attribute list, for next 2 declarations */
++static struct attribute *blkdev_trig_attrs_empty[] = { NULL };
++
++/* linked_leds sysfs directory for block devs linked to 1 or more LEDs */
++static const struct attribute_group blkdev_trig_linked_leds = {
++	.name	= "linked_leds",
++	.attrs	= blkdev_trig_attrs_empty,
++};
++
++/* linked_devices sysfs directory for each LED associated with the trigger */
++static const struct attribute_group blkdev_trig_linked_devs = {
++	.name	= "linked_devices",
++	.attrs	= blkdev_trig_attrs_empty,
++};
++
++/**
++ * blkdev_trig_activate() - Called when an LED is associated with the trigger.
++ * @led_cdev:	The LED
++ *
++ * Allocates & initializes the @blkdev_trig_led structure, adds it to the
++ * @blkdev_trig_all_leds list, and sets the LED's trigger data.
++ *
++ * Context:	Process context.  Takes and releases @blkdev_trig_mutex.
++ * Return:	``0`` on success, ``-errno`` on error.
++ */
++static int blkdev_trig_activate(struct led_classdev *led_cdev)
++{
++	struct blkdev_trig_led *led;
++	int err;
++
++	led = kzalloc(sizeof(*led), GFP_KERNEL);
++	if (led == NULL)
++		return -ENOMEM;
++
++	err = mutex_lock_interruptible(&blkdev_trig_mutex);
++	if (err)
++		goto exit_free;
++
++	if (blkdev_trig_next_index == ULONG_MAX) {
++		err = -EOVERFLOW;
++		goto exit_unlock;
++	}
++
++	led->index = blkdev_trig_next_index++;
++	led->last_checked = jiffies;
++	led->mode = -1;  /* set all bits */
++	led->led_cdev = led_cdev;
++	led->blink_msec = BLKDEV_TRIG_BLINK_DEF;
++	led->check_jiffies = msecs_to_jiffies(BLKDEV_TRIG_CHECK_DEF);
++	xa_init(&led->linked_btbs);
++
++	hlist_add_head(&led->all_leds_node, &blkdev_trig_all_leds);
++	led_set_trigger_data(led_cdev, led);
++
++exit_unlock:
++	mutex_unlock(&blkdev_trig_mutex);
++exit_free:
++	if (err)
++		kfree(led);
++	return err;
++}
++
++/**
++ * link_dev_by_path_store() - ``link_dev_by_path`` device attribute store
++ *			      function.
++ * @dev:	The LED device
++ * @attr:	The ``link_dev_by_path`` attribute (@dev_attr_link_dev_by_path)
++ * @buf:	The value written to the attribute, which should be the path to
++ *		the special file that represents the block device to be linked
++ *		to the LED (e.g. /dev/sda)
++ * @count:	The number of characters in @buf
++ *
++ * Calls blkdev_trig_get_btb() to find or create the BTB for the block device,
++ * checks that the device isn't already linked to this LED, and calls
++ * blkdev_trig_link() to create the link.
++ *
++ * Context:	Process context.  Takes and releases @blkdev_trig_mutex.
++ * Return:	@count on success, ``-errno`` on error.
++ */
++static ssize_t link_dev_by_path_store(struct device *dev,
++				      struct device_attribute *attr,
++				      const char *buf, size_t count)
++{
++	struct blkdev_trig_led *led = led_trigger_get_drvdata(dev);
++	struct blkdev_trig_bdev *btb;
++	int err;
++
++	err = mutex_lock_interruptible(&blkdev_trig_mutex);
++	if (err)
++		return err;
++
++	btb = blkdev_trig_get_btb(buf, count);
++	if (IS_ERR(btb)) {
++		err = PTR_ERR(btb);
++		goto exit_unlock;
++	}
++
++	if (xa_load(&btb->linked_leds, led->index) != NULL) {
++		err = -EEXIST;
++		goto exit_put_btb;
++	}
++
++	err = blkdev_trig_link(led, btb);
++
++exit_put_btb:
++	if (err)
++		blkdev_trig_put_btb(btb);
++exit_unlock:
++	mutex_unlock(&blkdev_trig_mutex);
++	return err ? : count;
++}
++
++/**
++ * blkdev_trig_get_btb() - Find or create the BTB for a block device.
++ * @buf:	The value written to the ``link_dev_by_path`` attribute, which
++ *		should be the path to a special file that represents a block
++ *		device
++ * @count:	The number of characters in @buf
++ *
++ * Calls blkdev_trig_get_bdev() to get the block device represented by the path
++ * in @buf.  If the device already has a BTB (because it is already linked to
++ * an LED), simply returns the existing BTB.
++ *
++ * Otherwise, allocates a new BTB (as a device resource), creates the block
++ * device's ``linked_leds`` directory (attribute group), calls
++ * blkdev_trig_update_btb() to set the BTB's activity counters, and adds the
++ * BTB resource to the block device.
++ *
++ * Context:	Process context.  Caller must hold @blkdev_trig_mutex.
++ * Return:	Pointer to the BTB, error pointer on error.
++ */
++static struct blkdev_trig_bdev *blkdev_trig_get_btb(const char *buf,
++						    size_t count)
++{
++	struct block_device *bdev;
++	struct blkdev_trig_bdev *btb;
++	int err;
++
++	bdev = blkdev_trig_get_bdev(buf, count, BLKDEV_TRIG_FMODE);
++	if (IS_ERR(bdev))
++		return ERR_CAST(bdev);
++
++	btb = devres_find(&bdev->bd_device, blkdev_trig_btb_release,
++			  NULL, NULL);
++	if (btb != NULL) {
++		err = 0;
++		goto exit_put_bdev;
++	}
++
++	if (blkdev_trig_next_index == ULONG_MAX) {
++		err = -EOVERFLOW;
++		goto exit_put_bdev;
++	}
++
++	btb = devres_alloc(blkdev_trig_btb_release, sizeof(*btb), GFP_KERNEL);
++	if (btb == NULL) {
++		err = -ENOMEM;
++		goto exit_put_bdev;
++	}
++
++	err = sysfs_create_group(bdev_kobj(bdev), &blkdev_trig_linked_leds);
++	if (err)
++		goto exit_free_btb;
++
++	btb->index = blkdev_trig_next_index++;
++	btb->bdev = bdev;
++	xa_init(&btb->linked_leds);
++	blkdev_trig_update_btb(btb, jiffies);
++
++	devres_add(&bdev->bd_device, btb);
++
++exit_free_btb:
++	if (err)
++		devres_free(btb);
++exit_put_bdev:
++	blkdev_put(bdev, BLKDEV_TRIG_FMODE);
++	return err ? ERR_PTR(err) : btb;
++}
++
++/**
++ * blkdev_trig_get_bdev() - Get a block device by path.
++ * @buf:	The value written to the ``link_dev_by_path`` or
++ *		``unlink_dev_by_path`` attribute, which should be the path to a
++ *		special file that represents a block device
++ * @count:	The number of characters in @buf (not including its terminating
++ *		null)
++ *
++ * Copies @buf to a writable buffer, trims the trailing newline (if any), and
++ * calls blkdev_get_by_path() to resolve the block device.
++ *
++ * The caller must call blkdev_put() when finished with the device.
++ *
++ * Context:	Process context.
++ * Return:	The block device, or an error pointer.
++ */
++static struct block_device *blkdev_trig_get_bdev(const char *buf, size_t count,
++						 fmode_t mode)
++{
++	struct block_device *bdev;
++	char *path;
++
++	path = kmemdup(buf, count + 1, GFP_KERNEL);  /* +1 to include null */
++	if (path == NULL)
++		return ERR_PTR(-ENOMEM);
++
++	if (path[count - 1] == '\n')
++		path[count - 1] = 0;
++
++	bdev = blkdev_get_by_path(path, mode, THIS_MODULE);
++	kfree(path);
++	return bdev;
++}
++
++/**
++ * blkdev_trig_update_btb() - Update a BTB's activity counters.
++ * @btb:	The BTB
++ *
++ * Checks each of the BTB's block device's I/O counters.  If the counter has
++ * changed since the last check, updates the counter and its timestamp in the
++ * BTB.
++ *
++ * Context:	Process context.  Caller must hold @blkdev_trig_mutex.
++ */
++static void blkdev_trig_update_btb(struct blkdev_trig_bdev *btb,
++				   unsigned long now)
++{
++	unsigned long new_ios;
++	enum stat_group i;
++
++	for (i = STAT_READ; i <= STAT_FLUSH; ++i) {
++
++		new_ios = part_stat_read(btb->bdev, ios[i]);
++
++		if (new_ios != btb->ios[i]) {
++			btb->ios[i] = new_ios;
++			btb->last_activity[i] = now;
++		}
++	}
++
++	btb->last_checked = now;
++}
++
++/**
++ * blkdev_trig_link() - "Link" a block device to an LED.
++ * @led:	The LED
++ * @btb:	The block device
++ *
++ * Called from link_dev_by_path_store() to create the link between an LED and a
++ * block device.
++ *
++ *   * Adds block device symlink to LED's ``linked_devices`` directory.
++ *   * Adds LED symlink to block devices's ``linked_leds`` directory.
++ *   * Adds the BTB to the LED's @linked_btbs and adds the LED to the BTB's
++ *     @linked_leds.
++ *   * If this is the first block device linked to this LED, calls
++ *     blkdev_trig_new_sched() to (if needed) schedule or reschedule the delayed
++ *     work which periodically checks for block device activity and blinks LEDs.
++ *
++ * Context:	Process context.  Caller must hold @blkdev_trig_mutex.
++ * Return:	0 on success, ``-errno`` on error.
++ */
++static int blkdev_trig_link(struct blkdev_trig_led *led,
++			    struct blkdev_trig_bdev *btb)
++{
++	bool led_first_link;
++	int err;
++
++	led_first_link = xa_empty(&led->linked_btbs);
++
++	err = xa_insert(&btb->linked_leds, led->index, led, GFP_KERNEL);
++	if (err)
++		return err;
++
++	err = xa_insert(&led->linked_btbs, btb->index, btb, GFP_KERNEL);
++	if (err)
++		goto error_erase_led;
++
++	/* Create /sys/class/block/<bdev>/linked_leds/<led> symlink */
++	err = sysfs_add_link_to_group(bdev_kobj(btb->bdev),
++				      blkdev_trig_linked_leds.name,
++				      &led->led_cdev->dev->kobj,
++				      led->led_cdev->name);
++	if (err)
++		goto error_erase_btb;
++
++	/* Create /sys/class/leds/<led>/linked_devices/<bdev> symlink */
++	err = sysfs_add_link_to_group(&led->led_cdev->dev->kobj,
++				      blkdev_trig_linked_devs.name,
++				      bdev_kobj(btb->bdev),
++				      dev_name(&btb->bdev->bd_device));
++	if (err)
++		goto error_remove_symlink;
++
++	/*
++	 * If this isn't the first block device linked to this LED, then the
++	 * delayed work schedule already reflects this LED.
++	 */
++	if (led_first_link)
++		blkdev_trig_sched_led(led);
++
++	++blkdev_trig_link_count;
++
++	return 0;
++
++error_remove_symlink:
++	sysfs_remove_link_from_group(bdev_kobj(btb->bdev),
++				     blkdev_trig_linked_leds.name,
++				     led->led_cdev->name);
++error_erase_btb:
++	xa_erase(&led->linked_btbs, btb->index);
++error_erase_led:
++	xa_erase(&btb->linked_leds, led->index);
++	return err;
++}
++
++/**
++ * blkdev_trig_sched_led() - Set the schedule of the delayed work when a new
++ *			     LED is added to the schedule.
++ * @led:	The LED
++ *
++ * Called from blkdev_trig_link() to set or adjust the schedule of the delayed
++ * work which periodically checks block devices for activity and blinks LEDs,
++ * if necessary.
++ *
++ *   * If no other links exist, the delayed work is scheduled.
++ *   * If the delayed work is already scheduled to run soon enough to
++ *     accommodate the newly linked LED's @check_jiffies, no change is made to
++ *     the delayed work's schedule.
++ *   * If the delayed work is already scheduled, but it isn't scheduled to
++ *     run soon enough, the schedule is modified.
++ *
++ * Context:	Process context.  Caller must hold @blkdev_trig_mutex.
++ */
++static void blkdev_trig_sched_led(const struct blkdev_trig_led *led)
++{
++	unsigned long delay = READ_ONCE(led->check_jiffies);
++	unsigned long check_by = jiffies + delay;
++
++	if (blkdev_trig_link_count == 0) {
++		WARN_ON(!schedule_delayed_work(&blkdev_trig_work, delay));
++		blkdev_trig_next_check = check_by;
++		return;
++	}
++
++	if (time_after_eq(check_by, blkdev_trig_next_check))
++		return;
++
++	WARN_ON(!mod_delayed_work(system_wq, &blkdev_trig_work, delay));
++	blkdev_trig_next_check = check_by;
++}
++
++/**
++ * unlink_dev_by_path_store() - ``unlink_dev_by_path`` device attribute store
++ *				function.
++ * @dev:	The LED device
++ * @attr:	The ``unlink_dev_by_path`` attribute
++ *		(@dev_attr_unlink_dev_by_path)
++ * @buf:	The value written to the attribute, which should be the path to
++ *		the special file that represents the block device to be unlinked
++ *		from the LED (e.g. /dev/sda)
++ * @count:	The number of characters in @buf
++ *
++ * Block device name is written to the attribute to "unlink" the block device
++ * from the LED.  I.e. the LED will no longer blink to show activity on that
++ * block device.
++ *
++ * Calls blkdev_trig_get_bdev() to get the block device represented by the path
++ * in @buf.  If the device has a BTB, searches the BTB's list of LEDs for a
++ * link to this LED and (if found) calls blkdev_trig_unlink() to destroy the
++ * link.
++ *
++ * Context:	Process context.  Takes and releases @blkdev_trig_mutex.
++ * Return:	@count on success, ``-errno`` on error.
++ */
++static ssize_t unlink_dev_by_path_store(struct device *dev,
++					struct device_attribute *attr,
++					const char *buf, size_t count)
++{
++	struct blkdev_trig_led *led = led_trigger_get_drvdata(dev);
++	struct block_device *bdev;
++	struct blkdev_trig_bdev *btb;
++	int err;
++
++	bdev = blkdev_trig_get_bdev(buf, count, BLKDEV_TRIG_FMODE);
++	if (IS_ERR(bdev))
++		return PTR_ERR(bdev);
++
++	err = mutex_lock_interruptible(&blkdev_trig_mutex);
++	if (err)
++		goto exit_put_bdev;
++
++	btb = devres_find(&bdev->bd_device, blkdev_trig_btb_release,
++			  NULL, NULL);
++	if (btb == NULL) {
++		err = -EUNATCH;  /* bdev isn't linked to any LED */
++		goto exit_unlock;
++	}
++
++	if (xa_load(&btb->linked_leds, led->index) == NULL) {
++		err = -EUNATCH;  /* bdev isn't linked to this LED */
++		goto exit_unlock;
++	}
++
++	blkdev_trig_unlink(led, btb, BLKDEV_TRIG_NOT_RELEASING);
++
++exit_unlock:
++	mutex_unlock(&blkdev_trig_mutex);
++exit_put_bdev:
++	blkdev_put(bdev, BLKDEV_TRIG_FMODE);
++	return err ? : count;
++}
++
++/**
++ * blkdev_trig_unlink() - "Unlink" a block device from an LED.
++ * @led:		The LED
++ * @btb:		The block device
++ * @unlink_mode:	Indicates whether the BTB is being released (because
++ *			the block device has been removed)
++ *
++ * Removes the link between an LED and a block device.
++ *
++ *   * Removes the BTB from the LED's @linked_btbs and removes the LED from
++ *     the BTB's @linked_leds.
++ *   * Removes the block device symlink from the LED's ``linked_devices``
++ *     directory.
++ *
++ * If the block device is **not** being released:
++ *
++ *   * Removes the LED symlink from the block device's ``linked_leds``
++ *     directory.
++ *   * Calls blkdev_trig_put_btb() to clean up the BTB, if required.
++ *
++ * If the removed link was the only one (i.e. there are no existing block
++ * device/LED links after its removal), cancels the periodic delayed work
++ * which checks for device activity.
++ *
++ * This function is called from multiple locations.
++ *
++ *   * unlink_dev_by_path_store() calls this function when a block device is
++ *     unlinked from an LED via the ``unlink_dev_by_path`` sysfs attribute.
++ *     (@unlink_mode == ``BLKDEV_TRIG_NOT_RELEASING``)
++ *   * blkdev_trig_deactivate() calls this function for each block device linked
++ *     to an LED that is being deactivated (disassociated from the trigger).
++ *     (@unlink_mode == ``BLKDEV_TRIG_NOT_RELEASING``).
++ *   * blkdev_trig_btb_release() calls this function for each LED linked to a
++ *     block device that has been removed from the system.  (@unlink_mode ==
++ *     ``BLKDEV_TRIG_RELEASING).
++ *
++ * Context:	Process context.  Caller must hold @blkdev_trig_mutex.
++ */
++static void blkdev_trig_unlink(struct blkdev_trig_led *led,
++			       struct blkdev_trig_bdev *btb,
++			       enum blkdev_trig_unlink_mode unlink_mode)
++{
++	--blkdev_trig_link_count;
++
++	if (blkdev_trig_link_count == 0)
++		WARN_ON(!cancel_delayed_work_sync(&blkdev_trig_work));
++
++	xa_erase(&btb->linked_leds, led->index);
++	xa_erase(&led->linked_btbs, btb->index);
++
++	/* Remove /sys/class/leds/<led>/linked_devices/<bdev> symlink */
++	sysfs_remove_link_from_group(&led->led_cdev->dev->kobj,
++				     blkdev_trig_linked_devs.name,
++				     dev_name(&btb->bdev->bd_device));
++
++	/*
++	 * If the BTB is being released, the driver core has already removed the
++	 * device's attribute groups, and the BTB will be freed automatically,
++	 * so only do these steps if the BTB is not being released.
++	 */
++	if (unlink_mode == BLKDEV_TRIG_NOT_RELEASING) {
++
++		/* Remove /sys/class/block/<bdev>/linked_leds/<led> symlink */
++		sysfs_remove_link_from_group(bdev_kobj(btb->bdev),
++					     blkdev_trig_linked_leds.name,
++					     led->led_cdev->name);
++		blkdev_trig_put_btb(btb);
++	}
++}
++
++/**
++ * blkdev_trig_put_btb() - Remove and free a BTB, if it is no longer needed.
++ * @btb:	The BTB
++ *
++ * Does nothing if the BTB (block device) is still linked to at least one LED.
++ *
++ * If the BTB is no longer linked to any LEDs, removes the block device's
++ * ``linked_leds`` directory (attribute group), removes the BTB from the
++ * block device's resource list, and frees the BTB.
++ *
++ * Called from blkdev_trig_unlink() (and in the link_dev_by_path_store() error
++ * path).
++ *
++ * Context:	Process context.  Caller must hold @blkdev_trig_mutex.
++ */
++static void blkdev_trig_put_btb(struct blkdev_trig_bdev *btb)
++{
++	struct block_device *bdev = btb->bdev;
++	int err;
++
++	if (xa_empty(&btb->linked_leds)) {
++
++		sysfs_remove_group(bdev_kobj(bdev), &blkdev_trig_linked_leds);
++		err = devres_destroy(&bdev->bd_device, blkdev_trig_btb_release,
++				     NULL, NULL);
++		WARN_ON(err);
++	}
++}
++
++/**
++ * blkdev_trig_deactivate() - Called when an LED is disassociated from the
++ *			      trigger.
++ * @led_cdev:	The LED
++ *
++ * Calls blkdev_trig_unlink() for each block device linked to the LED, removes
++ * the LED from the @blkdevtrig_all_leds list, and frees the @blkdev_trig_led.
++ *
++ * Context:	Process context.  Takes and releases @blkdev_trig_mutex.
++ */
++static void blkdev_trig_deactivate(struct led_classdev *led_cdev)
++{
++	struct blkdev_trig_led *led = led_get_trigger_data(led_cdev);
++	struct blkdev_trig_bdev *btb;
++	unsigned long index;
++
++	mutex_lock(&blkdev_trig_mutex);
++
++	xa_for_each (&led->linked_btbs, index, btb)
++		blkdev_trig_unlink(led, btb, BLKDEV_TRIG_NOT_RELEASING);
++
++	hlist_del(&led->all_leds_node);
++	kfree(led);
++
++	mutex_unlock(&blkdev_trig_mutex);
++}
++
++/**
++ * blkdev_trig_btb_release() - BTB device resource release function.
++ * @dev:	The block device
++ * @res:	The BTB
++ *
++ * Called by the driver core when a block device with a BTB is removed from
++ * the system.  Calls blkdev_trig_unlink() for each LED linked to the block
++ * device.
++ *
++ * Context:	Process context.  Takes and releases @blkdev_trig_mutex.
++ */
++static void blkdev_trig_btb_release(struct device *dev, void *res)
++{
++	struct blkdev_trig_bdev *btb = res;
++	struct blkdev_trig_led *led;
++	unsigned long index;
++
++	mutex_lock(&blkdev_trig_mutex);
++
++	xa_for_each (&btb->linked_leds, index, led)
++		blkdev_trig_unlink(led, btb, BLKDEV_TRIG_RELEASING);
++
++	mutex_unlock(&blkdev_trig_mutex);
++}
++
++/**
++ * blkdev_trig_check() - Check linked devices for activity and blink LEDs.
++ * @work:	Delayed work (@blkdev_trig_work)
++ *
++ * Called periodically (as delayed work) to check linked block devices for
++ * activity and blink LEDs.
++ *
++ *   * Iterates through all LEDs associated with the trigger.
++ *   * If an LED is due to be checked, iterates through the block devices (BTBs)
++ *     linked to the LED.
++ *   * If a block device has not already been checked during this pass, calls
++ *     blkdev_trig_update_btb() to update the BTB's activity counters and
++ *     timestamps.
++ *   * If the LED has not already been blinked during this pass, calls
++ *     blkdev_trig_blink() to blink it if the correct type of activity has
++ *     occurred since the LED was last checked.
++ *
++ * When finished, schedules itself to run again when the next LED is due to be
++ * checked.
++ *
++ * Context:	Process context.  Takes and releases @blkdev_trig_mutex.
++ */
++static void blkdev_trig_check(struct work_struct *work)
++{
++	struct blkdev_trig_led *led;
++	struct blkdev_trig_bdev *btb;
++	unsigned long index, delay, now, led_check, led_delay;
++	bool blinked;
++
++	if (!mutex_trylock(&blkdev_trig_mutex)) {
++		delay = msecs_to_jiffies(BLKDEV_TRIG_CHECK_RETRY);
++		goto exit_reschedule;
++	}
++
++	now = jiffies;
++	delay = ULONG_MAX;
++
++	hlist_for_each_entry (led, &blkdev_trig_all_leds, all_leds_node) {
++
++		led_check = led->last_checked + led->check_jiffies;
++
++		if (time_before_eq(led_check, now)) {
++
++			blinked = false;
++
++			xa_for_each (&led->linked_btbs, index, btb) {
++
++				if (btb->last_checked != now)
++					blkdev_trig_update_btb(btb, now);
++				if (!blinked)
++					blinked = blkdev_trig_blink(led, btb);
++			}
++
++			led->last_checked = now;
++			led_delay = led->check_jiffies;
++
++		} else {
++			led_delay = led_check - now;
++		}
++
++		if (led_delay < delay)
++			delay = led_delay;
++	}
++
++	mutex_unlock(&blkdev_trig_mutex);
++
++exit_reschedule:
++	WARN_ON_ONCE(delay == ULONG_MAX);
++	WARN_ON_ONCE(!schedule_delayed_work(&blkdev_trig_work, delay));
++}
++
++/**
++ * blkdev_trig_blink() - Blink an LED, if the correct type of activity has
++ *			 occurred on the block device.
++ * @led:	The LED
++ * @btb:	The block device
++ *
++ * Context:	Process context.  Caller must hold @blkdev_trig_mutex.
++ * Return:	``true`` if the LED is blinked, ``false`` if not.
++ */
++static bool blkdev_trig_blink(const struct blkdev_trig_led *led,
++			      const struct blkdev_trig_bdev *btb)
++{
++	unsigned long delay_on, delay_off;
++	enum stat_group i;
++	unsigned long mode, mask;
++
++	mode = READ_ONCE(led->mode);
++
++	for (i = STAT_READ, mask = 1; i <= STAT_FLUSH; ++i, mask <<= 1) {
++
++		if (!(mode & mask))
++			continue;
++
++		if (time_before_eq(btb->last_activity[i], led->last_checked))
++			continue;
++
++		delay_on = READ_ONCE(led->blink_msec);
++		delay_off = 1;	/* 0 leaves LED turned on */
++
++		led_blink_set_oneshot(led->led_cdev, &delay_on, &delay_off, 0);
++		return true;
++	}
++
++	return false;
++}
++
++/**
++ * blink_time_show() - ``blink_time`` device attribute show function.
++ * @dev:	The LED device
++ * @attr:	The ``blink_time`` attribute (@dev_attr_blink_time)
++ * @buf:	Output buffer
++ *
++ * Writes the current value of the LED's @blink_msec to @buf.
++ *
++ * Context:	Process context.
++ * Return:	The number of characters written to @buf.
++ */
++static ssize_t blink_time_show(struct device *dev,
++			       struct device_attribute *attr, char *buf)
++{
++	const struct blkdev_trig_led *led = led_trigger_get_drvdata(dev);
++
++	return sprintf(buf, "%u\n", READ_ONCE(led->blink_msec));
++}
++
++/**
++ * blink_time_store() - ``blink_time`` device attribute store function.
++ * @dev:	The LED device
++ * @attr:	The ``blink_time`` attribute (@dev_attr_blink_time)
++ * @buf:	The new value (as written to the sysfs attribute)
++ * @count:	The number of characters in @buf
++ *
++ * Sets the LED's @blink_msec (the duration in milliseconds of one blink).
++ *
++ * Context:	Process context.
++ * Return:	@count on success, ``-errno`` on error.
++ */
++static ssize_t blink_time_store(struct device *dev,
++				struct device_attribute *attr,
++				const char *buf, size_t count)
++{
++	struct blkdev_trig_led *led = led_trigger_get_drvdata(dev);
++	unsigned int value;
++	int err;
++
++	err = kstrtouint(buf, 0, &value);
++	if (err)
++		return err;
++
++	if (value < BLKDEV_TRIG_BLINK_MIN || value > BLKDEV_TRIG_BLINK_MAX)
++		return -ERANGE;
++
++	WRITE_ONCE(led->blink_msec, value);
++	return count;
++}
++
++/**
++ * check_interval_show() - ``check_interval`` device attribute show function.
++ * @dev:	The LED device
++ * @attr:	The ``check_interval`` attribute (@dev_attr_check_interval)
++ * @buf:	Output buffer
++ *
++ * Writes the current value of the LED's @check_jiffies (converted to
++ * milliseconds) to @buf.
++ *
++ * Context:	Process context.
++ * Return:	The number of characters written to @buf.
++ */
++static ssize_t check_interval_show(struct device *dev,
++				   struct device_attribute *attr, char *buf)
++{
++	struct blkdev_trig_led *led = led_trigger_get_drvdata(dev);
++
++	return sprintf(buf, "%u\n",
++		       jiffies_to_msecs(READ_ONCE(led->check_jiffies)));
++}
++
++/**
++ * check_interval_store() - ``check_interval`` device attribute store function
++ * @dev:	The LED device
++ * @attr:	The ``check_interval`` attribute (@dev_attr_check_interval)
++ * @buf:	The new value (as written to the sysfs attribute)
++ * @count:	The number of characters in @buf
++ *
++ * Sets the LED's @check_jiffies (after converting from milliseconds).
++ *
++ * Context:	Process context.
++ * Return:	@count on success, ``-errno`` on error.
++ */
++static ssize_t check_interval_store(struct device *dev,
++				    struct device_attribute *attr,
++				    const char *buf, size_t count)
++{
++	struct blkdev_trig_led *led = led_trigger_get_drvdata(dev);
++	unsigned int value;
++	int err;
++
++	err = kstrtouint(buf, 0, &value);
++	if (err)
++		return err;
++
++	if (value < BLKDEV_TRIG_CHECK_MIN || value > BLKDEV_TRIG_CHECK_MAX)
++		return -ERANGE;
++
++	WRITE_ONCE(led->check_jiffies, msecs_to_jiffies(value));
++
++	return count;
++}
++
++/**
++ * blkdev_trig_mode_show() - Helper for boolean attribute show functions.
++ * @led:	The LED
++ * @buf:	Output buffer
++ * @bit:	Which bit to show
++ *
++ * Context:	Process context.
++ * Return:	The number of characters written to @buf.
++ */
++static int blkdev_trig_mode_show(const struct blkdev_trig_led *led, char *buf,
++				 enum stat_group bit)
++{
++	return sprintf(buf, READ_ONCE(led->mode) & (1 << bit) ? "Y\n" : "N\n");
++}
++
++/**
++ * blkdev_trig_mode_store() - Helper for boolean attribute store functions.
++ * @led:	The LED
++ * @buf:	The new value (as written to the sysfs attribute)
++ * @count:	The number of characters in @buf
++ * @bit:	Which bit to set
++ *
++ * Context:	Process context.
++ * Return:	@count on success, ``-errno`` on error.
++ */
++static int blkdev_trig_mode_store(struct blkdev_trig_led *led,
++				  const char *buf, size_t count,
++				  enum stat_group bit)
++{
++	bool set;
++	int err;
++
++	err = kstrtobool(buf, &set);
++	if (err)
++		return err;
++
++	if (set)
++		set_bit(bit, &led->mode);
++	else
++		clear_bit(bit, &led->mode);
++
++	return count;
++}
++
++/**
++ * blink_on_read_show() - ``blink_on_read`` device attribute show function.
++ * @dev:	The LED device
++ * @attr:	The ``blink_on_read`` attribute (@dev_attr_blink_on_read)
++ * @buf:	Output buffer
++ *
++ * Writes the current value of the LED's @mode read bit to @buf.
++ *
++ * Context:	Process context.
++ * Return:	The number of characters written to @buf.
++ */
++static ssize_t blink_on_read_show(struct device *dev,
++				  struct device_attribute *attr, char *buf)
++{
++	return blkdev_trig_mode_show(led_trigger_get_drvdata(dev),
++				     buf, STAT_READ);
++}
++
++/**
++ * blink_on_read_store() - ``blink_on_read`` device attribute store function.
++ * @dev:	The LED device
++ * @attr:	The ``blink_on_read`` attribute (@dev_attr_blink_on_read)
++ * @buf:	The new value (as written to the sysfs attribute)
++ * @count:	The number of characters in @buf
++ *
++ * Sets or clears the LED's @mode read bit.
++ *
++ * Context:	Process context.
++ * Return:	@count on success, ``-errno`` on error.
++ */
++static ssize_t blink_on_read_store(struct device *dev,
++				   struct device_attribute *attr,
++				   const char *buf, size_t count)
++{
++	return blkdev_trig_mode_store(led_trigger_get_drvdata(dev),
++				      buf, count, STAT_READ);
++}
++
++/**
++ * blink_on_write_show() - ``blink_on_write`` device attribute show function.
++ * @dev:	The LED device
++ * @attr:	The ``blink_on_write`` attribute (@dev_attr_blink_on_write)
++ * @buf:	Output buffer
++ *
++ * Writes the current value of the LED's @mode write bit to @buf.
++ *
++ * Context:	Process context.
++ * Return:	The number of characters written to @buf.
++ */
++static ssize_t blink_on_write_show(struct device *dev,
++				   struct device_attribute *attr, char *buf)
++{
++	return blkdev_trig_mode_show(led_trigger_get_drvdata(dev),
++				     buf, STAT_WRITE);
++}
++
++/**
++ * blink_on_write_store() - ``blink_on_write`` device attribute store function.
++ * @dev:	The LED device
++ * @attr:	The ``blink_on_write`` attribute (@dev_attr_blink_on_write)
++ * @buf:	The new value (as written to the sysfs attribute)
++ * @count:	The number of characters in @buf
++ *
++ * Sets or clears the LED's @mode write bit.
++ *
++ * Context:	Process context.
++ * Return:	@count on success, ``-errno`` on error.
++ */
++static ssize_t blink_on_write_store(struct device *dev,
++				    struct device_attribute *attr,
++				    const char *buf, size_t count)
++{
++	return blkdev_trig_mode_store(led_trigger_get_drvdata(dev),
++				      buf, count, STAT_WRITE);
++}
++
++/**
++ * blink_on_flush_show() - ``blink_on_flush`` device attribute show function.
++ * @dev:	The LED device
++ * @attr:	The ``blink_on_flush`` attribute (@dev_attr_blink_on_flush)
++ * @buf:	Output buffer
++ *
++ * Writes the current value of the LED's @mode flush bit to @buf.
++ *
++ * Context:	Process context.
++ * Return:	The number of characters written to @buf.
++ */
++static ssize_t blink_on_flush_show(struct device *dev,
++				   struct device_attribute *attr, char *buf)
++{
++	return blkdev_trig_mode_show(led_trigger_get_drvdata(dev),
++				     buf, STAT_FLUSH);
++}
++
++/**
++ * blink_on_flush_store() - ``blink_on_flush`` device attribute store function.
++ * @dev:	The LED device
++ * @attr:	The ``blink_on_flush`` attribute (@dev_attr_blink_on_flush)
++ * @buf:	The new value (as written to the sysfs attribute)
++ * @count:	The number of characters in @buf
++ *
++ * Sets or clears the LED's @mode flush bit.
++ *
++ * Context:	Process context.
++ * Return:	@count on success, ``-errno`` on error.
++ */
++static ssize_t blink_on_flush_store(struct device *dev,
++				    struct device_attribute *attr,
++				    const char *buf, size_t count)
++{
++	return blkdev_trig_mode_store(led_trigger_get_drvdata(dev),
++				      buf, count, STAT_FLUSH);
++}
++
++/**
++ * blink_on_discard_show() - ``blink_on_discard`` device attribute show
++ *			     function.
++ * @dev:	The LED device
++ * @attr:	The ``blink_on_discard`` attribute (@dev_attr_blink_on_discard)
++ * @buf:	Output buffer
++ *
++ * Writes the current value of the LED's @mode discard bit to @buf.
++ *
++ * Context:	Process context.
++ * Return:	The number of characters written to @buf.
++ */
++static ssize_t blink_on_discard_show(struct device *dev,
++				     struct device_attribute *attr, char *buf)
++{
++	return blkdev_trig_mode_show(led_trigger_get_drvdata(dev),
++				     buf, STAT_DISCARD);
++}
++
++/**
++ * blink_on_discard_store() - ``blink_on_discard`` device attribute store
++ *			      function.
++ * @dev:	The LED device
++ * @attr:	The ``blink_on_discard`` attribute (@dev_attr_blink_on_discard)
++ * @buf:	The new value (as written to the sysfs attribute)
++ * @count:	The number of characters in @buf
++ *
++ * Sets or clears the LED's @mode discard bit.
++ *
++ * Context:	Process context.
++ * Return:	@count on success, ``-errno`` on error.
++ */
++static ssize_t blink_on_discard_store(struct device *dev,
++				      struct device_attribute *attr,
++				      const char *buf, size_t count)
++{
++	return blkdev_trig_mode_store(led_trigger_get_drvdata(dev),
++				      buf, count, STAT_DISCARD);
++}
++
++/* Device attributes */
++static DEVICE_ATTR_WO(link_dev_by_path);
++static DEVICE_ATTR_WO(unlink_dev_by_path);
++static DEVICE_ATTR_RW(blink_time);
++static DEVICE_ATTR_RW(check_interval);
++static DEVICE_ATTR_RW(blink_on_read);
++static DEVICE_ATTR_RW(blink_on_write);
++static DEVICE_ATTR_RW(blink_on_flush);
++static DEVICE_ATTR_RW(blink_on_discard);
++
++/* Device attributes in LED directory (/sys/class/leds/<led>/...) */
++static struct attribute *blkdev_trig_attrs[] = {
++	&dev_attr_link_dev_by_path.attr,
++	&dev_attr_unlink_dev_by_path.attr,
++	&dev_attr_blink_time.attr,
++	&dev_attr_check_interval.attr,
++	&dev_attr_blink_on_read.attr,
++	&dev_attr_blink_on_write.attr,
++	&dev_attr_blink_on_flush.attr,
++	&dev_attr_blink_on_discard.attr,
++	NULL
++};
++
++/* Unnamed attribute group == no subdirectory */
++static const struct attribute_group blkdev_trig_attr_group = {
++	.attrs	= blkdev_trig_attrs,
++};
++
++/* Attribute groups for the trigger */
++static const struct attribute_group *blkdev_trig_attr_groups[] = {
++	&blkdev_trig_attr_group,   /* /sys/class/leds/<led>/... */
++	&blkdev_trig_linked_devs,  /* /sys/class/leds/<led>/linked_devices/ */
++	NULL
++};
++
++/* Trigger registration data */
++static struct led_trigger blkdev_trig_trigger = {
++	.name		= "blkdev",
++	.activate	= blkdev_trig_activate,
++	.deactivate	= blkdev_trig_deactivate,
++	.groups		= blkdev_trig_attr_groups,
++};
++
++/**
++ * blkdev_trig_init() - Block device LED trigger initialization.
++ *
++ * Registers the LED trigger.
++ *
++ * Return:	0 on success, ``-errno`` on failure.
++ */
++static int __init blkdev_trig_init(void)
++{
++	return led_trigger_register(&blkdev_trig_trigger);
++}
++module_init(blkdev_trig_init);
++
++/**
++ * blkdev_trig_exit() - Block device LED trigger module exit.
++ *
++ * Unregisters the LED trigger.
++ */
++static void __exit blkdev_trig_exit(void)
++{
++	led_trigger_unregister(&blkdev_trig_trigger);
++}
++module_exit(blkdev_trig_exit);
++
++MODULE_DESCRIPTION("Block device LED trigger");
++MODULE_AUTHOR("Ian Pilcher <arequipeno@gmail.com>");
++MODULE_LICENSE("GPL v2");
+diff --git a/drivers/pci/quirks.c b/drivers/pci/quirks.c
+index 41aeaa235132..f76b7abd7d11 100644
+--- a/drivers/pci/quirks.c
++++ b/drivers/pci/quirks.c
+@@ -3601,6 +3601,106 @@ static void quirk_no_bus_reset(struct pci_dev *dev)
+ 	dev->dev_flags |= PCI_DEV_FLAGS_NO_BUS_RESET;
+ }
+ 
++static bool acs_on_downstream;
++static bool acs_on_multifunction;
++
++#define NUM_ACS_IDS 16
++struct acs_on_id {
++	unsigned short vendor;
++	unsigned short device;
++};
++static struct acs_on_id acs_on_ids[NUM_ACS_IDS];
++static u8 max_acs_id;
++
++static __init int pcie_acs_override_setup(char *p)
++{
++	if (!p)
++		return -EINVAL;
++
++	while (*p) {
++		if (!strncmp(p, "downstream", 10))
++			acs_on_downstream = true;
++		if (!strncmp(p, "multifunction", 13))
++			acs_on_multifunction = true;
++		if (!strncmp(p, "id:", 3)) {
++			char opt[5];
++			int ret;
++			long val;
++
++			if (max_acs_id >= NUM_ACS_IDS - 1) {
++				pr_warn("Out of PCIe ACS override slots (%d)\n",
++						NUM_ACS_IDS);
++				goto next;
++			}
++
++			p += 3;
++			snprintf(opt, 5, "%s", p);
++			ret = kstrtol(opt, 16, &val);
++			if (ret) {
++				pr_warn("PCIe ACS ID parse error %d\n", ret);
++				goto next;
++			}
++			acs_on_ids[max_acs_id].vendor = val;
++
++			p += strcspn(p, ":");
++			if (*p != ':') {
++				pr_warn("PCIe ACS invalid ID\n");
++				goto next;
++			}
++
++			p++;
++			snprintf(opt, 5, "%s", p);
++			ret = kstrtol(opt, 16, &val);
++			if (ret) {
++				pr_warn("PCIe ACS ID parse error %d\n", ret);
++				goto next;
++			}
++			acs_on_ids[max_acs_id].device = val;
++			max_acs_id++;
++		}
++next:
++		p += strcspn(p, ",");
++		if (*p == ',')
++			p++;
++	}
++
++	if (acs_on_downstream || acs_on_multifunction || max_acs_id)
++		pr_warn("Warning: PCIe ACS overrides enabled; This may allow non-IOMMU protected peer-to-peer DMA\n");
++
++	return 0;
++}
++early_param("pcie_acs_override", pcie_acs_override_setup);
++
++static int pcie_acs_overrides(struct pci_dev *dev, u16 acs_flags)
++{
++	int i;
++
++	/* Never override ACS for legacy devices or devices with ACS caps */
++	if (!pci_is_pcie(dev) ||
++		pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ACS))
++			return -ENOTTY;
++
++	for (i = 0; i < max_acs_id; i++)
++		if (acs_on_ids[i].vendor == dev->vendor &&
++			acs_on_ids[i].device == dev->device)
++				return 1;
++
++	switch (pci_pcie_type(dev)) {
++	case PCI_EXP_TYPE_DOWNSTREAM:
++	case PCI_EXP_TYPE_ROOT_PORT:
++		if (acs_on_downstream)
++			return 1;
++		break;
++	case PCI_EXP_TYPE_ENDPOINT:
++	case PCI_EXP_TYPE_UPSTREAM:
++	case PCI_EXP_TYPE_LEG_END:
++	case PCI_EXP_TYPE_RC_END:
++		if (acs_on_multifunction && dev->multifunction)
++			return 1;
++	}
++
++	return -ENOTTY;
++}
+ /*
+  * Some NVIDIA GPU devices do not work with bus reset, SBR needs to be
+  * prevented for those affected devices.
+@@ -4966,6 +5066,7 @@ static const struct pci_dev_acs_enabled {
+ 	{ PCI_VENDOR_ID_NXP, 0x8d9b, pci_quirk_nxp_rp_acs },
+ 	/* Zhaoxin Root/Downstream Ports */
+ 	{ PCI_VENDOR_ID_ZHAOXIN, PCI_ANY_ID, pci_quirk_zhaoxin_pcie_ports_acs },
++	{ PCI_ANY_ID, PCI_ANY_ID, pcie_acs_overrides },
+ 	{ 0 }
+ };
+ 
+diff --git a/drivers/watchdog/sp5100_tco.c b/drivers/watchdog/sp5100_tco.c
+index 86ffb58fbc85..ae54dd33e233 100644
+--- a/drivers/watchdog/sp5100_tco.c
++++ b/drivers/watchdog/sp5100_tco.c
+@@ -402,6 +402,7 @@ static int sp5100_tco_setupdevice_mmio(struct device *dev,
+ 		iounmap(addr);
+ 
+ 	release_resource(res);
++	kfree(res);
+ 
+ 	return ret;
+ }
+diff --git a/fs/f2fs/f2fs.h b/fs/f2fs/f2fs.h
+index d9bbecd008d2..52be3e23ae7c 100644
+--- a/fs/f2fs/f2fs.h
++++ b/fs/f2fs/f2fs.h
+@@ -2696,16 +2696,6 @@ static inline struct page *f2fs_pagecache_get_page(
+ 	return pagecache_get_page(mapping, index, fgp_flags, gfp_mask);
+ }
+ 
+-static inline void f2fs_copy_page(struct page *src, struct page *dst)
+-{
+-	char *src_kaddr = kmap(src);
+-	char *dst_kaddr = kmap(dst);
+-
+-	memcpy(dst_kaddr, src_kaddr, PAGE_SIZE);
+-	kunmap(dst);
+-	kunmap(src);
+-}
+-
+ static inline void f2fs_put_page(struct page *page, int unlock)
+ {
+ 	if (!page)
+diff --git a/fs/f2fs/file.c b/fs/f2fs/file.c
+index bd14cef1b08f..8d984aeb270f 100644
+--- a/fs/f2fs/file.c
++++ b/fs/f2fs/file.c
+@@ -1278,7 +1278,7 @@ static int __clone_blkaddrs(struct inode *src_inode, struct inode *dst_inode,
+ 				f2fs_put_page(psrc, 1);
+ 				return PTR_ERR(pdst);
+ 			}
+-			f2fs_copy_page(psrc, pdst);
++			memcpy_page(pdst, 0, psrc, 0, PAGE_SIZE);
+ 			set_page_dirty(pdst);
+ 			f2fs_put_page(pdst, 1);
+ 			f2fs_put_page(psrc, 1);
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 2f7b43444c5f..651d1227dad2 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -578,6 +578,7 @@ struct request_queue {
+ 
+ #define QUEUE_FLAG_MQ_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
+ 				 (1 << QUEUE_FLAG_SAME_COMP) |		\
++				 (1 << QUEUE_FLAG_SAME_FORCE) |		\
+ 				 (1 << QUEUE_FLAG_NOWAIT))
+ 
+ void blk_queue_flag_set(unsigned int flag, struct request_queue *q);
+diff --git a/include/linux/compiler-gcc.h b/include/linux/compiler-gcc.h
+index a0c55eeaeaf1..9b157b71036f 100644
+--- a/include/linux/compiler-gcc.h
++++ b/include/linux/compiler-gcc.h
+@@ -66,17 +66,6 @@
+ 		__builtin_unreachable();	\
+ 	} while (0)
+ 
+-/*
+- * GCC 'asm goto' miscompiles certain code sequences:
+- *
+- *   http://gcc.gnu.org/bugzilla/show_bug.cgi?id=58670
+- *
+- * Work it around via a compiler barrier quirk suggested by Jakub Jelinek.
+- *
+- * (asm goto is automatically volatile - the naming reflects this.)
+- */
+-#define asm_volatile_goto(x...)	do { asm goto(x); asm (""); } while (0)
+-
+ #if defined(CONFIG_ARCH_USE_BUILTIN_BSWAP)
+ #define __HAVE_BUILTIN_BSWAP32__
+ #define __HAVE_BUILTIN_BSWAP64__
+diff --git a/include/linux/pageblock-flags.h b/include/linux/pageblock-flags.h
+index 83c7248053a1..d2b8741eabf7 100644
+--- a/include/linux/pageblock-flags.h
++++ b/include/linux/pageblock-flags.h
+@@ -48,7 +48,7 @@ extern unsigned int pageblock_order;
+ #else /* CONFIG_HUGETLB_PAGE */
+ 
+ /* If huge pages are not used, group by MAX_ORDER_NR_PAGES */
+-#define pageblock_order		(MAX_ORDER-1)
++#define pageblock_order		PAGE_ALLOC_COSTLY_ORDER
+ 
+ #endif /* CONFIG_HUGETLB_PAGE */
+ 
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 0c0fed1b348f..f6e9eaa2339f 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -411,10 +411,13 @@ extern void lru_cache_add_inactive_or_unevictable(struct page *page,
+ extern unsigned long zone_reclaimable_pages(struct zone *zone);
+ extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 					gfp_t gfp_mask, nodemask_t *mask);
++
++#define MEMCG_RECLAIM_MAY_SWAP (1 << 1)
++#define MEMCG_RECLAIM_PROACTIVE (1 << 2)
+ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 						  unsigned long nr_pages,
+ 						  gfp_t gfp_mask,
+-						  bool may_swap);
++						  unsigned int reclaim_options);
+ extern unsigned long mem_cgroup_shrink_node(struct mem_cgroup *mem,
+ 						gfp_t gfp_mask, bool noswap,
+ 						pg_data_t *pgdat,
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index 2e24db4bff19..c4f716fcc5d7 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -190,7 +190,7 @@ config DYNAMIC_DEBUG_CORE
+ 
+ config SYMBOLIC_ERRNAME
+ 	bool "Support symbolic error names in printf"
+-	default y if PRINTK
++	default n
+ 	help
+ 	  If you say Y here, the kernel's printf implementation will
+ 	  be able to print symbolic error names such as ENOSPC instead
+@@ -200,7 +200,7 @@ config SYMBOLIC_ERRNAME
+ config DEBUG_BUGVERBOSE
+ 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL && EXPERT
+ 	depends on BUG && (GENERIC_BUG || HAVE_DEBUG_BUGVERBOSE)
+-	default y
++	default n
+ 	help
+ 	  Say Y here to make BUG() panics output the file name and line number
+ 	  of the BUG call as well as the EIP and oops trace.  This aids
+diff --git a/lib/list_debug.c b/lib/list_debug.c
+index 9daa3fb9d1cd..d98d43f80958 100644
+--- a/lib/list_debug.c
++++ b/lib/list_debug.c
+@@ -20,7 +20,11 @@
+ bool __list_add_valid(struct list_head *new, struct list_head *prev,
+ 		      struct list_head *next)
+ {
+-	if (CHECK_DATA_CORRUPTION(next->prev != prev,
++	if (CHECK_DATA_CORRUPTION(prev == NULL,
++			"list_add corruption. prev is NULL.\n") ||
++	    CHECK_DATA_CORRUPTION(next == NULL,
++			"list_add corruption. next is NULL.\n") ||
++	    CHECK_DATA_CORRUPTION(next->prev != prev,
+ 			"list_add corruption. next->prev should be prev (%px), but was %px. (next=%px).\n",
+ 			prev, next->prev, next) ||
+ 	    CHECK_DATA_CORRUPTION(prev->next != next,
+@@ -42,7 +46,11 @@ bool __list_del_entry_valid(struct list_head *entry)
+ 	prev = entry->prev;
+ 	next = entry->next;
+ 
+-	if (CHECK_DATA_CORRUPTION(next == LIST_POISON1,
++	if (CHECK_DATA_CORRUPTION(next == NULL,
++			"list_del corruption, %px->next is NULL\n", entry) ||
++	    CHECK_DATA_CORRUPTION(prev == NULL,
++			"list_del corruption, %px->prev is NULL\n", entry) ||
++	    CHECK_DATA_CORRUPTION(next == LIST_POISON1,
+ 			"list_del corruption, %px->next is LIST_POISON1 (%px)\n",
+ 			entry, LIST_POISON1) ||
+ 	    CHECK_DATA_CORRUPTION(prev == LIST_POISON2,
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b6888b0486b6..39f9a50cf387 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2331,7 +2331,8 @@ static unsigned long reclaim_high(struct mem_cgroup *memcg,
+ 
+ 		psi_memstall_enter(&pflags);
+ 		nr_reclaimed += try_to_free_mem_cgroup_pages(memcg, nr_pages,
+-							     gfp_mask, true);
++							gfp_mask,
++							MEMCG_RECLAIM_MAY_SWAP);
+ 		psi_memstall_leave(&pflags);
+ 	} while ((memcg = parent_mem_cgroup(memcg)) &&
+ 		 !mem_cgroup_is_root(memcg));
+@@ -2576,7 +2577,7 @@ static int try_charge_memcg(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	struct page_counter *counter;
+ 	unsigned long nr_reclaimed;
+ 	bool passed_oom = false;
+-	bool may_swap = true;
++	unsigned int reclaim_options = MEMCG_RECLAIM_MAY_SWAP;
+ 	bool drained = false;
+ 	unsigned long pflags;
+ 
+@@ -2593,7 +2594,7 @@ static int try_charge_memcg(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 		mem_over_limit = mem_cgroup_from_counter(counter, memory);
+ 	} else {
+ 		mem_over_limit = mem_cgroup_from_counter(counter, memsw);
+-		may_swap = false;
++		reclaim_options &= ~MEMCG_RECLAIM_MAY_SWAP;
+ 	}
+ 
+ 	if (batch > nr_pages) {
+@@ -2620,7 +2621,7 @@ static int try_charge_memcg(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 
+ 	psi_memstall_enter(&pflags);
+ 	nr_reclaimed = try_to_free_mem_cgroup_pages(mem_over_limit, nr_pages,
+-						    gfp_mask, may_swap);
++						    gfp_mask, reclaim_options);
+ 	psi_memstall_leave(&pflags);
+ 
+ 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
+@@ -3402,8 +3403,8 @@ static int mem_cgroup_resize_max(struct mem_cgroup *memcg,
+ 			continue;
+ 		}
+ 
+-		if (!try_to_free_mem_cgroup_pages(memcg, 1,
+-					GFP_KERNEL, !memsw)) {
++		if (!try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL,
++					memsw ? 0 : MEMCG_RECLAIM_MAY_SWAP)) {
+ 			ret = -EBUSY;
+ 			break;
+ 		}
+@@ -3513,7 +3514,8 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
+ 		if (signal_pending(current))
+ 			return -EINTR;
+ 
+-		if (!try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, true))
++		if (!try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL,
++						  MEMCG_RECLAIM_MAY_SWAP))
+ 			nr_retries--;
+ 	}
+ 
+@@ -6241,7 +6243,7 @@ static ssize_t memory_high_write(struct kernfs_open_file *of,
+ 		}
+ 
+ 		reclaimed = try_to_free_mem_cgroup_pages(memcg, nr_pages - high,
+-							 GFP_KERNEL, true);
++					GFP_KERNEL, MEMCG_RECLAIM_MAY_SWAP);
+ 
+ 		if (!reclaimed && !nr_retries--)
+ 			break;
+@@ -6290,7 +6292,7 @@ static ssize_t memory_max_write(struct kernfs_open_file *of,
+ 
+ 		if (nr_reclaims) {
+ 			if (!try_to_free_mem_cgroup_pages(memcg, nr_pages - max,
+-							  GFP_KERNEL, true))
++					GFP_KERNEL, MEMCG_RECLAIM_MAY_SWAP))
+ 				nr_reclaims--;
+ 			continue;
+ 		}
+@@ -6419,6 +6421,7 @@ static ssize_t memory_reclaim(struct kernfs_open_file *of, char *buf,
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
+ 	unsigned int nr_retries = MAX_RECLAIM_RETRIES;
+ 	unsigned long nr_to_reclaim, nr_reclaimed = 0;
++	unsigned int reclaim_options;
+ 	int err;
+ 
+ 	buf = strstrip(buf);
+@@ -6426,6 +6429,7 @@ static ssize_t memory_reclaim(struct kernfs_open_file *of, char *buf,
+ 	if (err)
+ 		return err;
+ 
++	reclaim_options	= MEMCG_RECLAIM_MAY_SWAP | MEMCG_RECLAIM_PROACTIVE;
+ 	while (nr_reclaimed < nr_to_reclaim) {
+ 		unsigned long reclaimed;
+ 
+@@ -6442,7 +6446,7 @@ static ssize_t memory_reclaim(struct kernfs_open_file *of, char *buf,
+ 
+ 		reclaimed = try_to_free_mem_cgroup_pages(memcg,
+ 						nr_to_reclaim - nr_reclaimed,
+-						GFP_KERNEL, true);
++						GFP_KERNEL, reclaim_options);
+ 
+ 		if (!reclaimed && !nr_retries--)
+ 			return -EAGAIN;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 82b19744d7b0..1a52ea46f178 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -102,6 +102,9 @@ struct scan_control {
+ 	/* Can pages be swapped as part of reclaim? */
+ 	unsigned int may_swap:1;
+ 
++	/* Proactive reclaim invoked by userspace through memory.reclaim */
++	unsigned int proactive:1;
++
+ 	/*
+ 	 * Cgroup memory below memory.low is protected as long as we
+ 	 * don't threaten to OOM. If any cgroup is reclaimed at
+@@ -3129,9 +3132,10 @@ static void shrink_node_memcgs(pg_data_t *pgdat, struct scan_control *sc)
+ 			    sc->priority);
+ 
+ 		/* Record the group's reclaim efficiency */
+-		vmpressure(sc->gfp_mask, memcg, false,
+-			   sc->nr_scanned - scanned,
+-			   sc->nr_reclaimed - reclaimed);
++		if (!sc->proactive)
++			vmpressure(sc->gfp_mask, memcg, false,
++				   sc->nr_scanned - scanned,
++				   sc->nr_reclaimed - reclaimed);
+ 
+ 	} while ((memcg = mem_cgroup_iter(target_memcg, memcg, NULL)));
+ }
+@@ -3254,9 +3258,10 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 	}
+ 
+ 	/* Record the subtree's reclaim efficiency */
+-	vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
+-		   sc->nr_scanned - nr_scanned,
+-		   sc->nr_reclaimed - nr_reclaimed);
++	if (!sc->proactive)
++		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
++			   sc->nr_scanned - nr_scanned,
++			   sc->nr_reclaimed - nr_reclaimed);
+ 
+ 	if (sc->nr_reclaimed - nr_reclaimed)
+ 		reclaimable = true;
+@@ -3538,8 +3543,9 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		__count_zid_vm_events(ALLOCSTALL, sc->reclaim_idx, 1);
+ 
+ 	do {
+-		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
+-				sc->priority);
++		if (!sc->proactive)
++			vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
++					sc->priority);
+ 		sc->nr_scanned = 0;
+ 		shrink_zones(zonelist, sc);
+ 
+@@ -3829,7 +3835,7 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
+ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 					   unsigned long nr_pages,
+ 					   gfp_t gfp_mask,
+-					   bool may_swap)
++					   unsigned int reclaim_options)
+ {
+ 	unsigned long nr_reclaimed;
+ 	unsigned int noreclaim_flag;
+@@ -3842,7 +3848,8 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 		.priority = DEF_PRIORITY,
+ 		.may_writepage = !laptop_mode,
+ 		.may_unmap = 1,
+-		.may_swap = may_swap,
++		.may_swap = !!(reclaim_options & MEMCG_RECLAIM_MAY_SWAP),
++		.proactive = !!(reclaim_options & MEMCG_RECLAIM_PROACTIVE),
+ 	};
+ 	/*
+ 	 * Traverse the ZONELIST_FALLBACK zonelist of the current node to put
+-- 
+2.37.1
+

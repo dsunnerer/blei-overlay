@@ -1,0 +1,51 @@
+--- arch/parisc/kernel/cache.c	2021-12-08 19:25:44.592149987 +0100
++++ arch/parisc/kernel/cache.c-mod	2021-12-08 20:03:54.978836946 +0100
+@@ -548,7 +548,7 @@
+ void flush_cache_mm(struct mm_struct *mm)
+ {
+ 	struct vm_area_struct *vma;
+-	pgd_t *pgd;
++	VMA_ITERATOR(vmi, mm, 0);
+ 
+ 	/* Flushing the whole cache on each cpu takes forever on
+ 	   rp3440, etc.  So, avoid it if the mm isn't too big.  */
+@@ -561,7 +561,7 @@
+ 	}
+ 
+ 	if (mm->context == mfsp(3)) {
+-		for (vma = mm->mmap; vma; vma = vma->vm_next) {
++		for_each_vma(vmi, vma)
+ 			flush_user_dcache_range_asm(vma->vm_start, vma->vm_end);
+ 			if (vma->vm_flags & VM_EXEC)
+ 				flush_user_icache_range_asm(vma->vm_start, vma->vm_end);
+@@ -570,27 +570,9 @@
+ 		return;
+ 	}
+ 
+-	pgd = mm->pgd;
+-	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+-		unsigned long addr;
+-
+-		for (addr = vma->vm_start; addr < vma->vm_end;
+-		     addr += PAGE_SIZE) {
+-			unsigned long pfn;
+-			pte_t *ptep = get_ptep(pgd, addr);
+-			if (!ptep)
+-				continue;
+-			pfn = pte_pfn(*ptep);
+-			if (!pfn_valid(pfn))
+-				continue;
+-			if (unlikely(mm->context)) {
+-				flush_tlb_page(vma, addr);
+-				__flush_cache_page(vma, addr, PFN_PHYS(pfn));
+-			} else {
+-				__purge_cache_page(vma, addr, PFN_PHYS(pfn));
+-			}
+-		}
+-	}
++	for_each_vma(vmi, vma)
++		flush_cache_pages(vma, mm, vma->vm_start, vma->vm_end);
++        preempt_enable();
+ }
+ 
+ void flush_cache_range(struct vm_area_struct *vma,
