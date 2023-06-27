@@ -1,0 +1,18 @@
+--- a/libjamesdsp/subtree/Main/libjamesdsp/jni/jamesdsp/jdsp/Effects/eel2/nseel-compiler.c	2023-05-19 11:56:44.039786576 +0200
++++ b/libjamesdsp/subtree/Main/libjamesdsp/jni/jamesdsp/jdsp/Effects/eel2/nseel-compiler.c	2023-05-19 11:57:53.928988860 +0200
+@@ -1238,7 +1238,7 @@
+  ---------------------------------------------------------------------------*/
+ float kth_smallest(float a[], int n, int k)
+ {
+-	register i, j, l, m;
++	register int i, j, l, m;
+ 	register float x;
+ 
+ 	l = 0; m = n - 1;
+@@ -7685,4 +7685,4 @@
+ 		return nseel_createCompiledValue(ctx, (float)rv);
+ 	}
+ 	return nseel_createCompiledValue(ctx, (float)atof(tmp));
+-}
+\ No newline at end of file
++}

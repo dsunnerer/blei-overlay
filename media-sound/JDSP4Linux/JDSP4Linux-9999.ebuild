@@ -17,8 +17,8 @@ REQUIRED_USE="pulseaudio? ( !pipewire )
 "
 
 DEPEND="
-	dev-qt/qtcore:5=
-	dev-qt/qtsvg:5=
+	dev-qt/qtcore
+	dev-qt/qtsvg
 	dev-libs/glib
 	dev-cpp/glibmm
 	pulseaudio? (
