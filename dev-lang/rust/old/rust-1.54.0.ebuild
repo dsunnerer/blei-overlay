@@ -1,12 +1,12 @@
-# Copyright 1999-2022 Gentoo Authors
+# Copyright 1999-2021 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI=8
+EAPI=7
 
-PYTHON_COMPAT=( python3_{9..11} )
+PYTHON_COMPAT=( python3_{10..12} )
 
 inherit bash-completion-r1 check-reqs estack flag-o-matic llvm multiprocessing \
-	multilib multilib-build python-any-r1 rust-toolchain toolchain-funcs verify-sig
+	multilib-build python-any-r1 rust-toolchain toolchain-funcs verify-sig
 
 if [[ ${PV} = *beta* ]]; then
 	betaver=${PV//*beta}
@@ -42,7 +42,7 @@ LLVM_TARGET_USEDEPS=${ALL_LLVM_TARGETS[@]/%/(-)?}
 
 LICENSE="|| ( MIT Apache-2.0 ) BSD-1 BSD-2 BSD-4 UoI-NCSA"
 
-IUSE="clippy cpu_flags_x86_sse2 debug dist doc miri nightly parallel-compiler profiler rls rustfmt rust-src system-bootstrap system-llvm test wasm ${ALL_LLVM_TARGETS[*]}"
+IUSE="clippy cpu_flags_x86_sse2 debug doc miri nightly parallel-compiler rls rustfmt system-bootstrap system-llvm test wasm ${ALL_LLVM_TARGETS[*]}"
 
 # Please keep the LLVM dependency block separate. Since LLVM is slotted,
 # we need to *really* make sure we're not pulling more than one slot
@@ -50,7 +50,7 @@ IUSE="clippy cpu_flags_x86_sse2 debug dist doc miri nightly parallel-compiler pr
 
 # How to use it:
 # List all the working slots in LLVM_VALID_SLOTS, newest first.
-LLVM_VALID_SLOTS=( 15 )
+LLVM_VALID_SLOTS=( 12 )
 LLVM_MAX_SLOT="${LLVM_VALID_SLOTS[0]}"
 
 # splitting usedeps needed to avoid CI/pkgcheck's UncheckableDep limitation
@@ -98,11 +98,12 @@ BDEPEND="${PYTHON_DEPS}
 		dev-util/ninja
 	)
 	test? ( sys-devel/gdb )
-	verify-sig? ( sec-keys/openpgp-keys-rust )
+	verify-sig? ( app-crypt/openpgp-keys-rust )
 "
 
 DEPEND="
 	>=app-arch/xz-utils-5.2
+	>=dev-libs/libgit2-1.1.0:=
 	net-libs/libssh2:=
 	net-libs/http-parser:=
 	net-misc/curl:=[http2,ssl]
@@ -111,25 +112,26 @@ DEPEND="
 	elibc_musl? ( sys-libs/libunwind:= )
 	system-llvm? (
 		${LLVM_DEPEND}
-		>=sys-devel/clang-runtime-15.0[libcxx]
+		>=sys-devel/clang-runtime-8.0[libcxx]
 	)
 "
 
+# we need to block older versions due to layout changes.
 RDEPEND="${DEPEND}
 	app-eselect/eselect-rust
-	sys-apps/lsb-release
+	!<dev-lang/rust-1.47.0-r1
+	!<dev-lang/rust-bin-1.47.0-r1
 "
 
 REQUIRED_USE="|| ( ${ALL_LLVM_TARGETS[*]} )
 	miri? ( nightly )
 	parallel-compiler? ( nightly )
-	rls? ( rust-src )
 	test? ( ${ALL_LLVM_TARGETS[*]} )
 	wasm? ( llvm_targets_WebAssembly )
 	x86? ( cpu_flags_x86_sse2 )
 "
 
-# we don't use cmake.eclass, but can get a warning
+# we don't use cmake.eclass, but can get a warnings
 CMAKE_WARN_UNUSED_CLI=no
 
 QA_FLAGS_IGNORED="
@@ -145,21 +147,16 @@ QA_SONAME="
 	usr/lib/${PN}/${PV}/lib/rustlib/.*/lib/lib.*.so
 "
 
-QA_PRESTRIPPED="
-	usr/lib/${PN}/${PV}/lib/rustlib/.*/bin/rust-llvm-dwp
-"
-
-# An rmeta file is custom binary format that contains the metadata for the crate.
-# rmeta files do not support linking, since they do not contain compiled object files.
-# so we can safely silence the warning for this QA check.
-QA_EXECSTACK="usr/lib/${PN}/${PV}/lib/rustlib/*/lib*.rlib:lib.rmeta"
-
 # causes double bootstrap
 RESTRICT="test"
 
 VERIFY_SIG_OPENPGP_KEY_PATH=${BROOT}/usr/share/openpgp-keys/rust.asc
 
 PATCHES=(
+	"${FILESDIR}"/1.47.0-ignore-broken-and-non-applicable-tests.patch
+	"${FILESDIR}"/1.53.0-rustversion-1.0.5.patch # https://github.com/rust-lang/rust/pull/86425
+	"${FILESDIR}"/0001-Use-lld-provided-by-system-for-wasm.patch
+	"${FILESDIR}"/0002-compiler-Change-LLVM-targets.patch
 )
 
 S="${WORKDIR}/${MY_P}-src"
@@ -193,10 +190,10 @@ bootstrap_rust_version_check() {
 }
 
 pre_build_checks() {
-	local M=8192
-	# multiply requirements by 1.3 if we are doing x86-multilib
+	local M=4096
+	# multiply requirements by 1.5 if we are doing x86-multilib
 	if use amd64; then
-		M=$(( $(usex abi_x86_32 13 10) * ${M} / 10 ))
+		M=$(( $(usex abi_x86_32 15 10) * ${M} / 10 ))
 	fi
 	M=$(( $(usex clippy 128 0) + ${M} ))
 	M=$(( $(usex miri 128 0) + ${M} ))
@@ -237,7 +234,6 @@ pkg_setup() {
 	# required to link agains system libs, otherwise
 	# crates use bundled sources and compile own static version
 	export LIBGIT2_SYS_USE_PKG_CONFIG=1
-	export LIBGIT2_NO_PKG_CONFIG=0 #749381
 	export LIBSSH2_SYS_USE_PKG_CONFIG=1
 	export PKG_CONFIG_ALLOW_CROSS=1
 
@@ -274,9 +270,8 @@ src_prepare() {
 		rm -rf src/ci
 	fi
 
-	# Remove other unused vendored libraries
-	rm -rf vendor/*jemalloc-sys*/jemalloc/
-	rm -rf vendor/libmimalloc-sys/c_src/mimalloc/
+	# Remove other unused vendored libraries 
+	rm -rf vendor/jemalloc-sys/jemalloc/
 	rm -rf vendor/openssl-src/openssl/
 
 	# Remove hidden files from source
@@ -313,6 +308,11 @@ src_configure() {
 	done
 	if use wasm; then
 		rust_targets="${rust_targets},\"wasm32-unknown-unknown\""
+		if use system-llvm; then
+			# un-hardcode rust-lld linker for this target
+			# https://bugs.gentoo.org/715348
+			sed -i '/linker:/ s/rust-lld/wasm-ld/' compiler/rustc_target/src/spec/wasm_base.rs || die
+		fi
 	fi
 	rust_targets="${rust_targets#,}"
 
@@ -323,17 +323,11 @@ src_configure() {
 	if use miri; then
 		tools="\"miri\",$tools"
 	fi
-	if use profiler; then
-		tools="\"rust-demangler\",$tools"
-	fi
 	if use rls; then
-		tools="\"rls\",\"analysis\",$tools"
+		tools="\"rls\",\"analysis\",\"src\",$tools"
 	fi
 	if use rustfmt; then
 		tools="\"rustfmt\",$tools"
-	fi
-	if use rust-src; then
-		tools="\"src\",$tools"
 	fi
 
 	local rust_stage0_root
@@ -349,15 +343,6 @@ src_configure() {
 
 	rust_target="$(rust_abi)"
 
-	# https://bugs.gentoo.org/732632
-	if tc-is-clang; then
-		local clang_slot="$(clang-major-version)"
-		if { has_version "sys-devel/clang:${clang_slot}[default-libcxx]" || is-flagq -stdlib=libc++; }; then
-			use_libcxx="true"
-		fi
-	fi
-
-	local cm_btype="$(usex debug DEBUG RELEASE)"
 	cat <<- _EOF_ > "${S}"/config.toml
 		changelog-seen = 2
 		[llvm]
@@ -371,19 +356,8 @@ src_configure() {
 		experimental-targets = ""
 		link-jobs = $(makeopts_jobs)
 		link-shared =  $(toml_usex system-llvm)
-		skip-rebuild = true
-		static-libstdcpp = $(usex system-llvm false true)
 		use-libcxx =  $(toml_usex system-llvm)
 		use-linker = "lld"
-
-		[llvm.build-config]
-		CMAKE_VERBOSE_MAKEFILE = "ON"
-		CMAKE_C_FLAGS_${cm_btype} = "${CFLAGS}"
-		CMAKE_CXX_FLAGS_${cm_btype} = "${CXXFLAGS}"
-		CMAKE_EXE_LINKER_FLAGS_${cm_btype} = "${LDFLAGS}"
-		CMAKE_MODULE_LINKER_FLAGS_${cm_btype} = "${LDFLAGS}"
-		CMAKE_SHARED_LINKER_FLAGS_${cm_btype} = "${LDFLAGS}"
-		CMAKE_STATIC_LINKER_FLAGS_${cm_btype} = "${ARFLAGS}"
 
 		[build]
 		build-stage = 2
@@ -397,9 +371,7 @@ src_configure() {
 		rustfmt = "${rust_stage0_root}/bin/rustfmt"
 		docs = $(toml_usex doc)
 		compiler-docs = $(toml_usex doc)
-		#
-		submodules = false
-		#
+		submodules = true
 		python = "${EPYTHON}"
 		locked-deps = false
 		vendor = true
@@ -407,7 +379,7 @@ src_configure() {
 		tools = [${tools}]
 		verbose = 2
 		sanitizers = false
-		profiler = $(toml_usex profiler)
+		profiler = false
 		cargo-native-static = false
 		local-rebuild = false
 
@@ -420,10 +392,9 @@ src_configure() {
 		mandir = "share/man"
 
 		[rust]
-		# https://github.com/rust-lang/rust/issues/54872
-		codegen-units-std = 1
 		optimize = true
 		debug = $(toml_usex debug)
+		codegen-units-std = 1
 		debug-assertions = $(toml_usex debug)
 		debug-assertions-std = $(toml_usex debug)
 		debuginfo-level = $(usex debug 2 0)
@@ -455,7 +426,7 @@ src_configure() {
 
 		[dist]
 		src-tarball = false
-		compression-formats = ["xz"]
+		compression-formats = ["gz"]
 	_EOF_
 
 	for v in $(multilib_get_enabled_abi_pairs); do
@@ -468,10 +439,10 @@ src_configure() {
 
 		cat <<- _EOF_ >> "${S}"/config.toml
 			[target.${rust_target}]
-			ar = "$(tc-getAR)"
-			cc = "$(tc-getCC)"
-			cxx = "$(tc-getCXX)"
+			cc = "$(tc-getBUILD_CC)"
+			cxx = "$(tc-getBUILD_CXX)"
 			linker = "$(tc-getCC)"
+			ar = "$(tc-getAR)"
 			ranlib = "$(tc-getRANLIB)"
 		_EOF_
 		# librustc_target/spec/linux_musl_base.rs sets base.crt_static_default = true;
@@ -490,8 +461,6 @@ src_configure() {
 		cat <<- _EOF_ >> "${S}"/config.toml
 			[target.wasm32-unknown-unknown]
 			linker = "$(usex system-llvm lld rust-lld)"
-			# wasm target does not have profiler_builtins https://bugs.gentoo.org/848483
-			profiler = false
 		_EOF_
 	fi
 
@@ -537,11 +506,10 @@ src_configure() {
 
 		cat <<- _EOF_ >> "${S}"/config.toml
 			[target.${cross_rust_target}]
-			ar = "${cross_toolchain}-ar"
 			cc = "${cross_toolchain}-gcc"
 			cxx = "${cross_toolchain}-g++"
 			linker = "${cross_toolchain}-gcc"
-			ranlib = "${cross_toolchain}-ranlib"
+			ar = "${cross_toolchain}-ar"
 		_EOF_
 		if use system-llvm; then
 			cat <<- _EOF_ >> "${S}"/config.toml
@@ -679,7 +647,6 @@ src_install() {
 
 	use clippy && symlinks+=( clippy-driver cargo-clippy )
 	use miri && symlinks+=( miri cargo-miri )
-	use profiler && symlinks+=( rust-demangler )
 	use rls && symlinks+=( rls )
 	use rustfmt && symlinks+=( rustfmt cargo-fmt )
 
@@ -739,9 +706,6 @@ src_install() {
 		echo /usr/bin/miri >> "${T}/provider-${P}"
 		echo /usr/bin/cargo-miri >> "${T}/provider-${P}"
 	fi
-	if use profiler; then
-		echo /usr/bin/rust-demangler >> "${T}/provider-${P}"
-	fi
 	if use rls; then
 		echo /usr/bin/rls >> "${T}/provider-${P}"
 	fi
@@ -752,11 +716,6 @@ src_install() {
 
 	insinto /etc/env.d/rust
 	doins "${T}/provider-${P}"
-
-	if use dist; then
-		insinto "/usr/lib/${PN}/${PV}/dist"
-		doins -r "${S}/build/dist/."
-	fi
 }
 
 pkg_postinst() {
