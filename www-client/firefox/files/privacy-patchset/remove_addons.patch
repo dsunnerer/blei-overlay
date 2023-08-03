@@ -56,9 +56,9 @@ index 7a6599740b20..7f976679eefc 100644
  # non-central apps might want to use %(topsrcdir)s here, or other vars
 diff --git a/browser/locales/l10n.toml b/browser/locales/l10n.toml
 index e9d50107cb10..914a2f1a6310 100644
---- a/browser/locales/l10n.toml
-+++ b/browser/locales/l10n.toml
-@@ -135,11 +135,6 @@
+--- a/browser/locales/l10n.toml	2023-07-10 21:29:38.000000000 +0200
++++ b/browser/locales/l10n.toml	2023-07-18 09:43:58.584894026 +0200
+@@ -135,10 +135,6 @@
      reference = "browser/extensions/formautofill/locales/en-US/**"
      l10n = "{l}browser/extensions/formautofill/**"
  
@@ -66,10 +66,9 @@ index e9d50107cb10..914a2f1a6310 100644
 -    reference = "browser/extensions/report-site-issue/locales/en-US/**"
 -    l10n = "{l}browser/extensions/report-site-issue/**"
 -
--
+ 
  [[includes]]
      path = "toolkit/locales/l10n.toml"
-
 -- 
 2.37.3
 
