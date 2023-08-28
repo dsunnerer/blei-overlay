@@ -3,7 +3,7 @@
 
 EAPI="6"
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="11"
+K_GENPATCHES_VER="1"
 UNIPATCH_STRICTORDER="1"
 K_SECURITY_UNSUPPORTED="1"
 K_NOSETEXTRAVERSION="1"
@@ -22,11 +22,10 @@ SRC_URI="
 
 src_unpack() {
 	UNIPATCH_LIST_DEFAULT=""
-	CACHY_PATCHES="${FILESDIR}/cachy-patches/6.4/all/0001-cachyos-base-all-dev.patch
-			${FILESDIR}/cachy-patches/6.4/misc/0001-lrng.patch
-			${FILESDIR}/cachy-patches/6.4/sched/0001-EEVDF.patch
-			${FILESDIR}/cachy-patches/6.4/sched/0001-bore-eevdf.patch
-			${FILESDIR}/tlb-flush.patch"
+	CACHY_PATCHES="${FILESDIR}/cachy-patches/6.5/all/0001-cachyos-base-all.patch
+			${FILESDIR}/cachy-patches/6.5/misc/0001-lrng.patch
+			${FILESDIR}/cachy-patches/6.5/sched/0001-EEVDF-cachy.patch
+			${FILESDIR}/cachy-patches/6.5/sched/0001-bore-eevdf.patch"
 
 	kernel-2-src-prepare-overlay_src_unpack
 
