@@ -118,7 +118,7 @@ src_prepare() {
 		eapply "${FILESDIR}/make-advpng.patch"
 	fi
 
-	sed -i -e "s/GAME = crawl$/GAME = crawl-${SLOT}/" "${S}/Makefile" ||
+	sed -i -e "s/GAME = crawl$/GAME = crawl-git/" "${S}/Makefile" ||
 		die "Couldn't append slot to executable name"
 
 	# File required for a _pre build
@@ -165,7 +165,7 @@ src_compile() {
 	if use ncurses || (use !ncurses && use !tiles); then
 		emake "${myemakeargs[@]}"
 		# move it in case we build both variants
-		use tiles && { mv "crawl-9999" "${WORKDIR}"/crawl-ncurses-git || die; }
+		use tiles && { mv "crawl-git" "${WORKDIR}"/crawl-ncurses-git || die; }
 	fi
 
 	if use tiles; then
