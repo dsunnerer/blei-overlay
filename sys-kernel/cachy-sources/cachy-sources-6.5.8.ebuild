@@ -24,8 +24,8 @@ src_unpack() {
 	UNIPATCH_LIST_DEFAULT=""
 	CACHY_PATCHES="${FILESDIR}/cachy-patches/6.5/all/0001-cachyos-base-all.patch
 			${FILESDIR}/cachy-patches/6.5/misc/0001-lrng.patch
-			${FILESDIR}/cachy-patches/6.5/sched/0001-EEVDF-cachy.patch
-			${FILESDIR}/cachy-patches/6.5/sched/0001-bore-eevdf.patch"
+			${FILESDIR}/cachy-patches/6.5/sched-dev/0001-EEVDF-cachy.patch
+			${FILESDIR}/cachy-patches/6.5/sched-dev/0001-bore-eevdf.patch"
 
 	kernel-2-src-prepare-overlay_src_unpack
 
