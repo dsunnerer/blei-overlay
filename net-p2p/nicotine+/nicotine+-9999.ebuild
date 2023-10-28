@@ -3,7 +3,7 @@
 
 EAPI=7
 
-PYTHON_COMPAT=( python3_{9,10,11} )
+PYTHON_COMPAT=(python3_{10,11,12})
 
 EGIT_REPO_URI="https://github.com/nicotine-plus/nicotine-plus.git"
 
@@ -35,7 +35,7 @@ S="${WORKDIR}/${P}"
 
 src_install() {
 	distutils-r1_src_install
-#	mv "${ED}/usr/share/doc/nicotine" "${ED}/usr/share/doc/${PF}" || die
+	#	mv "${ED}/usr/share/doc/nicotine" "${ED}/usr/share/doc/${PF}" || die
 }
 
 pkg_postinst() {
