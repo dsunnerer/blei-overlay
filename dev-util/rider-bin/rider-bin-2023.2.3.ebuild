@@ -4,9 +4,9 @@
 EAPI=7
 inherit desktop
 
-DESCRIPTION="Ruby IDE"
-HOMEPAGE="https://www.jetbrains.com/rubymine/"
-SRC_URI="https://download.jetbrains.com/ruby/RubyMine-${PV}.tar.gz"
+DESCRIPTION="C# IDE"
+HOMEPAGE="https://www.jetbrains.com/rider/"
+SRC_URI="https://download.jetbrains.com/rider/JetBrains.Rider-${PV}.tar.gz"
 
 LICENSE="all-rights-reserved"
 SLOT="0"
@@ -17,15 +17,16 @@ DEPEND=""
 RDEPEND="${DEPEND}
 	dev-java/jetbrains-jre-bin
 	dev-java/jansi-native
-	dev-libs/libdbusmenu"
+	dev-libs/libdbusmenu
+	dev-util/lldb"
 BDEPEND="dev-util/patchelf"
 
-_CAP_IDE=RubyMine
-_IDE=rubymine
+_CAP_IDE=Rider
+_IDE=rider
 
 RESTRICT="strip splitdebug mirror"
 
-S="${WORKDIR}/${_CAP_IDE}-${PV}"
+S="${WORKDIR}/JetBrains Rider-${PV}"
 
 src_prepare() {
 	rm -vf "${S}"/plugins/maven/lib/maven3/lib/jansi-native/*/libjansi*
@@ -49,7 +50,7 @@ src_install() {
 
 	insinto "${dir}"
 	doins -r *
-	fperms 755 "${dir}"/bin/{format.sh,${_IDE}.sh,printenv.py,restart.py,fsnotifier}
+	fperms 755 "${dir}"/bin/{format.sh,${_IDE}.sh,inspect.sh,restart.py,fsnotifier}
 
 	dosym "${dir}/bin/${_IDE}.sh" "/usr/bin/${PN}"
 	dosym "${dir}/bin/${_IDE}.png" "/usr/share/pixmaps/${PN}.png"

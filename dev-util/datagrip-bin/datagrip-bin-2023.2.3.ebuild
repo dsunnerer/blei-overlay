@@ -4,9 +4,9 @@
 EAPI=7
 inherit desktop
 
-DESCRIPTION="Ruby IDE"
-HOMEPAGE="https://www.jetbrains.com/rubymine/"
-SRC_URI="https://download.jetbrains.com/ruby/RubyMine-${PV}.tar.gz"
+DESCRIPTION="Database IDE"
+HOMEPAGE="https://www.jetbrains.com/datagrip/"
+SRC_URI="https://download.jetbrains.com/datagrip/datagrip-${PV}.tar.gz"
 
 LICENSE="all-rights-reserved"
 SLOT="0"
@@ -20,8 +20,8 @@ RDEPEND="${DEPEND}
 	dev-libs/libdbusmenu"
 BDEPEND="dev-util/patchelf"
 
-_CAP_IDE=RubyMine
-_IDE=rubymine
+_CAP_IDE=DataGrip
+_IDE=datagrip
 
 RESTRICT="strip splitdebug mirror"
 
@@ -31,7 +31,6 @@ src_prepare() {
 	rm -vf "${S}"/plugins/maven/lib/maven3/lib/jansi-native/*/libjansi*
 	rm -vrf "${S}"/lib/pty4j-native/linux/ppc64le
 	rm -vf "${S}"/bin/libdbm64*
-	rm -vrf "${S}"/jbr
 
 	sed -i \
 		-e "\$a\\\\" \
@@ -49,7 +48,7 @@ src_install() {
 
 	insinto "${dir}"
 	doins -r *
-	fperms 755 "${dir}"/bin/{format.sh,${_IDE}.sh,restart.py,fsnotifier}
+	fperms 755 "${dir}"/bin/{format.sh,${_IDE}.sh,inspect.sh,restart.py,fsnotifier}
 
 	dosym "${dir}/bin/${_IDE}.sh" "/usr/bin/${PN}"
 	dosym "${dir}/bin/${_IDE}.png" "/usr/share/pixmaps/${PN}.png"

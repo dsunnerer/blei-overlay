@@ -4,9 +4,9 @@
 EAPI=7
 inherit desktop
 
-DESCRIPTION="Ruby IDE"
-HOMEPAGE="https://www.jetbrains.com/rubymine/"
-SRC_URI="https://download.jetbrains.com/ruby/RubyMine-${PV}.tar.gz"
+DESCRIPTION="Intelligent Java IDE"
+HOMEPAGE="https://www.jetbrains.com/idea/"
+SRC_URI="https://download.jetbrains.com/idea/ideaIU-${PV}.tar.gz"
 
 LICENSE="all-rights-reserved"
 SLOT="0"
@@ -20,18 +20,18 @@ RDEPEND="${DEPEND}
 	dev-libs/libdbusmenu"
 BDEPEND="dev-util/patchelf"
 
-_CAP_IDE=RubyMine
-_IDE=rubymine
-
 RESTRICT="strip splitdebug mirror"
 
-S="${WORKDIR}/${_CAP_IDE}-${PV}"
+src_unpack() {
+	default_src_unpack
+
+	mv idea-IU* "${P}"
+}
 
 src_prepare() {
 	rm -vf "${S}"/plugins/maven/lib/maven3/lib/jansi-native/*/libjansi*
 	rm -vrf "${S}"/lib/pty4j-native/linux/ppc64le
 	rm -vf "${S}"/bin/libdbm64*
-	rm -vrf "${S}"/jbr
 
 	sed -i \
 		-e "\$a\\\\" \
@@ -39,7 +39,7 @@ src_prepare() {
 		-e "\$a# Disable automatic updates as these are handled through Gentoo's" \
 		-e "\$a# package manager. See bug #704494" \
 		-e "\$a#-----------------------------------------------------------------------" \
-		-e "\$aide.no.platform.update=Gentoo"  bin/idea.properties
+		-e "\$aide.no.platform.update=Gentoo" bin/idea.properties
 
 	eapply_user
 }
@@ -49,13 +49,13 @@ src_install() {
 
 	insinto "${dir}"
 	doins -r *
-	fperms 755 "${dir}"/bin/{format.sh,${_IDE}.sh,printenv.py,restart.py,fsnotifier}
+	fperms 755 "${dir}"/bin/{format.sh,idea.sh,inspect.sh,restart.py,fsnotifier}
 
-	dosym "${dir}/bin/${_IDE}.sh" "/usr/bin/${PN}"
-	dosym "${dir}/bin/${_IDE}.png" "/usr/share/pixmaps/${PN}.png"
-	make_desktop_entry "${PN}" "${_CAP_IDE}" "${PN}" "Development;IDE;" "StartupWMClass=jetbrains-${IDE}"
+	dosym "${dir}/bin/idea.sh" "/usr/bin/${PN}"
+	dosym "${dir}/bin/idea.png" "/usr/share/pixmaps/${PN}.png"
+	make_desktop_entry "${PN}" "IntelliJ IDEA" "${PN}" "Development;IDE;" "StartupWMClass=jetbrains-idea"
 
 	# recommended by: https://confluence.jetbrains.com/display/IDEADEV/Inotify+Watches+Limit
 	mkdir -p "${D}/etc/sysctl.d/" || die
-	echo "fs.inotify.max_user_watches = 524288" > "${D}/etc/sysctl.d/30-idea-inotify-watches.conf" || die
+	echo "fs.inotify.max_user_watches = 524288" >"${D}/etc/sysctl.d/30-idea-inotify-watches.conf" || die
 }

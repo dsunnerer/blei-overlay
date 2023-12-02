@@ -4,9 +4,9 @@
 EAPI=7
 inherit desktop
 
-DESCRIPTION="Ruby IDE"
-HOMEPAGE="https://www.jetbrains.com/rubymine/"
-SRC_URI="https://download.jetbrains.com/ruby/RubyMine-${PV}.tar.gz"
+DESCRIPTION="PHP IDE"
+HOMEPAGE="https://www.jetbrains.com/phpstorm/"
+SRC_URI="https://download.jetbrains.com/webide/PhpStorm-${PV}.tar.gz"
 
 LICENSE="all-rights-reserved"
 SLOT="0"
@@ -20,12 +20,13 @@ RDEPEND="${DEPEND}
 	dev-libs/libdbusmenu"
 BDEPEND="dev-util/patchelf"
 
-_CAP_IDE=RubyMine
-_IDE=rubymine
+_PV="232.10227.13"
+_CAP_IDE=PhpStorm
+_IDE=phpstorm
 
 RESTRICT="strip splitdebug mirror"
 
-S="${WORKDIR}/${_CAP_IDE}-${PV}"
+S="${WORKDIR}/${_CAP_IDE}-${_PV}"
 
 src_prepare() {
 	rm -vf "${S}"/plugins/maven/lib/maven3/lib/jansi-native/*/libjansi*
@@ -39,7 +40,7 @@ src_prepare() {
 		-e "\$a# Disable automatic updates as these are handled through Gentoo's" \
 		-e "\$a# package manager. See bug #704494" \
 		-e "\$a#-----------------------------------------------------------------------" \
-		-e "\$aide.no.platform.update=Gentoo"  bin/idea.properties
+		-e "\$aide.no.platform.update=Gentoo" bin/idea.properties
 
 	eapply_user
 }
@@ -49,7 +50,7 @@ src_install() {
 
 	insinto "${dir}"
 	doins -r *
-	fperms 755 "${dir}"/bin/{format.sh,${_IDE}.sh,printenv.py,restart.py,fsnotifier}
+	fperms 755 "${dir}"/bin/{format.sh,${_IDE}.sh,inspect.sh,restart.py,fsnotifier}
 
 	dosym "${dir}/bin/${_IDE}.sh" "/usr/bin/${PN}"
 	dosym "${dir}/bin/${_IDE}.png" "/usr/share/pixmaps/${PN}.png"
@@ -57,5 +58,5 @@ src_install() {
 
 	# recommended by: https://confluence.jetbrains.com/display/IDEADEV/Inotify+Watches+Limit
 	mkdir -p "${D}/etc/sysctl.d/" || die
-	echo "fs.inotify.max_user_watches = 524288" > "${D}/etc/sysctl.d/30-idea-inotify-watches.conf" || die
+	echo "fs.inotify.max_user_watches = 524288" >"${D}/etc/sysctl.d/30-idea-inotify-watches.conf" || die
 }
