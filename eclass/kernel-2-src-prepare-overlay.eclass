@@ -602,7 +602,7 @@ if [[ ${ETYPE} == sources ]]; then
 	RDEPEND="!build? (
 		dev-lang/perl
 		sys-devel/bc
-		sys-devel/make
+		dev-build/make
 		>=sys-libs/ncurses-5.2
 		virtual/libelf
 	)"
@@ -1233,7 +1233,7 @@ unipatch() {
 			local GCC_MINOR_VER=$(gcc-minor-version)
 
 			# optimization patch for gcc < 8.X and kernel > 4.13
-			if kernel_is ge 4 13 ; then 
+			if kernel_is ge 4 13 ; then
 				if [[ ${GCC_MAJOR_VER} -lt 8 ]] && [[ ${GCC_MAJOR_VER} -gt 4 ]]; then
 					UNIPATCH_DROP+=" 5011_enable-cpu-optimizations-for-gcc8.patch"
 					UNIPATCH_DROP+=" 5012_enable-cpu-optimizations-for-gcc91.patch"
