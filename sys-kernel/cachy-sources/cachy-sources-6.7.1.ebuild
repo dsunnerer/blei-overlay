@@ -23,6 +23,7 @@ SRC_URI="
 src_unpack() {
 	UNIPATCH_LIST_DEFAULT=""
 	CACHY_PATCHES="${FILESDIR}/cachy-patches/6.7/all/0001-cachyos-base-all.patch
+			${FILESDIR}/cachy-patches/6.7/misc/0001-ntsync.patch
 			${FILESDIR}/cachy-patches/6.7/misc/0001-lrng.patch
 			${FILESDIR}/cachy-patches/6.7/sched/0001-bore-cachy.patch"
 
