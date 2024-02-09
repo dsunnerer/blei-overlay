@@ -1,29 +1,28 @@
-# Copyright 1999-2021 Gentoo Authors
+# Copyright 1999-2023 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI=7
+EAPI=8
 
-PYTHON_COMPAT=( python3_{11..12} )
+PYTHON_COMPAT=( python3_{9..12} )
 
 inherit bash-completion-r1 check-reqs estack flag-o-matic llvm multiprocessing \
-	multilib-build python-any-r1 rust-toolchain toolchain-funcs verify-sig
+	multilib multilib-build python-any-r1 rust-toolchain toolchain-funcs verify-sig
 
 if [[ ${PV} = *beta* ]]; then
 	betaver=${PV//*beta}
-	BETA_SNAPSHOT=""
+	BETA_SNAPSHOT="${betaver:0:4}-${betaver:4:2}-${betaver:6:2}"
 	MY_P="rustc-beta"
 	SLOT="beta/${PV}"
-	SRC="rustc-beta-src.tar.xz"
+	SRC="${BETA_SNAPSHOT}/rustc-beta-src.tar.xz -> rustc-${PV}-src.tar.xz"
 else
 	ABI_VER="$(ver_cut 1-2)"
 	SLOT="stable/${ABI_VER}"
 	MY_P="rustc-${PV}"
 	SRC="${MY_P}-src.tar.xz"
-	KEYWORDS="~amd64 ~arm ~arm64 ~ppc64 ~riscv ~x86"
+	KEYWORDS="~amd64 ~arm ~arm64 ~loong ~mips ~ppc ~ppc64 ~riscv ~sparc ~x86"
 fi
 
-RUST_STAGE0_VERSION=${PV}
-#RUST_STAGE0_VERSION="1.$(($(ver_cut 2) - 1)).0"
+RUST_STAGE0_VERSION="1.$(($(ver_cut 2) - 1)).1"
 
 DESCRIPTION="Systems programming language from Mozilla"
 HOMEPAGE="https://www.rust-lang.org/"
@@ -35,14 +34,14 @@ SRC_URI="
 "
 
 # keep in sync with llvm ebuild of the same version as bundled one.
-ALL_LLVM_TARGETS=( AArch64 AMDGPU ARM AVR BPF Hexagon Lanai Mips MSP430
-	NVPTX PowerPC RISCV Sparc SystemZ WebAssembly X86 XCore )
+ALL_LLVM_TARGETS=( AArch64 AMDGPU ARM AVR BPF Hexagon Lanai LoongArch Mips MSP430
+	NVPTX PowerPC RISCV Sparc SystemZ VE WebAssembly X86 XCore )
 ALL_LLVM_TARGETS=( "${ALL_LLVM_TARGETS[@]/#/llvm_targets_}" )
 LLVM_TARGET_USEDEPS=${ALL_LLVM_TARGETS[@]/%/(-)?}
 
-LICENSE="|| ( MIT Apache-2.0 ) BSD-1 BSD-2 BSD-4 UoI-NCSA"
+LICENSE="|| ( MIT Apache-2.0 ) BSD BSD-1 BSD-2 BSD-4 UoI-NCSA"
 
-IUSE="clippy cpu_flags_x86_sse2 debug doc miri nightly parallel-compiler rls rustfmt rust-src system-bootstrap system-llvm test wasm ${ALL_LLVM_TARGETS[*]}"
+IUSE="big-endian clippy cpu_flags_x86_sse2 debug dist doc llvm-libunwind +lto miri nightly parallel-compiler profiler rustfmt rust-analyzer rust-src system-bootstrap system-llvm test wasm ${ALL_LLVM_TARGETS[*]}"
 
 # Please keep the LLVM dependency block separate. Since LLVM is slotted,
 # we need to *really* make sure we're not pulling more than one slot
@@ -50,7 +49,7 @@ IUSE="clippy cpu_flags_x86_sse2 debug doc miri nightly parallel-compiler rls rus
 
 # How to use it:
 # List all the working slots in LLVM_VALID_SLOTS, newest first.
-LLVM_VALID_SLOTS=( 13 )
+LLVM_VALID_SLOTS=( 17 )
 LLVM_MAX_SLOT="${LLVM_VALID_SLOTS[0]}"
 
 # splitting usedeps needed to avoid CI/pkgcheck's UncheckableDep limitation
@@ -60,21 +59,21 @@ for _s in ${LLVM_VALID_SLOTS[@]}; do
 	LLVM_DEPEND+=" ( "
 	for _x in ${ALL_LLVM_TARGETS[@]}; do
 		LLVM_DEPEND+="
-			${_x}? ( sys-devel/llvm:${_s}[${_x}(-)] )"
+			${_x}? ( sys-devel/llvm:${_s}[${_x}(-)] )
+			wasm? ( sys-devel/lld:${_s} )"
 	done
 	LLVM_DEPEND+=" )"
 done
 unset _s _x
 LLVM_DEPEND+=" )
 	<sys-devel/llvm-$(( LLVM_MAX_SLOT + 1 )):=
-	wasm? ( sys-devel/lld )
 "
 
 # to bootstrap we need at least exactly previous version, or same.
 # most of the time previous versions fail to bootstrap with newer
 # for example 1.47.x, requires at least 1.46.x, 1.47.x is ok,
 # but it fails to bootstrap with 1.48.x
-# https://github.com/rust-lang/rust/blob/${PV}/src/stage0.txt
+# https://github.com/rust-lang/rust/blob/${PV}/src/stage0.json
 RUST_DEP_PREV="$(ver_cut 1).$(($(ver_cut 2) - 1))*"
 RUST_DEP_CURR="$(ver_cut 1).$(ver_cut 2)*"
 BOOTSTRAP_DEPEND="||
@@ -98,40 +97,40 @@ BDEPEND="${PYTHON_DEPS}
 		dev-build/ninja
 	)
 	test? ( sys-devel/gdb )
-	verify-sig? ( app-crypt/openpgp-keys-rust )
+	verify-sig? ( sec-keys/openpgp-keys-rust )
 "
 
 DEPEND="
 	>=app-arch/xz-utils-5.2
-	net-libs/libssh2:=
-	net-libs/http-parser:=
 	net-misc/curl:=[http2,ssl]
 	sys-libs/zlib:=
 	dev-libs/openssl:0=
-	elibc_musl? ( sys-libs/libunwind:= )
 	system-llvm? (
 		${LLVM_DEPEND}
-		>=sys-devel/clang-runtime-8.0[libcxx]
+		llvm-libunwind? ( sys-libs/llvm-libunwind:= )
+	)
+	!system-llvm? (
+		!llvm-libunwind? (
+			elibc_musl? ( sys-libs/libunwind:= )
+		)
 	)
 "
 
-# we need to block older versions due to layout changes.
 RDEPEND="${DEPEND}
 	app-eselect/eselect-rust
-	!<dev-lang/rust-1.47.0-r1
-	!<dev-lang/rust-bin-1.47.0-r1
+	sys-apps/lsb-release
 "
 
 REQUIRED_USE="|| ( ${ALL_LLVM_TARGETS[*]} )
 	miri? ( nightly )
 	parallel-compiler? ( nightly )
-	rls? ( rust-src )
+	rust-analyzer? ( rust-src )
 	test? ( ${ALL_LLVM_TARGETS[*]} )
 	wasm? ( llvm_targets_WebAssembly )
 	x86? ( cpu_flags_x86_sse2 )
 "
 
-# we don't use cmake.eclass, but can get a warnings
+# we don't use cmake.eclass, but can get a warning
 CMAKE_WARN_UNUSED_CLI=no
 
 QA_FLAGS_IGNORED="
@@ -147,6 +146,11 @@ QA_SONAME="
 	usr/lib/${PN}/${PV}/lib/rustlib/.*/lib/lib.*.so
 "
 
+QA_PRESTRIPPED="
+	usr/lib/${PN}/${PV}/lib/rustlib/.*/bin/rust-llvm-dwp
+	usr/lib/${PN}/${PV}/lib/rustlib/.*/lib/self-contained/crtn.o
+"
+
 # An rmeta file is custom binary format that contains the metadata for the crate.
 # rmeta files do not support linking, since they do not contain compiled object files.
 # so we can safely silence the warning for this QA check.
@@ -158,11 +162,9 @@ RESTRICT="test"
 VERIFY_SIG_OPENPGP_KEY_PATH=${BROOT}/usr/share/openpgp-keys/rust.asc
 
 PATCHES=(
-	"${FILESDIR}"/1.55.0-ignore-broken-and-non-applicable-tests.patch
-	"${FILESDIR}"/1.57.0-selfbootstrap.patch
-	"${FILESDIR}"/0001-Use-lld-provided-by-system-for-wasm.patch
-	"${FILESDIR}"/0002-compiler-Change-LLVM-targets.patch
-	"${FILESDIR}"/rust-pr91070.patch
+	"${FILESDIR}"/1.70.0-ignore-broken-and-non-applicable-tests.patch
+	"${FILESDIR}"/1.62.1-musl-dynamic-linking.patch
+	"${FILESDIR}"/1.67.0-doc-wasm.patch
 )
 
 S="${WORKDIR}/${MY_P}-src"
@@ -196,14 +198,13 @@ bootstrap_rust_version_check() {
 }
 
 pre_build_checks() {
-	local M=4096
-	# multiply requirements by 1.5 if we are doing x86-multilib
+	local M=8192
+	# multiply requirements by 1.3 if we are doing x86-multilib
 	if use amd64; then
-		M=$(( $(usex abi_x86_32 15 10) * ${M} / 10 ))
+		M=$(( $(usex abi_x86_32 13 10) * ${M} / 10 ))
 	fi
 	M=$(( $(usex clippy 128 0) + ${M} ))
 	M=$(( $(usex miri 128 0) + ${M} ))
-	M=$(( $(usex rls 512 0) + ${M} ))
 	M=$(( $(usex rustfmt 256 0) + ${M} ))
 	# add 2G if we compile llvm and 256M per llvm_target
 	if ! use system-llvm; then
@@ -229,6 +230,17 @@ llvm_check_deps() {
 	has_version -r "sys-devel/llvm:${LLVM_SLOT}[${LLVM_TARGET_USEDEPS// /,}]"
 }
 
+# Is LLVM being linked against libc++?
+is_libcxx_linked() {
+	local code='#include <ciso646>
+#if defined(_LIBCPP_VERSION)
+	HAVE_LIBCXX
+#endif
+'
+	local out=$($(tc-getCXX) ${CXXFLAGS} ${CPPFLAGS} -x c++ -E -P - <<<"${code}") || return 1
+	[[ ${out} == *HAVE_LIBCXX* ]]
+}
+
 pkg_pretend() {
 	pre_build_checks
 }
@@ -237,12 +249,7 @@ pkg_setup() {
 	pre_build_checks
 	python-any-r1_pkg_setup
 
-	# required to link agains system libs, otherwise
-	# crates use bundled sources and compile own static version
-	export LIBGIT2_SYS_USE_PKG_CONFIG=1
-	export LIBGIT2_NO_PKG_CONFIG=0 #749381
-	export LIBSSH2_SYS_USE_PKG_CONFIG=1
-	export PKG_CONFIG_ALLOW_CROSS=1
+	export LIBGIT2_NO_PKG_CONFIG=1 #749381
 
 	use system-bootstrap && bootstrap_rust_version_check
 
@@ -255,66 +262,49 @@ pkg_setup() {
 	fi
 }
 
+esetup_unwind_hack() {
+	# https://bugs.gentoo.org/870280
+	# this is a hack needed to bootstrap with libgcc_s linked tarball on llvm-libunwind system.
+	# it should trigger for internal bootstrap or system-bootstrap with rust-bin.
+	# the whole idea is for stage0 to bootstrap with fake libgcc_s.
+	# final stage will receive -L${T}/lib but not -lgcc_s args, producing clean compiler.
+	local fakelib="${T}/fakelib"
+	mkdir -p "${fakelib}" || die
+	# we need both symlinks, one for cargo runtime, other for linker.
+	ln -s "${ESYSROOT}/usr/lib/libunwind.so" "${fakelib}/libgcc_s.so.1" || die
+	ln -s "${ESYSROOT}/usr/lib/libunwind.so" "${fakelib}/libgcc_s.so" || die
+	export LD_LIBRARY_PATH="${fakelib}"
+	export RUSTFLAGS+=" -L${fakelib}"
+	# this is a literally magic variable that gets through cargo cache, without it some
+	# crates ignore RUSTFLAGS.
+	# this variable can not contain leading space.
+	export MAGIC_EXTRA_RUSTFLAGS+="${MAGIC_EXTRA_RUSTFLAGS:+ }-L${fakelib}"
+}
+
 src_prepare() {
 	if ! use system-bootstrap; then
+		has_version sys-devel/gcc || esetup_unwind_hack
 		local rust_stage0_root="${WORKDIR}"/rust-stage0
 		local rust_stage0="rust-${RUST_STAGE0_VERSION}-$(rust_abi)"
 
 		"${WORKDIR}/${rust_stage0}"/install.sh --disable-ldconfig \
-			--without=rust-docs --destdir="${rust_stage0_root}" --prefix=/ || die
+			--without=rust-docs-json-preview,rust-docs --destdir="${rust_stage0_root}" --prefix=/ || die
 	fi
-
-	if use system-llvm; then
-		rm -rf src/llvm-project/{clang,clang-tools-extra,compiler-rt,lld,lldb,llvm}
-		rm -rf src/llvm-project/libunwind/*
-		# We never enable emscripten.
-		rm -rf src/llvm-emscripten/
-		# We never enable other LLVM tools.
-		rm -rf src/tools/clang
-		rm -rf src/tools/lld
-		rm -rf src/tools/lldb
-		# CI tooling won't be used
-		rm -rf src/ci
-	fi
-
-	# Remove other unused vendored libraries 
-	rm -rf vendor/jemalloc-sys/jemalloc/
-	rm -rf vendor/openssl-src/openssl/
-
-	# Remove hidden files from source
-	find src/ -type f -name '.appveyor.yml' -exec rm -v '{}' '+'
-	find src/ -type f -name '.travis.yml' -exec rm -v '{}' '+'
-	find src/ -type f -name '.cirrus.yml' -exec rm -v '{}' '+'
-
-	# This only affects the transient rust-installer, but let it use our dynamic xz-libs
-	sed -i.lzma -e '/LZMA_API_STATIC/d' src/bootstrap/tool.rs
-
-	# The configure macro will modify some autoconf-related files, which upsets
-	# cargo when it tries to verify checksums in those files.  If we just truncate
-	# that file list, cargo won't have anything to complain about.
-	#find vendor -name .cargo-checksum.json \
-	#	-exec sed -i.uncheck -e 's/"files":{[^}]*}/"files":{ }/' '{}' '+'
-
-	# Sometimes Rust sources start with #![...] attributes, and "smart" editors think
-	# it's a shebang and make them executable. Then brp-mangle-shebangs gets upset...
-	find -name '*.rs' -type f -perm /111 -exec chmod -v -x '{}' '+'
-
-	# LLVM LibUwind hack
-	#sed -i /std=c99/d library/unwind/build.rs
-	#sed -i /std=c++11/d library/unwind/build.rs
 
 	default
 }
 
 src_configure() {
+	filter-lto # https://bugs.gentoo.org/862109 https://bugs.gentoo.org/866231
+
 	local rust_target="" rust_targets="" arch_cflags
 
 	# Collect rust target names to compile standard libs for all ABIs.
 	for v in $(multilib_get_enabled_abi_pairs); do
-		rust_targets="${rust_targets},\"$(rust_abi $(get_abi_CHOST ${v##*.}))\""
+		rust_targets+=",\"$(rust_abi $(get_abi_CHOST ${v##*.}))\""
 	done
 	if use wasm; then
-		rust_targets="${rust_targets},\"wasm32-unknown-unknown\""
+		rust_targets+=",\"wasm32-unknown-unknown\""
 		if use system-llvm; then
 			# un-hardcode rust-lld linker for this target
 			# https://bugs.gentoo.org/715348
@@ -323,22 +313,14 @@ src_configure() {
 	fi
 	rust_targets="${rust_targets#,}"
 
-	local tools="\"cargo\","
-	if use clippy; then
-		tools="\"clippy\",$tools"
-	fi
-	if use miri; then
-		tools="\"miri\",$tools"
-	fi
-	if use rls; then
-		tools="\"rls\",\"analysis\",$tools"
-	fi
-	if use rustfmt; then
-		tools="\"rustfmt\",$tools"
-	fi
-	if use rust-src; then
-		tools="\"src\",$tools"
-	fi
+	# cargo and rustdoc are mandatory and should always be included
+	local tools='"cargo","rustdoc"'
+	use clippy && tools+=',"clippy"'
+	use miri && tools+=',"miri"'
+	use profiler && tools+=',"rust-demangler"'
+	use rustfmt && tools+=',"rustfmt"'
+	use rust-analyzer && tools+=',"rust-analyzer"'
+	use rust-src && tools+=',"src"'
 
 	local rust_stage0_root
 	if use system-bootstrap; then
@@ -353,26 +335,45 @@ src_configure() {
 
 	rust_target="$(rust_abi)"
 
+	local cm_btype="$(usex debug DEBUG RELEASE)"
 	cat <<- _EOF_ > "${S}"/config.toml
 		changelog-seen = 2
 		[llvm]
 		download-ci-llvm = false
 		optimize = $(toml_usex !debug)
-		thin-lto =  $(toml_usex system-llvm)
 		release-debuginfo = $(toml_usex debug)
 		assertions = $(toml_usex debug)
 		ninja = true
 		targets = "${LLVM_TARGETS// /;}"
 		experimental-targets = ""
-		link-jobs = $(makeopts_jobs)
-		link-shared =  $(toml_usex system-llvm)
-		use-libcxx =  $(toml_usex system-llvm)
-		use-linker = "lld"
-
+		link-shared = $(toml_usex system-llvm)
+		$(if is_libcxx_linked; then
+			# https://bugs.gentoo.org/732632
+			echo "use-libcxx = true"
+			echo "static-libstdcpp = false"
+		fi)
+		$(case "${rust_target}" in
+			i586-*-linux-*)
+				# https://github.com/rust-lang/rust/issues/93059
+				echo 'cflags = "-fcf-protection=none"'
+				echo 'cxxflags = "-fcf-protection=none"'
+				echo 'ldflags = "-fcf-protection=none"'
+				;;
+			*)
+				;;
+		esac)
+		enable-warnings = false
+		[llvm.build-config]
+		CMAKE_VERBOSE_MAKEFILE = "ON"
+		CMAKE_C_FLAGS_${cm_btype} = "${CFLAGS}"
+		CMAKE_CXX_FLAGS_${cm_btype} = "${CXXFLAGS}"
+		CMAKE_EXE_LINKER_FLAGS_${cm_btype} = "${LDFLAGS}"
+		CMAKE_MODULE_LINKER_FLAGS_${cm_btype} = "${LDFLAGS}"
+		CMAKE_SHARED_LINKER_FLAGS_${cm_btype} = "${LDFLAGS}"
+		CMAKE_STATIC_LINKER_FLAGS_${cm_btype} = "${ARFLAGS}"
 		[build]
 		build-stage = 2
 		test-stage = 2
-		doc-stage = 2
 		build = "${rust_target}"
 		host = ["${rust_target}"]
 		target = [${rust_targets}]
@@ -380,21 +381,17 @@ src_configure() {
 		rustc = "${rust_stage0_root}/bin/rustc"
 		rustfmt = "${rust_stage0_root}/bin/rustfmt"
 		docs = $(toml_usex doc)
-		compiler-docs = $(toml_usex doc)
-		#
+		compiler-docs = false
 		submodules = false
-		#
 		python = "${EPYTHON}"
-		locked-deps = false
+		locked-deps = true
 		vendor = true
 		extended = true
 		tools = [${tools}]
 		verbose = 2
 		sanitizers = false
-		profiler = false
+		profiler = $(toml_usex profiler)
 		cargo-native-static = false
-		local-rebuild = false
-
 		[install]
 		prefix = "${EPREFIX}/usr/lib/${PN}/${PV}"
 		sysconfdir = "etc"
@@ -402,11 +399,11 @@ src_configure() {
 		bindir = "bin"
 		libdir = "lib"
 		mandir = "share/man"
-
 		[rust]
+		# https://github.com/rust-lang/rust/issues/54872
+		codegen-units-std = 1
 		optimize = true
 		debug = $(toml_usex debug)
-		codegen-units-std = 1
 		debug-assertions = $(toml_usex debug)
 		debug-assertions-std = $(toml_usex debug)
 		debuginfo-level = $(usex debug 2 0)
@@ -414,58 +411,57 @@ src_configure() {
 		debuginfo-level-std = $(usex debug 2 0)
 		debuginfo-level-tools = $(usex debug 2 0)
 		debuginfo-level-tests = 0
-		backtrace = $(toml_usex debug)
+		backtrace = true
 		incremental = false
 		default-linker = "$(tc-getCC)"
 		parallel-compiler = $(toml_usex parallel-compiler)
 		channel = "$(usex nightly nightly stable)"
 		description = "gentoo"
 		rpath = false
-		verbose-tests = false
+		verbose-tests = true
 		optimize-tests = $(toml_usex !debug)
-		codegen-tests = $(toml_usex debug)
-		dist-src = $(toml_usex debug)
-		remap-debuginfo = $(toml_usex debug)
+		codegen-tests = true
+		dist-src = false
+		remap-debuginfo = true
 		lld = $(usex system-llvm false $(toml_usex wasm))
-		use-lld = true
 		# only deny warnings if doc+wasm are NOT requested, documenting stage0 wasm std fails without it
 		# https://github.com/rust-lang/rust/issues/74976
 		# https://github.com/rust-lang/rust/issues/76526
 		deny-warnings = $(usex wasm $(usex doc false true) true)
 		backtrace-on-ice = true
 		jemalloc = false
-		llvm-libunwind = "$(usex system-llvm system)"
-
+		lto = "$(usex lto fat off)"
 		[dist]
 		src-tarball = false
-		compression-formats = ["gz"]
+		compression-formats = ["xz"]
+		compression-profile = "balanced"
 	_EOF_
 
 	for v in $(multilib_get_enabled_abi_pairs); do
 		rust_target=$(rust_abi $(get_abi_CHOST ${v##*.}))
 		arch_cflags="$(get_abi_CFLAGS ${v##*.})"
 
-		cat <<- _EOF_ >> "${S}"/config.env
-			CFLAGS_${rust_target}=${arch_cflags}
-		_EOF_
+		export CFLAGS_${rust_target//-/_}="${arch_cflags}"
 
 		cat <<- _EOF_ >> "${S}"/config.toml
 			[target.${rust_target}]
-			cc = "$(tc-getBUILD_CC)"
-			cxx = "$(tc-getBUILD_CXX)"
-			linker = "$(tc-getCC)"
 			ar = "$(tc-getAR)"
+			cc = "$(tc-getCC)"
+			cxx = "$(tc-getCXX)"
+			linker = "$(tc-getCC)"
 			ranlib = "$(tc-getRANLIB)"
+			llvm-libunwind = "$(usex llvm-libunwind $(usex system-llvm system in-tree) no)"
 		_EOF_
-		# librustc_target/spec/linux_musl_base.rs sets base.crt_static_default = true;
-		if use elibc_musl; then
-			cat <<- _EOF_ >> "${S}"/config.toml
-				crt-static = false
-			_EOF_
-		fi
 		if use system-llvm; then
 			cat <<- _EOF_ >> "${S}"/config.toml
 				llvm-config = "$(get_llvm_prefix "${LLVM_MAX_SLOT}")/bin/llvm-config"
+			_EOF_
+		fi
+		# by default librustc_target/spec/linux_musl_base.rs sets base.crt_static_default = true;
+		# but we patch it and set to false here as well
+		if use elibc_musl; then
+			cat <<- _EOF_ >> "${S}"/config.toml
+				crt-static = false
 			_EOF_
 		fi
 	done
@@ -473,6 +469,8 @@ src_configure() {
 		cat <<- _EOF_ >> "${S}"/config.toml
 			[target.wasm32-unknown-unknown]
 			linker = "$(usex system-llvm lld rust-lld)"
+			# wasm target does not have profiler_builtins https://bugs.gentoo.org/848483
+			profiler = false
 		_EOF_
 	fi
 
@@ -518,10 +516,11 @@ src_configure() {
 
 		cat <<- _EOF_ >> "${S}"/config.toml
 			[target.${cross_rust_target}]
+			ar = "${cross_toolchain}-ar"
 			cc = "${cross_toolchain}-gcc"
 			cxx = "${cross_toolchain}-g++"
 			linker = "${cross_toolchain}-gcc"
-			ar = "${cross_toolchain}-ar"
+			ranlib = "${cross_toolchain}-ranlib"
 		_EOF_
 		if use system-llvm; then
 			cat <<- _EOF_ >> "${S}"/config.toml
@@ -560,11 +559,12 @@ src_configure() {
 
 	einfo "Rust configured with the following flags:"
 	echo
-	echo RUSTFLAGS="${RUSTFLAGS:-}"
-	echo RUSTFLAGS_BOOTSTRAP="${RUSTFLAGS_BOOTSTRAP:-}"
-	echo RUSTFLAGS_NOT_BOOTSTRAP="${RUSTFLAGS_NOT_BOOTSTRAP:-}"
+	echo RUSTFLAGS="\"${RUSTFLAGS}\""
+	echo RUSTFLAGS_BOOTSTRAP="\"${RUSTFLAGS_BOOTSTRAP}\""
+	echo RUSTFLAGS_NOT_BOOTSTRAP="\"${RUSTFLAGS_NOT_BOOTSTRAP}\""
+	echo MAGIC_EXTRA_RUSTFLAGS="\"${MAGIC_EXTRA_RUSTFLAGS}\""
 	env | grep "CARGO_TARGET_.*_RUSTFLAGS="
-	cat "${S}"/config.env || die
+	env | grep "CFLAGS_.*"
 	echo
 	einfo "config.toml contents:"
 	cat "${S}"/config.toml || die
@@ -572,12 +572,7 @@ src_configure() {
 }
 
 src_compile() {
-	# we need \n IFS to have config.env with spaces loaded properly. #734018
-	(
-	IFS=$'\n'
-	env $(cat "${S}"/config.env) RUST_BACKTRACE=1\
-		"${EPYTHON}" ./x.py build -vv --config="${S}"/config.toml -j$(makeopts_jobs) || die
-	)
+	RUST_BACKTRACE=1 "${EPYTHON}" ./x.py build -vv --config="${S}"/config.toml -j$(makeopts_jobs) || die
 }
 
 src_test() {
@@ -618,12 +613,8 @@ src_test() {
 	for i in "${tests[@]}"; do
 		local t="src/test/${i}"
 		einfo "rust_src_test: running ${t}"
-		if ! (
-				IFS=$'\n'
-				env $(cat "${S}"/config.env) RUST_BACKTRACE=1 \
-				"${EPYTHON}" ./x.py test -vv --config="${S}"/config.toml \
+		if ! RUST_BACKTRACE=1 "${EPYTHON}" ./x.py test -vv --config="${S}"/config.toml \
 				-j$(makeopts_jobs) --no-doc --no-fail-fast "${t}"
-			)
 		then
 				failed+=( "${t}" )
 				eerror "rust_src_test: ${t} failed"
@@ -637,11 +628,7 @@ src_test() {
 }
 
 src_install() {
-	(
-	IFS=$'\n'
-	env $(cat "${S}"/config.env) DESTDIR="${D}" \
-		"${EPYTHON}" ./x.py install	-vv --config="${S}"/config.toml -j$(makeopts_jobs) || die
-	)
+	DESTDIR="${D}" "${EPYTHON}" ./x.py install -vv --config="${S}"/config.toml -j$(makeopts_jobs) || die
 
 	# bug #689562, #689160
 	rm -v "${ED}/usr/lib/${PN}/${PV}/etc/bash_completion.d/cargo" || die
@@ -659,8 +646,9 @@ src_install() {
 
 	use clippy && symlinks+=( clippy-driver cargo-clippy )
 	use miri && symlinks+=( miri cargo-miri )
-	use rls && symlinks+=( rls )
+	use profiler && symlinks+=( rust-demangler )
 	use rustfmt && symlinks+=( rustfmt cargo-fmt )
+	use rust-analyzer && symlinks+=( rust-analyzer )
 
 	einfo "installing eselect-rust symlinks and paths: ${symlinks[@]}"
 	local i
@@ -689,11 +677,10 @@ src_install() {
 	newenvd - "50${P}" <<-_EOF_
 		LDPATH="${EPREFIX}/usr/lib/rust/lib"
 		MANPATH="${EPREFIX}/usr/lib/rust/man"
-		$(use amd64 && usex elibc_musl 'CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-C target-feature=-crt-static"' '')
-		$(use arm64 && usex elibc_musl 'CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="-C target-feature=-crt-static"' '')
 	_EOF_
 
 	rm -rf "${ED}/usr/lib/${PN}/${PV}"/*.old || die
+	rm -rf "${ED}/usr/lib/${PN}/${PV}/bin"/*.old || die
 	rm -rf "${ED}/usr/lib/${PN}/${PV}/doc"/*.old || die
 
 	# note: eselect-rust adds EROOT to all paths below
@@ -718,16 +705,24 @@ src_install() {
 		echo /usr/bin/miri >> "${T}/provider-${P}"
 		echo /usr/bin/cargo-miri >> "${T}/provider-${P}"
 	fi
-	if use rls; then
-		echo /usr/bin/rls >> "${T}/provider-${P}"
+	if use profiler; then
+		echo /usr/bin/rust-demangler >> "${T}/provider-${P}"
 	fi
 	if use rustfmt; then
 		echo /usr/bin/rustfmt >> "${T}/provider-${P}"
 		echo /usr/bin/cargo-fmt >> "${T}/provider-${P}"
 	fi
+	if use rust-analyzer; then
+		echo /usr/bin/rust-analyzer >> "${T}/provider-${P}"
+	fi
 
 	insinto /etc/env.d/rust
 	doins "${T}/provider-${P}"
+
+	if use dist; then
+		insinto "/usr/lib/${PN}/${PV}/dist"
+		doins -r "${S}/build/dist/."
+	fi
 }
 
 pkg_postinst() {
