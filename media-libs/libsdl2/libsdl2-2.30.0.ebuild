@@ -1,4 +1,4 @@
-# Copyright 1999-2021 Gentoo Authors
+# Copyright 1999-2024 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
@@ -9,12 +9,14 @@ MY_P="SDL2-${PV}"
 DESCRIPTION="Simple Direct Media Layer"
 HOMEPAGE="https://www.libsdl.org/"
 SRC_URI="https://www.libsdl.org/release/${MY_P}.tar.gz"
+S="${WORKDIR}/${MY_P}"
 
 LICENSE="ZLIB"
 SLOT="0"
-KEYWORDS="~alpha amd64 arm arm64 ~hppa ~ia64 ppc ppc64 ~riscv sparc x86"
+KEYWORDS="~alpha ~amd64 ~arm ~arm64 ~hppa ~ia64 ~loong ~mips ~ppc ~ppc64 ~riscv ~sparc ~x86"
 
-IUSE="alsa aqua cpu_flags_ppc_altivec cpu_flags_x86_3dnow cpu_flags_x86_mmx cpu_flags_x86_sse cpu_flags_x86_sse2 custom-cflags dbus doc fcitx4 gles1 gles2 haptic ibus jack +joystick kms libsamplerate nas opengl oss pipewire pulseaudio sndio +sound static-libs +threads udev +video video_cards_vc4 vulkan wayland X xinerama xscreensaver"
+IUSE="alsa aqua cpu_flags_ppc_altivec cpu_flags_x86_3dnow cpu_flags_x86_mmx cpu_flags_x86_sse cpu_flags_x86_sse2 custom-cflags dbus doc fcitx4 gles1 gles2 +haptic ibus jack +joystick kms libsamplerate nas opengl oss pipewire pulseaudio sndio +sound static-libs test +threads udev +video vulkan wayland X xscreensaver"
+RESTRICT="!test? ( test )"
 REQUIRED_USE="
 	alsa? ( sound )
 	fcitx4? ( dbus )
@@ -29,10 +31,11 @@ REQUIRED_USE="
 	sndio? ( sound )
 	vulkan? ( video )
 	wayland? ( gles2 )
-	xinerama? ( X )
-	xscreensaver? ( X )"
+	xscreensaver? ( X )
+"
 
-CDEPEND="
+COMMON_DEPEND="
+	virtual/libiconv[${MULTILIB_USEDEP}]
 	alsa? ( >=media-libs/alsa-lib-1.0.27.2[${MULTILIB_USEDEP}] )
 	dbus? ( >=sys-apps/dbus-1.6.18-r1[${MULTILIB_USEDEP}] )
 	fcitx4? ( app-i18n/fcitx:4 )
@@ -54,11 +57,11 @@ CDEPEND="
 		>=virtual/glu-9.0-r1[${MULTILIB_USEDEP}]
 	)
 	pipewire? ( media-video/pipewire:=[${MULTILIB_USEDEP}] )
-	pulseaudio? ( >=media-sound/pulseaudio-2.1-r1[${MULTILIB_USEDEP}] )
+	pulseaudio? ( media-libs/libpulse[${MULTILIB_USEDEP}] )
 	sndio? ( media-sound/sndio:=[${MULTILIB_USEDEP}] )
 	udev? ( >=virtual/libudev-208:=[${MULTILIB_USEDEP}] )
 	wayland? (
-		>=dev-libs/wayland-1.0.6[${MULTILIB_USEDEP}]
+		>=dev-libs/wayland-1.20[${MULTILIB_USEDEP}]
 		>=media-libs/mesa-9.1.6[${MULTILIB_USEDEP},egl(+),gles2,wayland]
 		>=x11-libs/libxkbcommon-0.2.0[${MULTILIB_USEDEP}]
 	)
@@ -66,25 +69,30 @@ CDEPEND="
 		>=x11-libs/libX11-1.6.2[${MULTILIB_USEDEP}]
 		>=x11-libs/libXcursor-1.1.14[${MULTILIB_USEDEP}]
 		>=x11-libs/libXext-1.3.2[${MULTILIB_USEDEP}]
+		>=x11-libs/libXfixes-6.0.0[${MULTILIB_USEDEP}]
 		>=x11-libs/libXi-1.7.2[${MULTILIB_USEDEP}]
 		>=x11-libs/libXrandr-1.4.2[${MULTILIB_USEDEP}]
-		>=x11-libs/libXxf86vm-1.1.3[${MULTILIB_USEDEP}]
-		xinerama? ( >=x11-libs/libXinerama-1.1.3[${MULTILIB_USEDEP}] )
 		xscreensaver? ( >=x11-libs/libXScrnSaver-1.2.2-r1[${MULTILIB_USEDEP}] )
-	)"
-RDEPEND="${CDEPEND}
-	vulkan? ( media-libs/vulkan-loader )"
-DEPEND="${CDEPEND}
+	)
+"
+RDEPEND="
+	${COMMON_DEPEND}
+	vulkan? ( media-libs/vulkan-loader )
+"
+DEPEND="
+	${COMMON_DEPEND}
 	ibus? ( dev-libs/glib:2[${MULTILIB_USEDEP}] )
+	test? ( x11-libs/libX11[${MULTILIB_USEDEP}] )
 	vulkan? ( dev-util/vulkan-headers )
 	X? ( x11-base/xorg-proto )
 "
 BDEPEND="
 	virtual/pkgconfig
 	doc? (
-		app-doc/doxygen
+		app-text/doxygen
 		media-gfx/graphviz
 	)
+	wayland? ( >=dev-util/wayland-scanner-1.20 )
 "
 
 MULTILIB_WRAPPED_HEADERS=(
@@ -98,20 +106,22 @@ PATCHES=(
 	"${FILESDIR}"/${PN}-2.0.16-static-libs.patch
 )
 
-S="${WORKDIR}/${MY_P}"
-
 src_prepare() {
 	default
 
 	# Unbundle some headers.
 	rm -r src/video/khronos || die
 	ln -s "${ESYSROOT}/usr/include" src/video/khronos || die
+	if ! use vulkan
+	then
+		sed -i '/testvulkan$(EXE) \\/d' "test/Makefile.in" || die
+	fi
 
 	# SDL seems to customize SDL_config.h.in to remove macros like
 	# PACKAGE_NAME. Add AT_NOEAUTOHEADER="yes" to prevent those macros from
 	# being reintroduced.
 	# https://bugs.gentoo.org/764959
-	AT_NOEAUTOHEADER="yes" AT_M4DIR="/usr/share/aclocal acinclude" \
+	AT_NOEAUTOHEADER="yes" AT_M4DIR="${BROOT}/usr/share/aclocal acinclude" \
 		eautoreconf
 }
 
@@ -125,6 +135,7 @@ multilib_src_configure() {
 	# sorted by `./configure --help`
 	local myeconfargs=(
 		$(use_enable static-libs static)
+		--enable-system-iconv
 		--enable-atomic
 		$(use_enable sound audio)
 		$(use_enable video)
@@ -134,7 +145,7 @@ multilib_src_configure() {
 		$(use_enable haptic)
 		--enable-power
 		--enable-filesystem
-		$(use_enable threads)
+		$(use_enable threads pthreads)
 		--enable-timers
 		--enable-file
 		--enable-loadso
@@ -158,6 +169,8 @@ multilib_src_configure() {
 		--disable-pulseaudio-shared
 		--disable-arts
 		$(use_enable libsamplerate)
+		--disable-libsamplerate-shared
+		--disable-werror
 		$(use_enable nas)
 		--disable-nas-shared
 		$(use_enable sndio)
@@ -166,17 +179,16 @@ multilib_src_configure() {
 		$(use_enable sound dummyaudio)
 		$(use_enable wayland video-wayland)
 		--disable-wayland-shared
-		$(use_enable video_cards_vc4 video-rpi)
+		--disable-video-rpi
 		$(use_enable X video-x11)
 		--disable-x11-shared
 		$(use_enable X video-x11-xcursor)
 		$(use_enable X video-x11-xdbe)
-		$(use_enable xinerama video-x11-xinerama)
+		$(use_enable X video-x11-xfixes)
 		$(use_enable X video-x11-xinput)
 		$(use_enable X video-x11-xrandr)
 		$(use_enable xscreensaver video-x11-scrnsaver)
 		$(use_enable X video-x11-xshape)
-		$(use_enable X video-x11-vm)
 		$(use_enable aqua video-cocoa)
 		--disable-video-directfb
 		--disable-fusionsound
@@ -196,14 +208,32 @@ multilib_src_configure() {
 		--disable-rpath
 		--disable-render-d3d
 		$(use_with X x)
+		ac_cv_header_libunwind_h=no
 	)
 
-	ECONF_SOURCE="${S}" \
-	econf "${myeconfargs[@]}"
+	ECONF_SOURCE="${S}" econf "${myeconfargs[@]}"
+
+	if use test; then
+		# Most of these workarounds courtesy Debian
+		# https://salsa.debian.org/sdl-team/libsdl2/-/blob/debian/latest/debian/rules
+		local mytestargs=(
+			--x-includes="/usr/include"
+			--x-libraries="/usr/$(get_libdir)"
+			SDL_CFLAGS="-I${S}/include"
+			SDL_LIBS="-L${BUILD_DIR}/build/.libs -lSDL2"
+			ac_cv_lib_SDL2_ttf_TTF_Init=no
+			CFLAGS="${CPPFLAGS} ${CFLAGS} ${LDFLAGS}"
+		)
+
+		mkdir "${BUILD_DIR}/test" || die
+		cd "${BUILD_DIR}/test" || die
+		ECONF_SOURCE="${S}/test" econf "${mytestargs[@]}"
+	fi
 }
 
 multilib_src_compile() {
-	emake V=1
+	emake all V=1
+	use test && emake -C test all V=1
 }
 
 src_compile() {
@@ -213,6 +243,10 @@ src_compile() {
 		cd docs || die
 		doxygen || die
 	fi
+}
+
+multilib_src_test() {
+	LD_LIBRARY_PATH="${BUILD_DIR}/build/.libs" emake -C test check V=1
 }
 
 multilib_src_install() {
@@ -225,6 +259,5 @@ multilib_src_install_all() {
 	find "${ED}" -type f -name "*.la" -delete || die
 
 	dodoc {BUGS,CREDITS,README-SDL,TODO,WhatsNew}.txt README.md docs/README*.md
-	doman debian/sdl2-config.1
 	use doc && dodoc -r docs/output/html/
 }
