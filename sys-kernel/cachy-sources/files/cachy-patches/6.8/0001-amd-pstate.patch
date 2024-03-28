@@ -1,7 +1,7 @@
-From 8f03bb4df21c5746b9f1c3e399faa3c932737e4f Mon Sep 17 00:00:00 2001
+From a8e484198a0bd182718bc38acd698b2154749c85 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Fri, 15 Mar 2024 20:08:47 +0100
-Subject: [PATCH 1/7] amd-pstate
+Date: Wed, 27 Mar 2024 19:07:40 +0100
+Subject: [PATCH] amd-pstate
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -9,7 +9,6 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  Documentation/admin-guide/pm/amd-pstate.rst   |  70 ++-
  arch/x86/Kconfig                              |   5 +-
  arch/x86/include/asm/msr-index.h              |   2 +
- arch/x86/kernel/acpi/cppc.c                   |   2 +-
  drivers/acpi/cppc_acpi.c                      |  17 +-
  drivers/acpi/processor_driver.c               |   6 +
  drivers/cpufreq/acpi-cpufreq.c                |   2 -
@@ -18,7 +17,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  include/acpi/cppc_acpi.h                      |   5 +
  include/linux/amd-pstate.h                    |  32 +-
  include/linux/cpufreq.h                       |   1 +
- 13 files changed, 562 insertions(+), 88 deletions(-)
+ 12 files changed, 561 insertions(+), 87 deletions(-)
 
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
 index 73062d47a462..a493d93e0d2c 100644
@@ -160,19 +159,6 @@ index d1b5edaf6c34..bfe139eb75b6 100644
  
  /* K6 MSRs */
  #define MSR_K6_WHCR			0xc0000082
-diff --git a/arch/x86/kernel/acpi/cppc.c b/arch/x86/kernel/acpi/cppc.c
-index 8d8752b44f11..ff8f25faca3d 100644
---- a/arch/x86/kernel/acpi/cppc.c
-+++ b/arch/x86/kernel/acpi/cppc.c
-@@ -20,7 +20,7 @@ bool cpc_supported_by_cpu(void)
- 		    (boot_cpu_data.x86_model >= 0x20 && boot_cpu_data.x86_model <= 0x2f)))
- 			return true;
- 		else if (boot_cpu_data.x86 == 0x17 &&
--			 boot_cpu_data.x86_model >= 0x70 && boot_cpu_data.x86_model <= 0x7f)
-+			 boot_cpu_data.x86_model >= 0x30 && boot_cpu_data.x86_model <= 0x7f)
- 			return true;
- 		return boot_cpu_has(X86_FEATURE_CPPC);
- 	}
 diff --git a/drivers/acpi/cppc_acpi.c b/drivers/acpi/cppc_acpi.c
 index d155a86a8614..e23a84f4a50a 100644
 --- a/drivers/acpi/cppc_acpi.c
@@ -1206,3 +1192,4 @@ index afda5f24d3dd..9bebeec24abb 100644
  #ifdef CONFIG_CPU_FREQ_STAT
 -- 
 2.44.0
+
