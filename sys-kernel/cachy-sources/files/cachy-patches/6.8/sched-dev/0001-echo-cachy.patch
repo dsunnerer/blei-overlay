@@ -1,7 +1,7 @@
-From 8ff18a07bd8ef9b5290de6d11d3a9a4e6afa3603 Mon Sep 17 00:00:00 2001
+From 5d047fd5f831d25c9699c7cdf32f813bd4ad4661 Mon Sep 17 00:00:00 2001
 From: Piotr Gorski <lucjan.lucjanov@gmail.com>
-Date: Fri, 29 Mar 2024 10:08:34 +0100
-Subject: [PATCH] echo
+Date: Fri, 29 Mar 2024 10:09:30 +0100
+Subject: [PATCH] echo-cachy
 
 Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
 ---
@@ -74,7 +74,7 @@ index ffe8f618a..947d94be2 100644
  
  #ifdef CONFIG_FAIR_GROUP_SCHED
 diff --git a/init/Kconfig b/init/Kconfig
-index bee58f746..933ec5c9a 100644
+index 9ea39297f..ea94bcdd5 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
 @@ -130,6 +130,12 @@ config THREAD_INFO_IN_TASK
@@ -89,8 +89,8 @@ index bee58f746..933ec5c9a 100644
 +
  menu "General setup"
  
- config BROKEN
-@@ -1008,11 +1014,12 @@ menuconfig CGROUP_SCHED
+ config CACHY
+@@ -1012,11 +1018,12 @@ menuconfig CGROUP_SCHED
  if CGROUP_SCHED
  config FAIR_GROUP_SCHED
  	bool "Group scheduling for SCHED_OTHER"
@@ -105,7 +105,7 @@ index bee58f746..933ec5c9a 100644
  	depends on FAIR_GROUP_SCHED
  	default n
  	help
-@@ -1281,9 +1288,11 @@ config CHECKPOINT_RESTORE
+@@ -1301,9 +1308,11 @@ config CHECKPOINT_RESTORE
  
  config SCHED_AUTOGROUP
  	bool "Automatic process group scheduling"
@@ -118,7 +118,7 @@ index bee58f746..933ec5c9a 100644
  	  This option optimizes the scheduler for common desktop workloads by
  	  automatically creating and populating task groups.  This separation
 diff --git a/kernel/Kconfig.hz b/kernel/Kconfig.hz
-index 38ef6d068..80861d904 100644
+index 0f78364ef..fea81b1de 100644
 --- a/kernel/Kconfig.hz
 +++ b/kernel/Kconfig.hz
 @@ -5,7 +5,7 @@
@@ -130,9 +130,9 @@ index 38ef6d068..80861d904 100644
  	help
  	 Allows the configuration of the timer frequency. It is customary
  	 to have the timer interrupt run at 1000 Hz but 100 Hz may be more
-@@ -40,6 +40,13 @@ choice
- 	 on SMP and NUMA systems and exactly dividing by both PAL and
- 	 NTSC frame rates for video and multimedia work.
+@@ -61,6 +61,13 @@ choice
+ 	 on desktops with good smoothness without increasing CPU power
+ 	 consumption and sacrificing the battery life on laptops.
  
 +	config HZ_625
 +		bool "625 HZ"
@@ -144,14 +144,14 @@ index 38ef6d068..80861d904 100644
  	config HZ_1000
  		bool "1000 HZ"
  	help
-@@ -53,6 +60,7 @@ config HZ
- 	default 100 if HZ_100
- 	default 250 if HZ_250
+@@ -76,6 +83,7 @@ config HZ
  	default 300 if HZ_300
+ 	default 500 if HZ_500
+ 	default 600 if HZ_600
 +	default 625 if HZ_625
+ 	default 750 if HZ_750
  	default 1000 if HZ_1000
  
- config SCHED_HRTICK
 diff --git a/kernel/Kconfig.preempt b/kernel/Kconfig.preempt
 index c2f1fd95a..d54bb52cc 100644
 --- a/kernel/Kconfig.preempt
@@ -2000,7 +2000,7 @@ index 9116bcc90..49df55bb0 100644
  	wait_bit_init();
  
 +#ifdef CONFIG_ECHO_SCHED
-+	printk(KERN_INFO "ECHO CPU scheduler v6.7 by Hamad Al Marri.");
++	printk(KERN_INFO "ECHO CPU scheduler v6.8 by Hamad Al Marri.");
 +#endif
 +
  #ifdef CONFIG_FAIR_GROUP_SCHED
@@ -5823,7 +5823,7 @@ index 000000000..f00aeacb8
 +}
 +#endif /* CONFIG_NO_HZ_COMMON */
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 001fe047b..e27be055c 100644
+index ed5c758c7..2724b1d25 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
 @@ -109,6 +109,10 @@ extern int sysctl_sched_rt_period;
