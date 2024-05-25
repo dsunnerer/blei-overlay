@@ -1,7 +1,7 @@
-From 0616d7fc2b9f935aca40ca5b3ae97096f53aac78 Mon Sep 17 00:00:00 2001
+From b8fb51e910a9e7495fd432ae79e124df6eb911ac Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Tue, 7 May 2024 18:44:26 +0200
-Subject: [PATCH 8/9] ntsync
+Date: Mon, 25 Mar 2024 15:09:11 +0100
+Subject: [PATCH] ntsync
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -11,39 +11,37 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  MAINTAINERS                                   |    9 +
  drivers/misc/Kconfig                          |   11 +
  drivers/misc/Makefile                         |    1 +
- drivers/misc/ntsync.c                         | 1166 ++++++++++++++
+ drivers/misc/ntsync.c                         | 1159 ++++++++++++++
  include/uapi/linux/ntsync.h                   |   62 +
  tools/testing/selftests/Makefile              |    1 +
- .../selftests/drivers/ntsync/.gitignore       |    1 +
- .../testing/selftests/drivers/ntsync/Makefile |    7 +
+ .../testing/selftests/drivers/ntsync/Makefile |    8 +
  tools/testing/selftests/drivers/ntsync/config |    1 +
  .../testing/selftests/drivers/ntsync/ntsync.c | 1407 +++++++++++++++++
- 13 files changed, 3068 insertions(+)
+ 12 files changed, 3061 insertions(+)
  create mode 100644 Documentation/userspace-api/ntsync.rst
  create mode 100644 drivers/misc/ntsync.c
  create mode 100644 include/uapi/linux/ntsync.h
- create mode 100644 tools/testing/selftests/drivers/ntsync/.gitignore
  create mode 100644 tools/testing/selftests/drivers/ntsync/Makefile
  create mode 100644 tools/testing/selftests/drivers/ntsync/config
  create mode 100644 tools/testing/selftests/drivers/ntsync/ntsync.c
 
 diff --git a/Documentation/userspace-api/index.rst b/Documentation/userspace-api/index.rst
-index 09f61bd2ac2e..f5a72ed27def 100644
+index afecfe3cc4a8..cf6331b1d39f 100644
 --- a/Documentation/userspace-api/index.rst
 +++ b/Documentation/userspace-api/index.rst
-@@ -34,6 +34,7 @@ place where this information is gathered.
-    tee
-    isapnp
+@@ -49,6 +49,7 @@ Devices and I/O
     dcdbas
+    vduse
+    isapnp
 +   ntsync
  
- .. only::  subproject and html
- 
+ Everything else
+ ===============
 diff --git a/Documentation/userspace-api/ioctl/ioctl-number.rst b/Documentation/userspace-api/ioctl/ioctl-number.rst
-index 457e16f06e04..2f5c6994f042 100644
+index c472423412bf..a141e8e65c5d 100644
 --- a/Documentation/userspace-api/ioctl/ioctl-number.rst
 +++ b/Documentation/userspace-api/ioctl/ioctl-number.rst
-@@ -173,6 +173,8 @@ Code  Seq#    Include File                                           Comments
+@@ -174,6 +174,8 @@ Code  Seq#    Include File                                           Comments
  'M'   00-0F  drivers/video/fsl-diu-fb.h                              conflict!
  'N'   00-1F  drivers/usb/scanner.h
  'N'   40-7F  drivers/block/nvme.c
@@ -458,10 +456,10 @@ index 000000000000..202c2350d3af
 +  ``objs`` and in ``alert``. If this is attempted, the function fails
 +  with ``EINVAL``.
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 1aabf1c15bb3..91af49091a3c 100644
+index aa3b947fb080..84d03d95f44b 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -15609,6 +15609,15 @@ T:	git https://github.com/Paragon-Software-Group/linux-ntfs3.git
+@@ -15720,6 +15720,15 @@ T:	git https://github.com/Paragon-Software-Group/linux-ntfs3.git
  F:	Documentation/filesystems/ntfs3.rst
  F:	fs/ntfs3/
  
@@ -513,10 +511,10 @@ index ea6ea5bbbc9c..153a3f4837e8 100644
  obj-$(CONFIG_GP_PCI1XXXX)	+= mchp_pci1xxxx/
 diff --git a/drivers/misc/ntsync.c b/drivers/misc/ntsync.c
 new file mode 100644
-index 000000000000..19fd70ac3f50
+index 000000000000..f54c81dada3d
 --- /dev/null
 +++ b/drivers/misc/ntsync.c
-@@ -0,0 +1,1166 @@
+@@ -0,0 +1,1159 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * ntsync.c - Kernel driver for NT synchronization primitives
@@ -627,7 +625,7 @@ index 000000000000..19fd70ac3f50
 +	__u32 owner;
 +
 +	/*
-+	 * Protected via atomic_try_cmpxchg(). Only the thread that wins the
++	 * Protected via atomic_cmpxchg(). Only the thread that wins the
 +	 * compare-and-swap may actually change object states and wake this
 +	 * task.
 +	 */
@@ -685,7 +683,6 @@ index 000000000000..19fd70ac3f50
 +{
 +	__u32 count = q->count;
 +	bool can_wake = true;
-+	int signaled = -1;
 +	__u32 i;
 +
 +	lockdep_assert_held(&dev->wait_all_lock);
@@ -704,7 +701,7 @@ index 000000000000..19fd70ac3f50
 +		}
 +	}
 +
-+	if (can_wake && atomic_try_cmpxchg(&q->signaled, &signaled, 0)) {
++	if (can_wake && atomic_cmpxchg(&q->signaled, -1, 0) == -1) {
 +		for (i = 0; i < count; i++) {
 +			struct ntsync_obj *obj = q->entries[i].obj;
 +
@@ -753,12 +750,11 @@ index 000000000000..19fd70ac3f50
 +
 +	list_for_each_entry(entry, &sem->any_waiters, node) {
 +		struct ntsync_q *q = entry->q;
-+		int signaled = -1;
 +
 +		if (!sem->u.sem.count)
 +			break;
 +
-+		if (atomic_try_cmpxchg(&q->signaled, &signaled, entry->index)) {
++		if (atomic_cmpxchg(&q->signaled, -1, entry->index) == -1) {
 +			sem->u.sem.count--;
 +			wake_up_process(q->task);
 +		}
@@ -773,14 +769,13 @@ index 000000000000..19fd70ac3f50
 +
 +	list_for_each_entry(entry, &mutex->any_waiters, node) {
 +		struct ntsync_q *q = entry->q;
-+		int signaled = -1;
 +
 +		if (mutex->u.mutex.count == UINT_MAX)
 +			break;
 +		if (mutex->u.mutex.owner && mutex->u.mutex.owner != q->owner)
 +			continue;
 +
-+		if (atomic_try_cmpxchg(&q->signaled, &signaled, entry->index)) {
++		if (atomic_cmpxchg(&q->signaled, -1, entry->index) == -1) {
 +			if (mutex->u.mutex.ownerdead)
 +				q->ownerdead = true;
 +			mutex->u.mutex.ownerdead = false;
@@ -799,12 +794,11 @@ index 000000000000..19fd70ac3f50
 +
 +	list_for_each_entry(entry, &event->any_waiters, node) {
 +		struct ntsync_q *q = entry->q;
-+		int signaled = -1;
 +
 +		if (!event->u.event.signaled)
 +			break;
 +
-+		if (atomic_try_cmpxchg(&q->signaled, &signaled, entry->index)) {
++		if (atomic_cmpxchg(&q->signaled, -1, entry->index) == -1) {
 +			if (!event->u.event.manual)
 +				event->u.event.signaled = false;
 +			wake_up_process(q->task);
@@ -1279,9 +1273,6 @@ index 000000000000..19fd70ac3f50
 +	struct file *file = fget(fd);
 +	struct ntsync_obj *obj;
 +
-+	if (!file)
-+		return NULL;
-+
 +	if (file->f_op != &ntsync_obj_fops) {
 +		fput(file);
 +		return NULL;
@@ -1685,7 +1676,7 @@ index 000000000000..19fd70ac3f50
 +MODULE_LICENSE("GPL");
 diff --git a/include/uapi/linux/ntsync.h b/include/uapi/linux/ntsync.h
 new file mode 100644
-index 000000000000..f21dbac42164
+index 000000000000..b5e835d8dba8
 --- /dev/null
 +++ b/include/uapi/linux/ntsync.h
 @@ -0,0 +1,62 @@
@@ -1727,8 +1718,8 @@ index 000000000000..f21dbac42164
 +	__u32 count;
 +	__u32 owner;
 +	__u32 index;
-+	__u32 flags;
 +	__u32 alert;
++	__u32 flags;
 +	__u32 pad;
 +};
 +
@@ -1752,34 +1743,28 @@ index 000000000000..f21dbac42164
 +
 +#endif
 diff --git a/tools/testing/selftests/Makefile b/tools/testing/selftests/Makefile
-index 15b6a111c3be..6c714a4e6478 100644
+index e1504833654d..6f95206325e1 100644
 --- a/tools/testing/selftests/Makefile
 +++ b/tools/testing/selftests/Makefile
-@@ -15,6 +15,7 @@ TARGETS += cpu-hotplug
- TARGETS += damon
+@@ -16,6 +16,7 @@ TARGETS += damon
+ TARGETS += devices
  TARGETS += dmabuf-heaps
  TARGETS += drivers/dma-buf
 +TARGETS += drivers/ntsync
  TARGETS += drivers/s390x/uvdevice
  TARGETS += drivers/net/bonding
  TARGETS += drivers/net/team
-diff --git a/tools/testing/selftests/drivers/ntsync/.gitignore b/tools/testing/selftests/drivers/ntsync/.gitignore
-new file mode 100644
-index 000000000000..848573a3d3ea
---- /dev/null
-+++ b/tools/testing/selftests/drivers/ntsync/.gitignore
-@@ -0,0 +1 @@
-+ntsync
 diff --git a/tools/testing/selftests/drivers/ntsync/Makefile b/tools/testing/selftests/drivers/ntsync/Makefile
 new file mode 100644
-index 000000000000..dbf2b055c0b2
+index 000000000000..a34da5ccacf0
 --- /dev/null
 +++ b/tools/testing/selftests/drivers/ntsync/Makefile
-@@ -0,0 +1,7 @@
+@@ -0,0 +1,8 @@
 +# SPDX-LICENSE-IDENTIFIER: GPL-2.0-only
 +TEST_GEN_PROGS := ntsync
 +
-+CFLAGS += $(KHDR_INCLUDES)
++top_srcdir =../../../../..
++CFLAGS += -I$(top_srcdir)/usr/include
 +LDLIBS += -lpthread
 +
 +include ../../lib.mk
@@ -3204,5 +3189,5 @@ index 000000000000..5fa2c9a0768c
 +
 +TEST_HARNESS_MAIN
 -- 
-2.45.0
+2.44.0
 

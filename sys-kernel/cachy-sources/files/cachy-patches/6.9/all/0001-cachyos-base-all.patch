@@ -1,6 +1,6 @@
-From 5c01befd6a9acfd5659aaa72f8392abfd1d14e67 Mon Sep 17 00:00:00 2001
+From 55ca136a60611fabaab6e9edebebe6e4a7ab2808 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Fri, 17 May 2024 14:25:53 +0200
+Date: Wed, 22 May 2024 15:39:07 +0200
 Subject: [PATCH 01/10] aes-crypto
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
@@ -8,10 +8,10 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  arch/x86/Kconfig.assembler             |   10 +
  arch/x86/crypto/Kconfig                |    1 +
  arch/x86/crypto/Makefile               |    6 +-
- arch/x86/crypto/aes-gcm-avx10-x86_64.S | 1219 ++++++++++++++++++++++++
+ arch/x86/crypto/aes-gcm-avx10-x86_64.S | 1223 ++++++++++++++++++++++++
  arch/x86/crypto/aes-xts-avx-x86_64.S   |  845 ++++++++++++++++
  arch/x86/crypto/aesni-intel_asm.S      |  467 ++-------
- arch/x86/crypto/aesni-intel_glue.c     |  924 +++++++++++++++---
+ arch/x86/crypto/aesni-intel_glue.c     |  920 +++++++++++++++---
  arch/x86/crypto/nh-avx2-x86_64.S       |    1 +
  arch/x86/crypto/sha256-avx2-asm.S      |    1 +
  arch/x86/crypto/sha256_ni_asm.S        |  253 +----
@@ -72,10 +72,10 @@ index 9aa46093c91b..a2a536b690fa 100644
  sha1-ssse3-y := sha1_avx2_x86_64_asm.o sha1_ssse3_asm.o sha1_ssse3_glue.o
 diff --git a/arch/x86/crypto/aes-gcm-avx10-x86_64.S b/arch/x86/crypto/aes-gcm-avx10-x86_64.S
 new file mode 100644
-index 000000000000..ea978bbebc9a
+index 000000000000..ca608bda9995
 --- /dev/null
 +++ b/arch/x86/crypto/aes-gcm-avx10-x86_64.S
-@@ -0,0 +1,1219 @@
+@@ -0,0 +1,1223 @@
 +/* SPDX-License-Identifier: Apache-2.0 OR BSD-2-Clause */
 +//
 +// VAES and VPCLMULQDQ optimized AES-GCM for x86_64
@@ -493,7 +493,6 @@ index 000000000000..ea978bbebc9a
 +
 +	// Store the lowest set of key powers.
 +	vmovdqu8	H_CUR, (POWERS_PTR)
-+	sub		$VL, POWERS_PTR
 +
 +	// Compute and store the remaining key powers.  With VL=32, repeatedly
 +	// multiply [H^(i+1), H^i] by [H^2, H^2] to get [H^(i+3), H^(i+2)].
@@ -501,9 +500,9 @@ index 000000000000..ea978bbebc9a
 +	// [H^4, H^4, H^4, H^4] to get [H^(i+7), H^(i+6), H^(i+5), H^(i+4)].
 +	mov		$(NUM_KEY_POWERS*16/VL) - 1, %eax
 +.Lprecompute_next\@:
++	sub		$VL, POWERS_PTR
 +	_ghash_mul	H_INC, H_CUR, H_CUR, GFPOLY, V0, V1, V2
 +	vmovdqu8	H_CUR, (POWERS_PTR)
-+	sub		$VL, POWERS_PTR
 +	dec		%eax
 +	jnz		.Lprecompute_next\@
 +
@@ -512,7 +511,7 @@ index 000000000000..ea978bbebc9a
 +.endm
 +
 +// XOR together the 128-bit lanes of \src (whose low lane is \src_xmm) and store
-+// the result in \dst_xmm.  This implicitly zeroes the other lanes of dst.
++// the result in \dst_xmm.  This implicitly zeroizes the other lanes of dst.
 +.macro	_horizontal_xor	src, src_xmm, dst_xmm, t0_xmm, t1_xmm, t2_xmm
 +	vextracti32x4	$1, \src, \t0_xmm
 +.if VL == 32
@@ -1048,15 +1047,13 @@ index 000000000000..ea978bbebc9a
 +.endm
 +
 +// void aes_gcm_enc_final_vaes_avx10(const struct aes_gcm_key_avx10 *key,
-+//				     const u32 le_ctr[4],
-+//				     const u8 ghash_acc[16],
-+//				     u64 total_aadlen, u64 total_datalen,
-+//				     u8 *tag, int taglen);
++//				     const u32 le_ctr[4], u8 ghash_acc[16],
++//				     u64 total_aadlen, u64 total_datalen);
 +// bool aes_gcm_dec_final_vaes_avx10(const struct aes_gcm_key_avx10 *key,
 +//				     const u32 le_ctr[4],
 +//				     const u8 ghash_acc[16],
 +//				     u64 total_aadlen, u64 total_datalen,
-+//				     const u8 *tag, int taglen);
++//				     const u8 tag[16], int taglen);
 +//
 +// This macro generates one of the above two functions (with \enc selecting
 +// which one).  Both functions finish computing the GCM authentication tag by
@@ -1064,11 +1061,11 @@ index 000000000000..ea978bbebc9a
 +// |total_aadlen| and |total_datalen| must be the total length of the additional
 +// authenticated data and the en/decrypted data in bytes, respectively.
 +//
-+// The encryption function then stores the computed authentication tag to |tag|.
-+// The decryption function instead loads the expected authentication tag (the
-+// one that was transmitted) from |tag|, compares it to the computed tag in
-+// constant time, and returns true if and only if they match.  In both cases,
-+// |taglen| is the length of the tag in bytes, 4 <= |taglen| <= 16.
++// The encryption function then stores the full-length (16-byte) computed
++// authentication tag to |ghash_acc|.  The decryption function instead loads the
++// expected authentication tag (the one that was transmitted) from the 16-byte
++// buffer |tag|, compares the first 4 <= |taglen| <= 16 bytes of it to the
++// computed tag in constant time, and returns true if and only if they match.
 +.macro	_aes_gcm_final	enc
 +
 +	// Function arguments
@@ -1116,11 +1113,13 @@ index 000000000000..ea978bbebc9a
 +	// Load the first hash key power (H^1), which is stored last.
 +	vmovdqu8	OFFSETOFEND_KEY_POWERS-16(KEY), H_POW1
 +
-+	// Prepare the mask that will be used to store or load the auth tag.
++.if !\enc
++	// Prepare a mask of TAGLEN one bits.
 +	movl		8(%rsp), TAGLEN
 +	mov		$-1, %eax
 +	bzhi		TAGLEN, %eax, %eax
 +	kmovd		%eax, %k1
++.endif
 +
 +	// Make %rax point to the last AES round key for the chosen AES variant.
 +	lea		6*16(KEY,AESKEYLEN64,4), %rax
@@ -1150,28 +1149,33 @@ index 000000000000..ea978bbebc9a
 +	_ghash_mul_step	9, H_POW1, GHASH_ACC, GHASH_ACC, GFPOLY, \
 +			%xmm1, %xmm2, %xmm3
 +
-+	// Undo the byte reflection of the GHASH accumulator, then encrypt it to
-+	// produce the full-length auth tag.  Reduce latency by taking advantage
-+	// of the property vaesenclast(key, a) ^ b == vaesenclast(key ^ b, a).
-+	vpshufb		BSWAP_MASK, GHASH_ACC, %xmm1
-+	vpxor		(%rax), %xmm1, %xmm1
-+	vaesenclast	%xmm1, %xmm0, GHASH_ACC
++	// Undo the byte reflection of the GHASH accumulator.
++	vpshufb		BSWAP_MASK, GHASH_ACC, GHASH_ACC
 +
-+	// Store or compare the authentication tag.  To support authentication
-+	// tags shorter than 16 bytes, use masking.
-+.if \enc
-+	// Encrypting: store the computed authentication tag.
-+	vmovdqu8	GHASH_ACC, (TAG){%k1}
-+.else
-+	// Decrypting: compare the expected authentication tag (TAG) with the
-+	// computed authentication tag GHASH_ACC.  Return a true/false boolean.
++	// Do the last AES round and XOR the resulting keystream block with the
++	// GHASH accumulator to produce the full computed authentication tag.
 +	//
-+	// Do this by XOR'ing the tags together and using vptest to check
-+	// whether all bits are 0.  This should be constant-time.
++	// Reduce latency by taking advantage of the property vaesenclast(key,
++	// a) ^ b == vaesenclast(key ^ b, a).  I.e., XOR GHASH_ACC into the last
++	// round key, instead of XOR'ing the final AES output with GHASH_ACC.
++	//
++	// enc_final then returns the computed auth tag, while dec_final
++	// compares it with the transmitted one and returns a bool.  To compare
++	// the tags, dec_final XORs them together and uses vptest to check
++	// whether the result is all-zeroes.  This should be constant-time.
++	// dec_final applies the vaesenclast optimization to this additional
++	// value XOR'd too, using vpternlogd to XOR the last round key, GHASH
++	// accumulator, and transmitted auth tag together in one instruction.
++.if \enc
++	vpxor		(%rax), GHASH_ACC, %xmm1
++	vaesenclast	%xmm1, %xmm0, GHASH_ACC
++	vmovdqu		GHASH_ACC, (GHASH_ACC_PTR)
++.else
++	vmovdqu		(TAG), %xmm1
++	vpternlogd	$0x96, (%rax), GHASH_ACC, %xmm1
++	vaesenclast	%xmm1, %xmm0, %xmm0
 +	xor		%eax, %eax
-+	vmovdqu8	(TAG), %xmm0{%k1}{z}
-+	vmovdqu8	GHASH_ACC, GHASH_ACC{%k1}{z}
-+	vpxor		GHASH_ACC, %xmm0, %xmm0
++	vmovdqu8	%xmm0, %xmm0{%k1}{z}	// Truncate to TAGLEN bytes
 +	vptest		%xmm0, %xmm0
 +	sete		%al
 +.endif
@@ -2755,7 +2759,7 @@ index 411d8c83e88a..39066b57a70e 100644
 +	_aesni_xts_crypt	0
 +SYM_FUNC_END(aesni_xts_dec)
 diff --git a/arch/x86/crypto/aesni-intel_glue.c b/arch/x86/crypto/aesni-intel_glue.c
-index b1d90c25975a..700bc1e530c7 100644
+index b1d90c25975a..a64ff4660f1d 100644
 --- a/arch/x86/crypto/aesni-intel_glue.c
 +++ b/arch/x86/crypto/aesni-intel_glue.c
 @@ -1,7 +1,7 @@
@@ -2856,12 +2860,12 @@ index b1d90c25975a..700bc1e530c7 100644
 -	ret = aes_expandkey(&ctx, key, key_len);
 -	if (ret)
 -		return ret;
--
++	static const u8 zeroes[AES_BLOCK_SIZE];
+ 
 -	/* Clear the data in the hash sub key container to zero.*/
 -	/* We want to cipher all zeros to create the hash sub key. */
 -	memset(hash_subkey, 0, RFC4106_HASH_SUBKEY_SIZE);
-+	static const u8 zeroes[AES_BLOCK_SIZE];
- 
+-
 -	aes_encrypt(&ctx, hash_subkey, hash_subkey);
 -
 -	memzero_explicit(&ctx, sizeof(ctx));
@@ -3119,7 +3123,7 @@ index b1d90c25975a..700bc1e530c7 100644
  	}
  };
  
-@@ -1137,7 +1167,669 @@ static struct skcipher_alg aesni_xctr = {
+@@ -1137,7 +1167,665 @@ static struct skcipher_alg aesni_xctr = {
  };
  
  static struct simd_skcipher_alg *aesni_simd_xctr;
@@ -3228,14 +3232,13 @@ index b1d90c25975a..700bc1e530c7 100644
 +
 +asmlinkage void
 +aes_gcm_enc_final_vaes_avx10(const struct aes_gcm_key_avx10 *key,
-+			     const u32 le_ctr[4], const u8 ghash_acc[16],
-+			     u64 total_aadlen, u64 total_datalen,
-+			     u8 *tag, int taglen);
++			     const u32 le_ctr[4], u8 ghash_acc[16],
++			     u64 total_aadlen, u64 total_datalen);
 +asmlinkage bool __must_check
 +aes_gcm_dec_final_vaes_avx10(const struct aes_gcm_key_avx10 *key,
 +			     const u32 le_ctr[4], const u8 ghash_acc[16],
 +			     u64 total_aadlen, u64 total_datalen,
-+			     const u8 *tag, int taglen);
++			     const u8 tag[16], int taglen);
 +
 +/*
 + * This is the setkey function for the VAES + AVX10 implementations of AES-GCM.
@@ -3523,16 +3526,13 @@ index b1d90c25975a..700bc1e530c7 100644
 +	/* Finalize */
 +	taglen = crypto_aead_authsize(tfm);
 +	if (flags & FLAG_ENC) {
-+		unsigned int datalen = req->cryptlen;
-+		u8 tag[16];
-+
 +		/* Finish computing the auth tag. */
 +		aes_gcm_enc_final_vaes_avx10(key, le_ctr, ghash_acc, assoclen,
-+					     datalen, tag, taglen);
++					     req->cryptlen);
 +
 +		/* Store the computed auth tag in the dst scatterlist. */
-+		scatterwalk_map_and_copy(tag, req->dst, req->assoclen + datalen,
-+					 taglen, 1);
++		scatterwalk_map_and_copy(ghash_acc, req->dst, req->assoclen +
++					 req->cryptlen, taglen, 1);
 +	} else {
 +		unsigned int datalen = req->cryptlen - taglen;
 +		u8 tag[16];
@@ -3790,7 +3790,7 @@ index b1d90c25975a..700bc1e530c7 100644
  
  #ifdef CONFIG_X86_64
  static int generic_gcmaes_set_key(struct crypto_aead *aead, const u8 *key,
-@@ -1146,7 +1838,8 @@ static int generic_gcmaes_set_key(struct crypto_aead *aead, const u8 *key,
+@@ -1146,7 +1834,8 @@ static int generic_gcmaes_set_key(struct crypto_aead *aead, const u8 *key,
  	struct generic_gcmaes_ctx *ctx = generic_gcmaes_ctx_get(aead);
  
  	return aes_set_key_common(&ctx->aes_key_expanded, key, key_len) ?:
@@ -3800,7 +3800,7 @@ index b1d90c25975a..700bc1e530c7 100644
  }
  
  static int generic_gcmaes_encrypt(struct aead_request *req)
-@@ -1276,13 +1969,21 @@ static int __init aesni_init(void)
+@@ -1276,13 +1965,21 @@ static int __init aesni_init(void)
  		goto unregister_aeads;
  #endif /* CONFIG_X86_64 */
  
@@ -3823,7 +3823,7 @@ index b1d90c25975a..700bc1e530c7 100644
  
  unregister_skciphers:
  	simd_unregister_skciphers(aesni_skciphers, ARRAY_SIZE(aesni_skciphers),
-@@ -1303,6 +2004,7 @@ static void __exit aesni_exit(void)
+@@ -1303,6 +2000,7 @@ static void __exit aesni_exit(void)
  	if (boot_cpu_has(X86_FEATURE_AVX))
  		simd_unregister_skciphers(&aesni_xctr, 1, &aesni_simd_xctr);
  #endif /* CONFIG_X86_64 */
@@ -4171,286 +4171,40 @@ index f08496cd6870..24973f42c43f 100644
 -- 
 2.45.1
 
-From 388e8ee0adfb79de7cb3ddbe3c47c7ae8e877039 Mon Sep 17 00:00:00 2001
+From 942f32df8bd9a1c5016404ff7c83269136eac58d Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Tue, 7 May 2024 18:42:33 +0200
+Date: Wed, 22 May 2024 15:38:49 +0200
 Subject: [PATCH 02/10] amd-pstate
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
- .../admin-guide/kernel-parameters.txt         |   5 +
- Documentation/admin-guide/pm/amd-pstate.rst   |  70 ++-
- arch/x86/Kconfig                              |   5 +-
- arch/x86/include/asm/msr-index.h              |   2 +
- drivers/acpi/cppc_acpi.c                      |  17 +-
- drivers/acpi/processor_driver.c               |   6 +
- drivers/cpufreq/acpi-cpufreq.c                |   2 -
- drivers/cpufreq/amd-pstate-ut.c               |   2 +-
- drivers/cpufreq/amd-pstate.c                  | 595 ++++++++++++++----
- include/acpi/cppc_acpi.h                      |   5 +
- include/linux/amd-pstate.h                    |  43 +-
- include/linux/cpufreq.h                       |   1 +
- 12 files changed, 630 insertions(+), 123 deletions(-)
+ drivers/cpufreq/amd-pstate.c | 287 ++++++++++++++++++++++-------------
+ include/linux/amd-pstate.h   |  20 ++-
+ 2 files changed, 196 insertions(+), 111 deletions(-)
 
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index 31fdaf4fe9dd..dd62df26186f 100644
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -374,6 +374,11 @@
- 			  selects a performance level in this range and appropriate
- 			  to the current workload.
- 
-+	amd_prefcore=
-+			[X86]
-+			disable
-+			  Disable amd-pstate preferred core.
-+
- 	amijoy.map=	[HW,JOY] Amiga joystick support
- 			Map of devices attached to JOY0DAT and JOY1DAT
- 			Format: <a>,<b>
-diff --git a/Documentation/admin-guide/pm/amd-pstate.rst b/Documentation/admin-guide/pm/amd-pstate.rst
-index 9eb26014d34b..82fbd01da658 100644
---- a/Documentation/admin-guide/pm/amd-pstate.rst
-+++ b/Documentation/admin-guide/pm/amd-pstate.rst
-@@ -300,8 +300,8 @@ platforms. The AMD P-States mechanism is the more performance and energy
- efficiency frequency management method on AMD processors.
- 
- 
--AMD Pstate Driver Operation Modes
--=================================
-+``amd-pstate`` Driver Operation Modes
-+======================================
- 
- ``amd_pstate`` CPPC has 3 operation modes: autonomous (active) mode,
- non-autonomous (passive) mode and guided autonomous (guided) mode.
-@@ -353,6 +353,48 @@ is activated.  In this mode, driver requests minimum and maximum performance
- level and the platform autonomously selects a performance level in this range
- and appropriate to the current workload.
- 
-+``amd-pstate`` Preferred Core
-+=================================
-+
-+The core frequency is subjected to the process variation in semiconductors.
-+Not all cores are able to reach the maximum frequency respecting the
-+infrastructure limits. Consequently, AMD has redefined the concept of
-+maximum frequency of a part. This means that a fraction of cores can reach
-+maximum frequency. To find the best process scheduling policy for a given
-+scenario, OS needs to know the core ordering informed by the platform through
-+highest performance capability register of the CPPC interface.
-+
-+``amd-pstate`` preferred core enables the scheduler to prefer scheduling on
-+cores that can achieve a higher frequency with lower voltage. The preferred
-+core rankings can dynamically change based on the workload, platform conditions,
-+thermals and ageing.
-+
-+The priority metric will be initialized by the ``amd-pstate`` driver. The ``amd-pstate``
-+driver will also determine whether or not ``amd-pstate`` preferred core is
-+supported by the platform.
-+
-+``amd-pstate`` driver will provide an initial core ordering when the system boots.
-+The platform uses the CPPC interfaces to communicate the core ranking to the
-+operating system and scheduler to make sure that OS is choosing the cores
-+with highest performance firstly for scheduling the process. When ``amd-pstate``
-+driver receives a message with the highest performance change, it will
-+update the core ranking and set the cpu's priority.
-+
-+``amd-pstate`` Preferred Core Switch
-+=====================================
-+Kernel Parameters
-+-----------------
-+
-+``amd-pstate`` peferred core`` has two states: enable and disable.
-+Enable/disable states can be chosen by different kernel parameters.
-+Default enable ``amd-pstate`` preferred core.
-+
-+``amd_prefcore=disable``
-+
-+For systems that support ``amd-pstate`` preferred core, the core rankings will
-+always be advertised by the platform. But OS can choose to ignore that via the
-+kernel parameter ``amd_prefcore=disable``.
-+
- User Space Interface in ``sysfs`` - General
- ===========================================
- 
-@@ -385,6 +427,30 @@ control its functionality at the system level.  They are located in the
-         to the operation mode represented by that string - or to be
-         unregistered in the "disable" case.
- 
-+``prefcore``
-+	Preferred core state of the driver: "enabled" or "disabled".
-+
-+	"enabled"
-+		Enable the ``amd-pstate`` preferred core.
-+
-+	"disabled"
-+		Disable the ``amd-pstate`` preferred core
-+
-+
-+        This attribute is read-only to check the state of preferred core set
-+        by the kernel parameter.
-+
-+``cpb_boost``
-+        Specifies whether core performance boost is requested to be enabled or disabled
-+        If core performance boost is disabled while a core is in a boosted P-state, the
-+        core automatically transitions to the highest performance non-boosted P-state.
-+        AMD Core Performance Boost(CPB) is controlled by this new attribute file which
-+        allow user to change all cores frequency boosting state. It supports both
-+        ``active``, ``passive`` and ``guided`` mode control with below value write to it.
-+
-+        "0" Disable Core Performance Boosting
-+        "1" Enable  Core Performance Boosting
-+
- ``cpupower`` tool support for ``amd-pstate``
- ===============================================
- 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 6f49999a6b83..67f5f5647fbe 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1055,8 +1055,9 @@ config SCHED_MC
- 
- config SCHED_MC_PRIO
- 	bool "CPU core priorities scheduler support"
--	depends on SCHED_MC && CPU_SUP_INTEL
--	select X86_INTEL_PSTATE
-+	depends on SCHED_MC
-+	select X86_INTEL_PSTATE if CPU_SUP_INTEL
-+	select X86_AMD_PSTATE if CPU_SUP_AMD && ACPI
- 	select CPU_FREQ
- 	default y
- 	help
-diff --git a/arch/x86/include/asm/msr-index.h b/arch/x86/include/asm/msr-index.h
-index d65f8ce6b7cf..f0f4c137ce1e 100644
---- a/arch/x86/include/asm/msr-index.h
-+++ b/arch/x86/include/asm/msr-index.h
-@@ -751,6 +751,8 @@
- #define MSR_K7_HWCR_IRPERF_EN		BIT_ULL(MSR_K7_HWCR_IRPERF_EN_BIT)
- #define MSR_K7_FID_VID_CTL		0xc0010041
- #define MSR_K7_FID_VID_STATUS		0xc0010042
-+#define MSR_K7_HWCR_CPB_DIS_BIT		25
-+#define MSR_K7_HWCR_CPB_DIS		BIT_ULL(MSR_K7_HWCR_CPB_DIS_BIT)
- 
- /* K6 MSRs */
- #define MSR_K6_WHCR			0xc0000082
-diff --git a/drivers/acpi/cppc_acpi.c b/drivers/acpi/cppc_acpi.c
-index 1b27ebc6d01d..1d857978f5f4 100644
---- a/drivers/acpi/cppc_acpi.c
-+++ b/drivers/acpi/cppc_acpi.c
-@@ -686,8 +686,10 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
- 
- 	if (!osc_sb_cppc2_support_acked) {
- 		pr_debug("CPPC v2 _OSC not acked\n");
--		if (!cpc_supported_by_cpu())
-+		if (!cpc_supported_by_cpu()) {
-+			pr_debug("CPPC is not supported by the CPU\n");
- 			return -ENODEV;
-+		}
- 	}
- 
- 	/* Parse the ACPI _CPC table for this CPU. */
-@@ -1199,6 +1201,19 @@ int cppc_get_nominal_perf(int cpunum, u64 *nominal_perf)
- 	return cppc_get_perf(cpunum, NOMINAL_PERF, nominal_perf);
- }
- 
-+/**
-+ * cppc_get_highest_perf - Get the highest performance register value.
-+ * @cpunum: CPU from which to get highest performance.
-+ * @highest_perf: Return address.
-+ *
-+ * Return: 0 for success, -EIO otherwise.
-+ */
-+int cppc_get_highest_perf(int cpunum, u64 *highest_perf)
-+{
-+	return cppc_get_perf(cpunum, HIGHEST_PERF, highest_perf);
-+}
-+EXPORT_SYMBOL_GPL(cppc_get_highest_perf);
-+
- /**
-  * cppc_get_epp_perf - Get the epp register value.
-  * @cpunum: CPU from which to get epp preference value.
-diff --git a/drivers/acpi/processor_driver.c b/drivers/acpi/processor_driver.c
-index 4bd16b3f0781..67db60eda370 100644
---- a/drivers/acpi/processor_driver.c
-+++ b/drivers/acpi/processor_driver.c
-@@ -27,6 +27,7 @@
- #define ACPI_PROCESSOR_NOTIFY_PERFORMANCE 0x80
- #define ACPI_PROCESSOR_NOTIFY_POWER	0x81
- #define ACPI_PROCESSOR_NOTIFY_THROTTLING	0x82
-+#define ACPI_PROCESSOR_NOTIFY_HIGEST_PERF_CHANGED	0x85
- 
- MODULE_AUTHOR("Paul Diefenbaugh");
- MODULE_DESCRIPTION("ACPI Processor Driver");
-@@ -83,6 +84,11 @@ static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
- 		acpi_bus_generate_netlink_event(device->pnp.device_class,
- 						  dev_name(&device->dev), event, 0);
- 		break;
-+	case ACPI_PROCESSOR_NOTIFY_HIGEST_PERF_CHANGED:
-+		cpufreq_update_limits(pr->id);
-+		acpi_bus_generate_netlink_event(device->pnp.device_class,
-+						  dev_name(&device->dev), event, 0);
-+		break;
- 	default:
- 		acpi_handle_debug(handle, "Unsupported event [0x%x]\n", event);
- 		break;
-diff --git a/drivers/cpufreq/acpi-cpufreq.c b/drivers/cpufreq/acpi-cpufreq.c
-index 37f1cdf46d29..2fc82831bddd 100644
---- a/drivers/cpufreq/acpi-cpufreq.c
-+++ b/drivers/cpufreq/acpi-cpufreq.c
-@@ -50,8 +50,6 @@ enum {
- #define AMD_MSR_RANGE		(0x7)
- #define HYGON_MSR_RANGE		(0x7)
- 
--#define MSR_K7_HWCR_CPB_DIS	(1ULL << 25)
--
- struct acpi_cpufreq_data {
- 	unsigned int resume;
- 	unsigned int cpu_feature;
-diff --git a/drivers/cpufreq/amd-pstate-ut.c b/drivers/cpufreq/amd-pstate-ut.c
-index f04ae67dda37..b3601b0e6dd3 100644
---- a/drivers/cpufreq/amd-pstate-ut.c
-+++ b/drivers/cpufreq/amd-pstate-ut.c
-@@ -226,7 +226,7 @@ static void amd_pstate_ut_check_freq(u32 index)
- 			goto skip_test;
- 		}
- 
--		if (cpudata->boost_supported) {
-+		if (amd_pstate_global_params.cpb_boost) {
- 			if ((policy->max == cpudata->max_freq) ||
- 					(policy->max == cpudata->nominal_freq))
- 				amd_pstate_ut_cases[index].result = AMD_PSTATE_UT_RESULT_PASS;
 diff --git a/drivers/cpufreq/amd-pstate.c b/drivers/cpufreq/amd-pstate.c
-index 07f341995439..756844fde011 100644
+index 2015c9fcc3c9..1b7e82a0ad2e 100644
 --- a/drivers/cpufreq/amd-pstate.c
 +++ b/drivers/cpufreq/amd-pstate.c
-@@ -37,6 +37,7 @@
- #include <linux/uaccess.h>
- #include <linux/static_call.h>
- #include <linux/amd-pstate.h>
-+#include <linux/topology.h>
- 
- #include <acpi/processor.h>
- #include <acpi/cppc_acpi.h>
-@@ -49,6 +50,8 @@
+@@ -50,7 +50,8 @@
  
  #define AMD_PSTATE_TRANSITION_LATENCY	20000
  #define AMD_PSTATE_TRANSITION_DELAY	1000
+-#define AMD_PSTATE_PREFCORE_THRESHOLD	166
 +#define CPPC_HIGHEST_PERF_PERFORMANCE	196
 +#define CPPC_HIGHEST_PERF_DEFAULT	166
  
  /*
   * TODO: We need more time to fine tune processors with shared memory solution
-@@ -64,6 +67,10 @@ static struct cpufreq_driver amd_pstate_driver;
- static struct cpufreq_driver amd_pstate_epp_driver;
+@@ -67,6 +68,7 @@ static struct cpufreq_driver amd_pstate_epp_driver;
  static int cppc_state = AMD_PSTATE_UNDEFINED;
  static bool cppc_enabled;
-+static bool amd_pstate_prefcore = true;
+ static bool amd_pstate_prefcore = true;
 +static struct quirk_entry *quirks;
-+struct amd_pstate_global_params amd_pstate_global_params;
-+EXPORT_SYMBOL_GPL(amd_pstate_global_params);
  
  /*
   * AMD Energy Preference Performance (EPP)
-@@ -108,6 +115,41 @@ static unsigned int epp_values[] = {
+@@ -111,6 +113,41 @@ static unsigned int epp_values[] = {
  
  typedef int (*cppc_mode_transition_fn)(int);
  
@@ -4492,7 +4246,7 @@ index 07f341995439..756844fde011 100644
  static inline int get_mode_idx_from_str(const char *str, size_t size)
  {
  	int i;
-@@ -287,6 +329,21 @@ static inline int amd_pstate_enable(bool enable)
+@@ -290,6 +327,21 @@ static inline int amd_pstate_enable(bool enable)
  	return static_call(amd_pstate_enable)(enable);
  }
  
@@ -4514,340 +4268,119 @@ index 07f341995439..756844fde011 100644
  static int pstate_init_perf(struct amd_cpudata *cpudata)
  {
  	u64 cap1;
-@@ -297,13 +354,14 @@ static int pstate_init_perf(struct amd_cpudata *cpudata)
- 	if (ret)
- 		return ret;
- 
--	/*
--	 * TODO: Introduce AMD specific power feature.
--	 *
--	 * CPPC entry doesn't indicate the highest performance in some ASICs.
-+	/* For platforms that do not support the preferred core feature, the
-+	 * highest_pef may be configured with 166 or 255, to avoid max frequency
-+	 * calculated wrongly. we take the AMD_CPPC_HIGHEST_PERF(cap1) value as
-+	 * the default max perf.
+@@ -306,7 +358,7 @@ static int pstate_init_perf(struct amd_cpudata *cpudata)
+ 	 * the default max perf.
  	 */
--	highest_perf = amd_get_highest_perf();
--	if (highest_perf > AMD_CPPC_HIGHEST_PERF(cap1))
-+	if (cpudata->hw_prefcore)
+ 	if (cpudata->hw_prefcore)
+-		highest_perf = AMD_PSTATE_PREFCORE_THRESHOLD;
 +		highest_perf = amd_pstate_highest_perf_set(cpudata);
-+	else
+ 	else
  		highest_perf = AMD_CPPC_HIGHEST_PERF(cap1);
  
- 	WRITE_ONCE(cpudata->highest_perf, highest_perf);
-@@ -311,6 +369,7 @@ static int pstate_init_perf(struct amd_cpudata *cpudata)
- 	WRITE_ONCE(cpudata->nominal_perf, AMD_CPPC_NOMINAL_PERF(cap1));
- 	WRITE_ONCE(cpudata->lowest_nonlinear_perf, AMD_CPPC_LOWNONLIN_PERF(cap1));
- 	WRITE_ONCE(cpudata->lowest_perf, AMD_CPPC_LOWEST_PERF(cap1));
-+	WRITE_ONCE(cpudata->prefcore_ranking, AMD_CPPC_HIGHEST_PERF(cap1));
- 	WRITE_ONCE(cpudata->min_limit_perf, AMD_CPPC_LOWEST_PERF(cap1));
- 	return 0;
- }
-@@ -324,8 +383,9 @@ static int cppc_init_perf(struct amd_cpudata *cpudata)
- 	if (ret)
+@@ -330,7 +382,7 @@ static int cppc_init_perf(struct amd_cpudata *cpudata)
  		return ret;
  
--	highest_perf = amd_get_highest_perf();
--	if (highest_perf > cppc_perf.highest_perf)
-+	if (cpudata->hw_prefcore)
+ 	if (cpudata->hw_prefcore)
+-		highest_perf = AMD_PSTATE_PREFCORE_THRESHOLD;
 +		highest_perf = amd_pstate_highest_perf_set(cpudata);
-+	else
+ 	else
  		highest_perf = cppc_perf.highest_perf;
  
- 	WRITE_ONCE(cpudata->highest_perf, highest_perf);
-@@ -334,6 +394,7 @@ static int cppc_init_perf(struct amd_cpudata *cpudata)
- 	WRITE_ONCE(cpudata->lowest_nonlinear_perf,
- 		   cppc_perf.lowest_nonlinear_perf);
- 	WRITE_ONCE(cpudata->lowest_perf, cppc_perf.lowest_perf);
-+	WRITE_ONCE(cpudata->prefcore_ranking, cppc_perf.highest_perf);
- 	WRITE_ONCE(cpudata->min_limit_perf, cppc_perf.lowest_perf);
- 
- 	if (cppc_state == AMD_PSTATE_ACTIVE)
-@@ -431,6 +492,7 @@ static void amd_pstate_update(struct amd_cpudata *cpudata, u32 min_perf,
- 			      u32 des_perf, u32 max_perf, bool fast_switch, int gov_flags)
- {
- 	u64 prev = READ_ONCE(cpudata->cppc_req_cached);
-+	u32 nominal_perf = READ_ONCE(cpudata->nominal_perf);
- 	u64 value = prev;
- 
- 	min_perf = clamp_t(unsigned long, min_perf, cpudata->min_limit_perf,
-@@ -450,6 +512,10 @@ static void amd_pstate_update(struct amd_cpudata *cpudata, u32 min_perf,
- 	value &= ~AMD_CPPC_DES_PERF(~0L);
- 	value |= AMD_CPPC_DES_PERF(des_perf);
- 
-+	/* limit the max perf when core performance boost feature is disabled */
-+	if (!amd_pstate_global_params.cpb_boost)
-+		max_perf = min_t(unsigned long, nominal_perf, max_perf);
-+
- 	value &= ~AMD_CPPC_MAX_PERF(~0L);
- 	value |= AMD_CPPC_MAX_PERF(max_perf);
- 
-@@ -477,12 +543,19 @@ static int amd_pstate_verify(struct cpufreq_policy_data *policy)
- 
- static int amd_pstate_update_min_max_limit(struct cpufreq_policy *policy)
- {
--	u32 max_limit_perf, min_limit_perf;
-+	u32 max_limit_perf, min_limit_perf, lowest_perf;
- 	struct amd_cpudata *cpudata = policy->driver_data;
- 
- 	max_limit_perf = div_u64(policy->max * cpudata->highest_perf, cpudata->max_freq);
- 	min_limit_perf = div_u64(policy->min * cpudata->highest_perf, cpudata->max_freq);
- 
-+	lowest_perf = READ_ONCE(cpudata->lowest_perf);
-+	if (min_limit_perf < lowest_perf)
-+		min_limit_perf = lowest_perf;
-+
-+	if (max_limit_perf < min_limit_perf)
-+		max_limit_perf = min_limit_perf;
-+
- 	WRITE_ONCE(cpudata->max_limit_perf, max_limit_perf);
- 	WRITE_ONCE(cpudata->min_limit_perf, min_limit_perf);
- 	WRITE_ONCE(cpudata->max_limit_freq, policy->max);
-@@ -590,125 +663,258 @@ static void amd_pstate_adjust_perf(unsigned int cpu,
+@@ -604,78 +656,6 @@ static void amd_pstate_adjust_perf(unsigned int cpu,
  	cpufreq_cpu_put(policy);
  }
  
 -static int amd_get_min_freq(struct amd_cpudata *cpudata)
-+static int amd_pstate_set_boost(struct cpufreq_policy *policy, int state)
- {
+-{
 -	struct cppc_perf_caps cppc_perf;
-+	struct amd_cpudata *cpudata = policy->driver_data;
-+	int ret;
- 
--	int ret = cppc_get_perf_caps(cpudata->cpu, &cppc_perf);
--	if (ret)
-+	if (!cpudata->boost_supported) {
-+		pr_err("Boost mode is not supported by this processor or SBIOS\n");
-+		return -ENOTSUPP;
-+	}
-+
-+	if (state)
-+		policy->cpuinfo.max_freq = cpudata->max_freq;
-+	else
-+		policy->cpuinfo.max_freq = cpudata->nominal_freq;
-+
-+	policy->max = policy->cpuinfo.max_freq;
-+
-+	ret = freq_qos_update_request(&cpudata->req[1],
-+				      policy->cpuinfo.max_freq);
-+	if (ret < 0)
- 		return ret;
- 
--	/* Switch to khz */
--	return cppc_perf.lowest_freq * 1000;
-+	return 0;
- }
- 
--static int amd_get_max_freq(struct amd_cpudata *cpudata)
-+static int amd_pstate_boost_init(struct amd_cpudata *cpudata)
- {
--	struct cppc_perf_caps cppc_perf;
--	u32 max_perf, max_freq, nominal_freq, nominal_perf;
--	u64 boost_ratio;
-+	u64 boost_val;
-+	int ret;
- 
--	int ret = cppc_get_perf_caps(cpudata->cpu, &cppc_perf);
--	if (ret)
-+	if (!boot_cpu_has(X86_FEATURE_CPB)) {
-+		cpudata->boost_supported = false;
-+		current_pstate_driver->boost_enabled = false;
-+		pr_debug_once("Boost CPB capabilities not present in the processor\n");
-+		return -ENOTSUPP;
-+	}
-+
-+	ret = rdmsrl_on_cpu(cpudata->cpu, MSR_K7_HWCR, &boost_val);
-+	if (ret) {
-+		pr_err_once("failed to read initial CPU boost state!\n");
- 		return ret;
-+	}
- 
--	nominal_freq = cppc_perf.nominal_freq;
--	nominal_perf = READ_ONCE(cpudata->nominal_perf);
--	max_perf = READ_ONCE(cpudata->highest_perf);
-+	amd_pstate_global_params.cpb_supported = !(boost_val & MSR_K7_HWCR_CPB_DIS);
-+	if (amd_pstate_global_params.cpb_supported)
-+		current_pstate_driver->boost_enabled = true;
- 
--	boost_ratio = div_u64(max_perf << SCHED_CAPACITY_SHIFT,
--			      nominal_perf);
-+	amd_pstate_global_params.cpb_boost = amd_pstate_global_params.cpb_supported;
- 
--	max_freq = nominal_freq * boost_ratio >> SCHED_CAPACITY_SHIFT;
-+	return ret;
-+}
- 
--	/* Switch to khz */
--	return max_freq * 1000;
-+static void amd_perf_ctl_reset(unsigned int cpu)
-+{
-+	wrmsrl_on_cpu(cpu, MSR_AMD_PERF_CTL, 0);
- }
- 
--static int amd_get_nominal_freq(struct amd_cpudata *cpudata)
-+/*
-+ * Set amd-pstate preferred core enable can't be done directly from cpufreq callbacks
-+ * due to locking, so queue the work for later.
-+ */
-+static void amd_pstste_sched_prefcore_workfn(struct work_struct *work)
- {
--	struct cppc_perf_caps cppc_perf;
-+	sched_set_itmt_support();
-+}
-+static DECLARE_WORK(sched_prefcore_work, amd_pstste_sched_prefcore_workfn);
- 
+-
 -	int ret = cppc_get_perf_caps(cpudata->cpu, &cppc_perf);
 -	if (ret)
 -		return ret;
-+/*
-+ * Get the highest performance register value.
-+ * @cpu: CPU from which to get highest performance.
-+ * @highest_perf: Return address.
-+ *
-+ * Return: 0 for success, -EIO otherwise.
-+ */
-+static int amd_pstate_get_highest_perf(int cpu, u32 *highest_perf)
-+{
-+	int ret;
-+
-+	if (boot_cpu_has(X86_FEATURE_CPPC)) {
-+		u64 cap1;
- 
+-
 -	/* Switch to khz */
--	return cppc_perf.nominal_freq * 1000;
-+		ret = rdmsrl_safe_on_cpu(cpu, MSR_AMD_CPPC_CAP1, &cap1);
-+		if (ret)
-+			return ret;
-+		WRITE_ONCE(*highest_perf, AMD_CPPC_HIGHEST_PERF(cap1));
-+	} else {
-+		u64 cppc_highest_perf;
-+
-+		ret = cppc_get_highest_perf(cpu, &cppc_highest_perf);
-+		if (ret)
-+			return ret;
-+		WRITE_ONCE(*highest_perf, cppc_highest_perf);
-+	}
-+
-+	return (ret);
- }
- 
--static int amd_get_lowest_nonlinear_freq(struct amd_cpudata *cpudata)
-+#define CPPC_MAX_PERF	U8_MAX
-+
-+static void amd_pstate_init_prefcore(struct amd_cpudata *cpudata)
- {
+-	return cppc_perf.lowest_freq * 1000;
+-}
+-
+-static int amd_get_max_freq(struct amd_cpudata *cpudata)
+-{
 -	struct cppc_perf_caps cppc_perf;
--	u32 lowest_nonlinear_freq, lowest_nonlinear_perf,
--	    nominal_freq, nominal_perf;
--	u64 lowest_nonlinear_ratio;
-+	int ret, prio;
-+	u32 highest_perf;
- 
+-	u32 max_perf, max_freq, nominal_freq, nominal_perf;
+-	u64 boost_ratio;
+-
 -	int ret = cppc_get_perf_caps(cpudata->cpu, &cppc_perf);
-+	ret = amd_pstate_get_highest_perf(cpudata->cpu, &highest_perf);
- 	if (ret)
+-	if (ret)
 -		return ret;
 -
 -	nominal_freq = cppc_perf.nominal_freq;
 -	nominal_perf = READ_ONCE(cpudata->nominal_perf);
-+		return;
- 
+-	max_perf = READ_ONCE(cpudata->highest_perf);
+-
+-	boost_ratio = div_u64(max_perf << SCHED_CAPACITY_SHIFT,
+-			      nominal_perf);
+-
+-	max_freq = nominal_freq * boost_ratio >> SCHED_CAPACITY_SHIFT;
+-
+-	/* Switch to khz */
+-	return max_freq * 1000;
+-}
+-
+-static int amd_get_nominal_freq(struct amd_cpudata *cpudata)
+-{
+-	struct cppc_perf_caps cppc_perf;
+-
+-	int ret = cppc_get_perf_caps(cpudata->cpu, &cppc_perf);
+-	if (ret)
+-		return ret;
+-
+-	/* Switch to khz */
+-	return cppc_perf.nominal_freq * 1000;
+-}
+-
+-static int amd_get_lowest_nonlinear_freq(struct amd_cpudata *cpudata)
+-{
+-	struct cppc_perf_caps cppc_perf;
+-	u32 lowest_nonlinear_freq, lowest_nonlinear_perf,
+-	    nominal_freq, nominal_perf;
+-	u64 lowest_nonlinear_ratio;
+-
+-	int ret = cppc_get_perf_caps(cpudata->cpu, &cppc_perf);
+-	if (ret)
+-		return ret;
+-
+-	nominal_freq = cppc_perf.nominal_freq;
+-	nominal_perf = READ_ONCE(cpudata->nominal_perf);
+-
 -	lowest_nonlinear_perf = cppc_perf.lowest_nonlinear_perf;
-+	cpudata->hw_prefcore = true;
-+	/* check if CPPC preferred core feature is enabled*/
-+	if (highest_perf < CPPC_MAX_PERF)
-+		prio = (int)highest_perf;
-+	else {
-+		pr_debug("AMD CPPC preferred core is unsupported!\n");
-+		cpudata->hw_prefcore = false;
-+		return;
-+	}
- 
+-
 -	lowest_nonlinear_ratio = div_u64(lowest_nonlinear_perf << SCHED_CAPACITY_SHIFT,
 -					 nominal_perf);
-+	if (!amd_pstate_prefcore)
-+		return;
- 
+-
 -	lowest_nonlinear_freq = nominal_freq * lowest_nonlinear_ratio >> SCHED_CAPACITY_SHIFT;
-+	/*
-+	 * The priorities can be set regardless of whether or not
-+	 * sched_set_itmt_support(true) has been called and it is valid to
-+	 * update them at any time after it has been called.
-+	 */
-+	sched_set_itmt_core_prio(prio, cpudata->cpu);
- 
+-
 -	/* Switch to khz */
 -	return lowest_nonlinear_freq * 1000;
-+	schedule_work(&sched_prefcore_work);
- }
- 
--static int amd_pstate_set_boost(struct cpufreq_policy *policy, int state)
-+static void amd_pstate_update_limits(unsigned int cpu)
+-}
+-
+ static int amd_pstate_set_boost(struct cpufreq_policy *policy, int state)
  {
-+	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
  	struct amd_cpudata *cpudata = policy->driver_data;
-+	u32 prev_high = 0, cur_high = 0;
- 	int ret;
-+	bool highest_perf_changed = false;
- 
--	if (!cpudata->boost_supported) {
--		pr_err("Boost mode is not supported by this processor or SBIOS\n");
--		return -EINVAL;
--	}
-+	mutex_lock(&amd_pstate_driver_lock);
-+	if ((!amd_pstate_prefcore) || (!cpudata->hw_prefcore))
-+		goto free_cpufreq_put;
- 
--	if (state)
--		policy->cpuinfo.max_freq = cpudata->max_freq;
--	else
--		policy->cpuinfo.max_freq = cpudata->nominal_freq;
-+	ret = amd_pstate_get_highest_perf(cpu, &cur_high);
-+	if (ret)
-+		goto free_cpufreq_put;
- 
--	policy->max = policy->cpuinfo.max_freq;
-+	prev_high = READ_ONCE(cpudata->prefcore_ranking);
-+	if (prev_high != cur_high) {
-+		highest_perf_changed = true;
-+		WRITE_ONCE(cpudata->prefcore_ranking, cur_high);
- 
--	ret = freq_qos_update_request(&cpudata->req[1],
--				      policy->cpuinfo.max_freq);
--	if (ret < 0)
--		return ret;
-+		if (cur_high < CPPC_MAX_PERF)
-+			sched_set_itmt_core_prio((int)cur_high, cpu);
-+	}
- 
--	return 0;
-+free_cpufreq_put:
-+	cpufreq_cpu_put(policy);
-+
-+	if (!highest_perf_changed)
-+		cpufreq_update_policy(cpu);
-+
-+	mutex_unlock(&amd_pstate_driver_lock);
+@@ -828,9 +808,93 @@ static void amd_pstate_update_limits(unsigned int cpu)
+ 	mutex_unlock(&amd_pstate_driver_lock);
  }
  
--static void amd_pstate_boost_init(struct amd_cpudata *cpudata)
 +/*
 + * Get pstate transition delay time from ACPI tables that firmware set
 + * instead of using hardcode value directly.
 + */
 +static u32 amd_pstate_get_transition_delay_us(unsigned int cpu)
- {
--	u32 highest_perf, nominal_perf;
++{
 +	u32 transition_delay_ns;
- 
--	highest_perf = READ_ONCE(cpudata->highest_perf);
--	nominal_perf = READ_ONCE(cpudata->nominal_perf);
++
 +	transition_delay_ns = cppc_get_transition_latency(cpu);
 +	if (transition_delay_ns == CPUFREQ_ETERNAL)
 +		return AMD_PSTATE_TRANSITION_DELAY;
- 
--	if (highest_perf <= nominal_perf)
--		return;
++
 +	return transition_delay_ns / NSEC_PER_USEC;
 +}
 +
@@ -4858,17 +4391,14 @@ index 07f341995439..756844fde011 100644
 +static u32 amd_pstate_get_transition_latency(unsigned int cpu)
 +{
 +	u32 transition_latency;
- 
--	cpudata->boost_supported = true;
--	current_pstate_driver->boost_enabled = true;
++
 +	transition_latency = cppc_get_transition_latency(cpu);
 +	if (transition_latency  == CPUFREQ_ETERNAL)
 +		return AMD_PSTATE_TRANSITION_LATENCY;
 +
 +	return transition_latency;
- }
- 
--static void amd_perf_ctl_reset(unsigned int cpu)
++}
++
 +/*
 + * amd_pstate_init_freq: Initialize the max_freq, min_freq,
 + *                       nominal_freq and lowest_nonlinear_freq for
@@ -4881,8 +4411,7 @@ index 07f341995439..756844fde011 100644
 + *  Returns 0 on success, non-zero value on failure.
 + */
 +static int amd_pstate_init_freq(struct amd_cpudata *cpudata)
- {
--	wrmsrl_on_cpu(cpu, MSR_AMD_PERF_CTL, 0);
++{
 +	int ret;
 +	u32 min_freq;
 +	u32 highest_perf, max_freq;
@@ -4922,8 +4451,8 @@ index 07f341995439..756844fde011 100644
 +	WRITE_ONCE(cpudata->max_freq, max_freq);
 +
 +	return 0;
- }
- 
++}
++
  static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
  {
 -	int min_freq, max_freq, nominal_freq, lowest_nonlinear_freq, ret;
@@ -4931,18 +4460,7 @@ index 07f341995439..756844fde011 100644
  	struct device *dev;
  	struct amd_cpudata *cpudata;
  
-@@ -727,24 +933,36 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
- 
- 	cpudata->cpu = policy->cpu;
- 
-+	amd_pstate_init_prefcore(cpudata);
-+
-+	/* initialize cpu cores boot state */
-+	ret = amd_pstate_boost_init(cpudata);
-+	if (ret)
-+		goto free_cpudata1;
-+
- 	ret = amd_pstate_init_perf(cpudata);
+@@ -855,20 +919,25 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
  	if (ret)
  		goto free_cpudata1;
  
@@ -4977,7 +4495,7 @@ index 07f341995439..756844fde011 100644
  
  	policy->min = min_freq;
  	policy->max = max_freq;
-@@ -772,17 +990,11 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
+@@ -896,13 +965,8 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
  		goto free_cpudata2;
  	}
  
@@ -4991,11 +4509,7 @@ index 07f341995439..756844fde011 100644
  
  	policy->driver_data = cpudata;
  
--	amd_pstate_boost_init(cpudata);
- 	if (!current_pstate_driver->adjust_perf)
- 		current_pstate_driver->adjust_perf = amd_pstate_adjust_perf;
- 
-@@ -842,7 +1054,7 @@ static ssize_t show_amd_pstate_max_freq(struct cpufreq_policy *policy,
+@@ -966,7 +1030,7 @@ static ssize_t show_amd_pstate_max_freq(struct cpufreq_policy *policy,
  	int max_freq;
  	struct amd_cpudata *cpudata = policy->driver_data;
  
@@ -5004,7 +4518,7 @@ index 07f341995439..756844fde011 100644
  	if (max_freq < 0)
  		return max_freq;
  
-@@ -855,7 +1067,7 @@ static ssize_t show_amd_pstate_lowest_nonlinear_freq(struct cpufreq_policy *poli
+@@ -979,7 +1043,7 @@ static ssize_t show_amd_pstate_lowest_nonlinear_freq(struct cpufreq_policy *poli
  	int freq;
  	struct amd_cpudata *cpudata = policy->driver_data;
  
@@ -5013,182 +4527,7 @@ index 07f341995439..756844fde011 100644
  	if (freq < 0)
  		return freq;
  
-@@ -877,6 +1089,28 @@ static ssize_t show_amd_pstate_highest_perf(struct cpufreq_policy *policy,
- 	return sysfs_emit(buf, "%u\n", perf);
- }
- 
-+static ssize_t show_amd_pstate_prefcore_ranking(struct cpufreq_policy *policy,
-+						char *buf)
-+{
-+	u32 perf;
-+	struct amd_cpudata *cpudata = policy->driver_data;
-+
-+	perf = READ_ONCE(cpudata->prefcore_ranking);
-+
-+	return sysfs_emit(buf, "%u\n", perf);
-+}
-+
-+static ssize_t show_amd_pstate_hw_prefcore(struct cpufreq_policy *policy,
-+					   char *buf)
-+{
-+	bool hw_prefcore;
-+	struct amd_cpudata *cpudata = policy->driver_data;
-+
-+	hw_prefcore = READ_ONCE(cpudata->hw_prefcore);
-+
-+	return sysfs_emit(buf, "%s\n", str_enabled_disabled(hw_prefcore));
-+}
-+
- static ssize_t show_energy_performance_available_preferences(
- 				struct cpufreq_policy *policy, char *buf)
- {
-@@ -1074,18 +1308,127 @@ static ssize_t status_store(struct device *a, struct device_attribute *b,
- 	return ret < 0 ? ret : count;
- }
- 
-+static ssize_t prefcore_show(struct device *dev,
-+			     struct device_attribute *attr, char *buf)
-+{
-+	return sysfs_emit(buf, "%s\n", str_enabled_disabled(amd_pstate_prefcore));
-+}
-+
-+static int amd_cpu_boost_update(struct amd_cpudata *cpudata, u32 on)
-+{
-+	struct cpufreq_policy *policy = cpufreq_cpu_acquire(cpudata->cpu);
-+	struct cppc_perf_ctrls perf_ctrls;
-+	u32 highest_perf, nominal_perf, nominal_freq, max_freq;
-+	int ret;
-+
-+	if (!policy)
-+		return -ENODATA;
-+
-+	highest_perf = READ_ONCE(cpudata->highest_perf);
-+	nominal_perf = READ_ONCE(cpudata->nominal_perf);
-+	nominal_freq = READ_ONCE(cpudata->nominal_freq);
-+	max_freq = READ_ONCE(cpudata->max_freq);
-+
-+	if (boot_cpu_has(X86_FEATURE_CPPC)) {
-+		u64 value = READ_ONCE(cpudata->cppc_req_cached);
-+
-+		value &= ~GENMASK_ULL(7, 0);
-+		value |= on ? highest_perf : nominal_perf;
-+		WRITE_ONCE(cpudata->cppc_req_cached, value);
-+
-+		wrmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, value);
-+	} else {
-+		perf_ctrls.max_perf = on ? highest_perf : nominal_perf;
-+		ret = cppc_set_epp_perf(cpudata->cpu, &perf_ctrls, 1);
-+		if (ret) {
-+			cpufreq_cpu_release(policy);
-+			pr_debug("failed to set energy perf value (%d)\n", ret);
-+			return ret;
-+		}
-+	}
-+
-+	if (on)
-+		policy->cpuinfo.max_freq = max_freq;
-+	else
-+		policy->cpuinfo.max_freq = nominal_freq * 1000;
-+
-+	policy->max = policy->cpuinfo.max_freq;
-+
-+	if (cppc_state == AMD_PSTATE_PASSIVE) {
-+		ret = freq_qos_update_request(&cpudata->req[1],
-+				      policy->cpuinfo.max_freq);
-+	}
-+
-+	cpufreq_cpu_release(policy);
-+
-+	return ret;
-+}
-+
-+static ssize_t cpb_boost_show(struct device *dev,
-+			   struct device_attribute *attr, char *buf)
-+{
-+	return sysfs_emit(buf, "%u\n", amd_pstate_global_params.cpb_boost);
-+}
-+
-+static ssize_t cpb_boost_store(struct device *dev, struct device_attribute *b,
-+			    const char *buf, size_t count)
-+{
-+	bool new_state;
-+	ssize_t ret;
-+	int cpu;
-+
-+	if (!amd_pstate_global_params.cpb_supported) {
-+		pr_err("Boost mode is not supported by this processor or SBIOS\n");
-+		return -EINVAL;
-+	}
-+
-+	ret = kstrtobool(buf, &new_state);
-+	if (ret)
-+		return ret;
-+
-+	mutex_lock(&amd_pstate_driver_lock);
-+	amd_pstate_global_params.cpb_boost = !!new_state;
-+
-+	for_each_present_cpu(cpu) {
-+
-+		struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
-+		struct amd_cpudata *cpudata = policy->driver_data;
-+
-+		if (!cpudata) {
-+			pr_err("cpudata is NULL\n");
-+			ret = -ENODATA;
-+			cpufreq_cpu_put(policy);
-+			goto err_exit;
-+		}
-+
-+		amd_cpu_boost_update(cpudata, amd_pstate_global_params.cpb_boost);
-+		refresh_frequency_limits(policy);
-+		cpufreq_cpu_put(policy);
-+	}
-+
-+err_exit:
-+	mutex_unlock(&amd_pstate_driver_lock);
-+	return ret < 0 ? ret : count;
-+}
-+
- cpufreq_freq_attr_ro(amd_pstate_max_freq);
- cpufreq_freq_attr_ro(amd_pstate_lowest_nonlinear_freq);
- 
- cpufreq_freq_attr_ro(amd_pstate_highest_perf);
-+cpufreq_freq_attr_ro(amd_pstate_prefcore_ranking);
-+cpufreq_freq_attr_ro(amd_pstate_hw_prefcore);
- cpufreq_freq_attr_rw(energy_performance_preference);
- cpufreq_freq_attr_ro(energy_performance_available_preferences);
- static DEVICE_ATTR_RW(status);
-+static DEVICE_ATTR_RO(prefcore);
-+static DEVICE_ATTR_RW(cpb_boost);
- 
- static struct freq_attr *amd_pstate_attr[] = {
- 	&amd_pstate_max_freq,
- 	&amd_pstate_lowest_nonlinear_freq,
- 	&amd_pstate_highest_perf,
-+	&amd_pstate_prefcore_ranking,
-+	&amd_pstate_hw_prefcore,
- 	NULL,
- };
- 
-@@ -1093,6 +1436,8 @@ static struct freq_attr *amd_pstate_epp_attr[] = {
- 	&amd_pstate_max_freq,
- 	&amd_pstate_lowest_nonlinear_freq,
- 	&amd_pstate_highest_perf,
-+	&amd_pstate_prefcore_ranking,
-+	&amd_pstate_hw_prefcore,
- 	&energy_performance_preference,
- 	&energy_performance_available_preferences,
- 	NULL,
-@@ -1100,6 +1445,8 @@ static struct freq_attr *amd_pstate_epp_attr[] = {
- 
- static struct attribute *pstate_global_attributes[] = {
- 	&dev_attr_status.attr,
-+	&dev_attr_prefcore.attr,
-+	&dev_attr_cpb_boost.attr,
- 	NULL
- };
- 
-@@ -1130,7 +1477,7 @@ static bool amd_pstate_acpi_pm_profile_undefined(void)
+@@ -1290,7 +1354,7 @@ static bool amd_pstate_acpi_pm_profile_undefined(void)
  
  static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
  {
@@ -5197,18 +4536,7 @@ index 07f341995439..756844fde011 100644
  	struct amd_cpudata *cpudata;
  	struct device *dev;
  	u64 value;
-@@ -1151,17 +1498,29 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
- 	cpudata->cpu = policy->cpu;
- 	cpudata->epp_policy = 0;
- 
-+	amd_pstate_init_prefcore(cpudata);
-+
-+	/* initialize cpu cores boot state */
-+	ret = amd_pstate_boost_init(cpudata);
-+	if (ret)
-+		goto free_cpudata1;
-+
- 	ret = amd_pstate_init_perf(cpudata);
+@@ -1317,13 +1381,18 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
  	if (ret)
  		goto free_cpudata1;
  
@@ -5234,7 +4562,7 @@ index 07f341995439..756844fde011 100644
  		ret = -EINVAL;
  		goto free_cpudata1;
  	}
-@@ -1171,12 +1530,6 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
+@@ -1333,12 +1402,6 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
  	/* It will be updated by governor */
  	policy->cur = policy->cpuinfo.min_freq;
  
@@ -5247,44 +4575,21 @@ index 07f341995439..756844fde011 100644
  	policy->driver_data = cpudata;
  
  	cpudata->epp_cached = amd_pstate_get_epp(cpudata, 0);
-@@ -1205,7 +1558,6 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
- 			return ret;
- 		WRITE_ONCE(cpudata->cppc_cap1_cached, value);
- 	}
--	amd_pstate_boost_init(cpudata);
+@@ -1378,6 +1441,13 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
  
+ static int amd_pstate_epp_cpu_exit(struct cpufreq_policy *policy)
+ {
++	struct amd_cpudata *cpudata = policy->driver_data;
++
++	if (cpudata) {
++		kfree(cpudata);
++		policy->driver_data = NULL;
++	}
++
+ 	pr_debug("CPU %d exiting\n", policy->cpu);
  	return 0;
- 
-@@ -1232,6 +1584,12 @@ static void amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
- 	max_limit_perf = div_u64(policy->max * cpudata->highest_perf, cpudata->max_freq);
- 	min_limit_perf = div_u64(policy->min * cpudata->highest_perf, cpudata->max_freq);
- 
-+	if (min_limit_perf < min_perf)
-+		min_limit_perf = min_perf;
-+
-+	if (max_limit_perf < min_limit_perf)
-+		max_limit_perf = min_limit_perf;
-+
- 	WRITE_ONCE(cpudata->max_limit_perf, max_limit_perf);
- 	WRITE_ONCE(cpudata->min_limit_perf, min_limit_perf);
- 
-@@ -1432,6 +1790,7 @@ static struct cpufreq_driver amd_pstate_driver = {
- 	.suspend	= amd_pstate_cpu_suspend,
- 	.resume		= amd_pstate_cpu_resume,
- 	.set_boost	= amd_pstate_set_boost,
-+	.update_limits	= amd_pstate_update_limits,
- 	.name		= "amd-pstate",
- 	.attr		= amd_pstate_attr,
- };
-@@ -1446,6 +1805,7 @@ static struct cpufreq_driver amd_pstate_epp_driver = {
- 	.online		= amd_pstate_epp_cpu_online,
- 	.suspend	= amd_pstate_epp_suspend,
- 	.resume		= amd_pstate_epp_resume,
-+	.update_limits	= amd_pstate_update_limits,
- 	.name		= "amd-pstate-epp",
- 	.attr		= amd_pstate_epp_attr,
- };
-@@ -1486,6 +1846,11 @@ static int __init amd_pstate_init(void)
+ }
+@@ -1656,6 +1726,11 @@ static int __init amd_pstate_init(void)
  	if (cpufreq_get_current_driver())
  		return -EEXIST;
  
@@ -5296,69 +4601,18 @@ index 07f341995439..756844fde011 100644
  	switch (cppc_state) {
  	case AMD_PSTATE_UNDEFINED:
  		/* Disable on the following configs by default:
-@@ -1567,7 +1932,17 @@ static int __init amd_pstate_param(char *str)
- 
- 	return amd_pstate_set_driver(mode_idx);
- }
-+
-+static int __init amd_prefcore_param(char *str)
-+{
-+	if (!strcmp(str, "disable"))
-+		amd_pstate_prefcore = false;
-+
-+	return 0;
-+}
-+
- early_param("amd_pstate", amd_pstate_param);
-+early_param("amd_prefcore", amd_prefcore_param);
- 
- MODULE_AUTHOR("Huang Rui <ray.huang@amd.com>");
- MODULE_DESCRIPTION("AMD Processor P-state Frequency Driver");
-diff --git a/include/acpi/cppc_acpi.h b/include/acpi/cppc_acpi.h
-index 3a0995f8bce8..930b6afba6f4 100644
---- a/include/acpi/cppc_acpi.h
-+++ b/include/acpi/cppc_acpi.h
-@@ -139,6 +139,7 @@ struct cppc_cpudata {
- #ifdef CONFIG_ACPI_CPPC_LIB
- extern int cppc_get_desired_perf(int cpunum, u64 *desired_perf);
- extern int cppc_get_nominal_perf(int cpunum, u64 *nominal_perf);
-+extern int cppc_get_highest_perf(int cpunum, u64 *highest_perf);
- extern int cppc_get_perf_ctrs(int cpu, struct cppc_perf_fb_ctrs *perf_fb_ctrs);
- extern int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls);
- extern int cppc_set_enable(int cpu, bool enable);
-@@ -167,6 +168,10 @@ static inline int cppc_get_nominal_perf(int cpunum, u64 *nominal_perf)
- {
- 	return -ENOTSUPP;
- }
-+static inline int cppc_get_highest_perf(int cpunum, u64 *highest_perf)
-+{
-+	return -ENOTSUPP;
-+}
- static inline int cppc_get_perf_ctrs(int cpu, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
- {
- 	return -ENOTSUPP;
 diff --git a/include/linux/amd-pstate.h b/include/linux/amd-pstate.h
-index 6ad02ad9c7b4..8ba5dd4d3405 100644
+index d21838835abd..d58fc022ec46 100644
 --- a/include/linux/amd-pstate.h
 +++ b/include/linux/amd-pstate.h
-@@ -39,19 +39,31 @@ struct amd_aperf_mperf {
-  * @cppc_req_cached: cached performance request hints
-  * @highest_perf: the maximum performance an individual processor may reach,
-  *		  assuming ideal conditions
-+ *		  For platforms that do not support the preferred core feature, the
-+ *		  highest_pef may be configured with 166 or 255, to avoid max frequency
-+ *		  calculated wrongly. we take the fixed value as the highest_perf.
-  * @nominal_perf: the maximum sustained performance level of the processor,
-  *		  assuming ideal operating conditions
-  * @lowest_nonlinear_perf: the lowest performance level at which nonlinear power
-  *			   savings are achieved
+@@ -49,13 +49,17 @@ struct amd_aperf_mperf {
   * @lowest_perf: the absolute lowest performance level of the processor
+  * @prefcore_ranking: the preferred core ranking, the higher value indicates a higher
+  * 		  priority.
 - * @max_freq: the frequency that mapped to highest_perf
 - * @min_freq: the frequency that mapped to lowest_perf
 - * @nominal_freq: the frequency that mapped to nominal_perf
 - * @lowest_nonlinear_freq: the frequency that mapped to lowest_nonlinear_perf
-+ * @prefcore_ranking: the preferred core ranking, the higher value indicates a higher
-+ * 		  priority.
 + * @min_limit_perf: Cached value of the performance corresponding to policy->min
 + * @max_limit_perf: Cached value of the performance corresponding to policy->max
 + * @min_limit_freq: Cached value of policy->min (in khz)
@@ -5372,29 +4626,9 @@ index 6ad02ad9c7b4..8ba5dd4d3405 100644
 - * @freq: current cpu frequency value
 + * @freq: current cpu frequency value (in khz)
   * @boost_supported: check whether the Processor or SBIOS supports boost mode
-+ * @hw_prefcore: check whether HW supports preferred core featue.
-+ * 		  Only when hw_prefcore and early prefcore param are true,
-+ * 		  AMD P-State driver supports preferred core featue.
-  * @epp_policy: Last saved policy used to set energy-performance preference
-  * @epp_cached: Cached CPPC energy-performance preference value
-  * @policy: Cpufreq policy value
-@@ -70,6 +82,7 @@ struct amd_cpudata {
- 	u32	nominal_perf;
- 	u32	lowest_nonlinear_perf;
- 	u32	lowest_perf;
-+	u32     prefcore_ranking;
- 	u32     min_limit_perf;
- 	u32     max_limit_perf;
- 	u32     min_limit_freq;
-@@ -85,6 +98,7 @@ struct amd_cpudata {
- 
- 	u64	freq;
- 	bool	boost_supported;
-+	bool	hw_prefcore;
- 
- 	/* EPP feature related attributes*/
- 	s16	epp_policy;
-@@ -114,4 +128,23 @@ static const char * const amd_pstate_mode_string[] = {
+  * @hw_prefcore: check whether HW supports preferred core featue.
+  * 		  Only when hw_prefcore and early prefcore param are true,
+@@ -124,4 +128,10 @@ static const char * const amd_pstate_mode_string[] = {
  	[AMD_PSTATE_GUIDED]      = "guided",
  	NULL,
  };
@@ -5404,38 +4638,13 @@ index 6ad02ad9c7b4..8ba5dd4d3405 100644
 +	u32 lowest_freq;
 +};
 +
-+/**
-+ * struct amd_pstate_global_params - Global parameters, mostly tunable via sysfs.
-+ * @cpb_boost:		Whether or not to use boost CPU P-states.
-+ * @cpb_supported:	Whether or not CPU boost P-states are available
-+ *			based on the MSR_K7_HWCR bit[25] state
-+ */
-+struct amd_pstate_global_params {
-+	bool cpb_boost;
-+	bool cpb_supported;
-+};
-+
-+extern struct amd_pstate_global_params amd_pstate_global_params;
-+
  #endif /* _LINUX_AMD_PSTATE_H */
-diff --git a/include/linux/cpufreq.h b/include/linux/cpufreq.h
-index 320fab7d2e94..3129411fa978 100644
---- a/include/linux/cpufreq.h
-+++ b/include/linux/cpufreq.h
-@@ -263,6 +263,7 @@ static inline bool cpufreq_supports_freq_invariance(void)
- 	return false;
- }
- static inline void disable_cpufreq(void) { }
-+static inline void cpufreq_update_limits(unsigned int cpu) { }
- #endif
- 
- #ifdef CONFIG_CPU_FREQ_STAT
 -- 
 2.45.1
 
-From 443785383a317569bed73364b4fa90500636dc89 Mon Sep 17 00:00:00 2001
+From 7f44a31a8ffaca91ebdaf46e747592058a6c5a80 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Wed, 10 Apr 2024 17:59:09 +0200
+Date: Wed, 22 May 2024 15:39:50 +0200
 Subject: [PATCH 03/10] bbr3
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
@@ -5459,10 +4668,10 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  16 files changed, 1940 insertions(+), 553 deletions(-)
 
 diff --git a/include/linux/tcp.h b/include/linux/tcp.h
-index a1c47a6d69b0..9e63e5580dc5 100644
+index 55399ee2a57e..c6193d87a8e6 100644
 --- a/include/linux/tcp.h
 +++ b/include/linux/tcp.h
-@@ -369,7 +369,9 @@ struct tcp_sock {
+@@ -368,7 +368,9 @@ struct tcp_sock {
  	u8	compressed_ack;
  	u8	dup_ack_counter:2,
  		tlp_retrans:1,	/* TLP is a retransmission */
@@ -5489,7 +4698,7 @@ index ccf171f7eb60..400a226d6bea 100644
  
  #define ICSK_TIME_RETRANS	1	/* Retransmit timer */
 diff --git a/include/net/tcp.h b/include/net/tcp.h
-index f6eba9652d01..3998a5f145ad 100644
+index 6ae35199d3b3..f302ead77062 100644
 --- a/include/net/tcp.h
 +++ b/include/net/tcp.h
 @@ -381,6 +381,8 @@ static inline void tcp_dec_quickack_mode(struct sock *sk)
@@ -5501,7 +4710,7 @@ index f6eba9652d01..3998a5f145ad 100644
  
  enum tcp_tw_status {
  	TCP_TW_SUCCESS = 0,
-@@ -737,6 +739,15 @@ static inline void tcp_fast_path_check(struct sock *sk)
+@@ -782,6 +784,15 @@ static inline void tcp_fast_path_check(struct sock *sk)
  
  u32 tcp_delack_max(const struct sock *sk);
  
@@ -5517,7 +4726,7 @@ index f6eba9652d01..3998a5f145ad 100644
  /* Compute the actual rto_min value */
  static inline u32 tcp_rto_min(const struct sock *sk)
  {
-@@ -842,6 +853,11 @@ static inline u32 tcp_stamp_us_delta(u64 t1, u64 t0)
+@@ -887,6 +898,11 @@ static inline u32 tcp_stamp_us_delta(u64 t1, u64 t0)
  	return max_t(s64, t1 - t0, 0);
  }
  
@@ -5529,7 +4738,7 @@ index f6eba9652d01..3998a5f145ad 100644
  /* provide the departure time in us unit */
  static inline u64 tcp_skb_timestamp_us(const struct sk_buff *skb)
  {
-@@ -930,9 +946,14 @@ struct tcp_skb_cb {
+@@ -975,9 +991,14 @@ struct tcp_skb_cb {
  			/* pkts S/ACKed so far upon tx of skb, incl retrans: */
  			__u32 delivered;
  			/* start of send pipeline phase */
@@ -5546,7 +4755,7 @@ index f6eba9652d01..3998a5f145ad 100644
  		} tx;   /* only used for outgoing skbs */
  		union {
  			struct inet_skb_parm	h4;
-@@ -1036,6 +1057,7 @@ enum tcp_ca_event {
+@@ -1081,6 +1102,7 @@ enum tcp_ca_event {
  	CA_EVENT_LOSS,		/* loss timeout */
  	CA_EVENT_ECN_NO_CE,	/* ECT set, but not CE marked */
  	CA_EVENT_ECN_IS_CE,	/* received CE marked IP packet */
@@ -5554,7 +4763,7 @@ index f6eba9652d01..3998a5f145ad 100644
  };
  
  /* Information about inbound ACK, passed to cong_ops->in_ack_event() */
-@@ -1058,7 +1080,11 @@ enum tcp_ca_ack_event_flags {
+@@ -1103,7 +1125,11 @@ enum tcp_ca_ack_event_flags {
  #define TCP_CONG_NON_RESTRICTED 0x1
  /* Requires ECN/ECT set on all packets */
  #define TCP_CONG_NEEDS_ECN	0x2
@@ -5567,7 +4776,7 @@ index f6eba9652d01..3998a5f145ad 100644
  
  union tcp_cc_info;
  
-@@ -1078,10 +1104,13 @@ struct ack_sample {
+@@ -1123,10 +1149,13 @@ struct ack_sample {
   */
  struct rate_sample {
  	u64  prior_mstamp; /* starting timestamp for interval */
@@ -5582,7 +4791,7 @@ index f6eba9652d01..3998a5f145ad 100644
  	long interval_us;	/* time for tp->delivered to incr "delivered" */
  	u32 snd_interval_us;	/* snd interval for delivered packets */
  	u32 rcv_interval_us;	/* rcv interval for delivered packets */
-@@ -1092,7 +1121,9 @@ struct rate_sample {
+@@ -1137,7 +1166,9 @@ struct rate_sample {
  	u32  last_end_seq;	/* end_seq of most recently ACKed packet */
  	bool is_app_limited;	/* is sample from packet with bubble in pipe? */
  	bool is_retrans;	/* is sample from retransmission? */
@@ -5592,7 +4801,7 @@ index f6eba9652d01..3998a5f145ad 100644
  };
  
  struct tcp_congestion_ops {
-@@ -1116,8 +1147,11 @@ struct tcp_congestion_ops {
+@@ -1161,8 +1192,11 @@ struct tcp_congestion_ops {
  	/* hook for packet ack accounting (optional) */
  	void (*pkts_acked)(struct sock *sk, const struct ack_sample *sample);
  
@@ -5606,7 +4815,7 @@ index f6eba9652d01..3998a5f145ad 100644
  
  	/* call when packets are delivered to update cwnd and pacing rate,
  	 * after all the ca_state processing. (optional)
-@@ -1183,6 +1217,14 @@ static inline char *tcp_ca_get_name_by_key(u32 key, char *buffer)
+@@ -1228,6 +1262,14 @@ static inline char *tcp_ca_get_name_by_key(u32 key, char *buffer)
  }
  #endif
  
@@ -5621,7 +4830,7 @@ index f6eba9652d01..3998a5f145ad 100644
  static inline bool tcp_ca_needs_ecn(const struct sock *sk)
  {
  	const struct inet_connection_sock *icsk = inet_csk(sk);
-@@ -1202,6 +1244,7 @@ static inline void tcp_ca_event(struct sock *sk, const enum tcp_ca_event event)
+@@ -1247,6 +1289,7 @@ static inline void tcp_ca_event(struct sock *sk, const enum tcp_ca_event event)
  void tcp_set_ca_state(struct sock *sk, const u8 ca_state);
  
  /* From tcp_rate.c */
@@ -5629,7 +4838,7 @@ index f6eba9652d01..3998a5f145ad 100644
  void tcp_rate_skb_sent(struct sock *sk, struct sk_buff *skb);
  void tcp_rate_skb_delivered(struct sock *sk, struct sk_buff *skb,
  			    struct rate_sample *rs);
-@@ -1214,6 +1257,21 @@ static inline bool tcp_skb_sent_after(u64 t1, u64 t2, u32 seq1, u32 seq2)
+@@ -1259,6 +1302,21 @@ static inline bool tcp_skb_sent_after(u64 t1, u64 t2, u32 seq1, u32 seq2)
  	return t1 > t2 || (t1 == t2 && after(seq1, seq2));
  }
  
@@ -5651,7 +4860,7 @@ index f6eba9652d01..3998a5f145ad 100644
  /* These functions determine how the current flow behaves in respect of SACK
   * handling. SACK is negotiated with the peer, and therefore it can vary
   * between different flows.
-@@ -2373,7 +2431,7 @@ struct tcp_plb_state {
+@@ -2418,7 +2476,7 @@ struct tcp_plb_state {
  	u8	consec_cong_rounds:5, /* consecutive congested rounds */
  		unused:3;
  	u32	pause_until; /* jiffies32 when PLB can resume rerouting */
@@ -5759,10 +4968,10 @@ index 8e94ed7c56a0..50dc9970cad2 100644
  choice
  	prompt "Default TCP congestion control"
 diff --git a/net/ipv4/bpf_tcp_ca.c b/net/ipv4/bpf_tcp_ca.c
-index ae8b15e6896f..beb040e80b6f 100644
+index 7f518ea5f4ac..8f9b677c20e1 100644
 --- a/net/ipv4/bpf_tcp_ca.c
 +++ b/net/ipv4/bpf_tcp_ca.c
-@@ -296,11 +296,15 @@ static void bpf_tcp_ca_pkts_acked(struct sock *sk, const struct ack_sample *samp
+@@ -302,11 +302,15 @@ static void bpf_tcp_ca_pkts_acked(struct sock *sk, const struct ack_sample *samp
  {
  }
  
@@ -5779,7 +4988,7 @@ index ae8b15e6896f..beb040e80b6f 100644
  static void bpf_tcp_ca_cong_control(struct sock *sk, const struct rate_sample *rs)
  {
  }
-@@ -330,7 +334,8 @@ static struct tcp_congestion_ops __bpf_ops_tcp_congestion_ops = {
+@@ -336,7 +340,8 @@ static struct tcp_congestion_ops __bpf_ops_tcp_congestion_ops = {
  	.cwnd_event = bpf_tcp_ca_cwnd_event,
  	.in_ack_event = bpf_tcp_ca_in_ack_event,
  	.pkts_acked = bpf_tcp_ca_pkts_acked,
@@ -5790,10 +4999,10 @@ index ae8b15e6896f..beb040e80b6f 100644
  	.undo_cwnd = bpf_tcp_ca_undo_cwnd,
  	.sndbuf_expand = bpf_tcp_ca_sndbuf_expand,
 diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
-index 94b129301d38..39a2daad2185 100644
+index 66d77faca64f..1ac6ea158eac 100644
 --- a/net/ipv4/tcp.c
 +++ b/net/ipv4/tcp.c
-@@ -3091,6 +3091,7 @@ int tcp_disconnect(struct sock *sk, int flags)
+@@ -3092,6 +3092,7 @@ int tcp_disconnect(struct sock *sk, int flags)
  	tp->rx_opt.dsack = 0;
  	tp->rx_opt.num_sacks = 0;
  	tp->rcv_ooopack = 0;
@@ -5801,7 +5010,7 @@ index 94b129301d38..39a2daad2185 100644
  
  
  	/* Clean up fastopen related fields */
-@@ -3817,6 +3818,8 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
+@@ -3818,6 +3819,8 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
  		info->tcpi_options |= TCPI_OPT_ECN;
  	if (tp->ecn_flags & TCP_ECN_SEEN)
  		info->tcpi_options |= TCPI_OPT_ECN_SEEN;
@@ -5811,7 +5020,7 @@ index 94b129301d38..39a2daad2185 100644
  		info->tcpi_options |= TCPI_OPT_SYN_DATA;
  	if (tp->tcp_usec_ts)
 diff --git a/net/ipv4/tcp_bbr.c b/net/ipv4/tcp_bbr.c
-index 22358032dd48..cd6bef71bf4c 100644
+index 05dc2d05bc7c..61ed3e549350 100644
 --- a/net/ipv4/tcp_bbr.c
 +++ b/net/ipv4/tcp_bbr.c
 @@ -1,18 +1,19 @@
@@ -8428,7 +7637,7 @@ index 22358032dd48..cd6bef71bf4c 100644
  	.get_info	= bbr_get_info,
  	.set_state	= bbr_set_state,
  };
-@@ -1161,10 +2361,11 @@ BTF_SET8_START(tcp_bbr_check_kfunc_ids)
+@@ -1161,10 +2361,11 @@ BTF_KFUNCS_START(tcp_bbr_check_kfunc_ids)
  BTF_ID_FLAGS(func, bbr_init)
  BTF_ID_FLAGS(func, bbr_main)
  BTF_ID_FLAGS(func, bbr_sndbuf_expand)
@@ -8455,10 +7664,10 @@ index 22358032dd48..cd6bef71bf4c 100644
  MODULE_DESCRIPTION("TCP BBR (Bottleneck Bandwidth and RTT)");
 +MODULE_VERSION(__stringify(BBR_VERSION));
 diff --git a/net/ipv4/tcp_cong.c b/net/ipv4/tcp_cong.c
-index 1b34050a7538..66d40449b3f4 100644
+index 28ffcfbeef14..7b13915ba288 100644
 --- a/net/ipv4/tcp_cong.c
 +++ b/net/ipv4/tcp_cong.c
-@@ -241,6 +241,7 @@ void tcp_init_congestion_control(struct sock *sk)
+@@ -237,6 +237,7 @@ void tcp_init_congestion_control(struct sock *sk)
  	struct inet_connection_sock *icsk = inet_csk(sk);
  
  	tcp_sk(sk)->prior_ssthresh = 0;
@@ -8467,7 +7676,7 @@ index 1b34050a7538..66d40449b3f4 100644
  		icsk->icsk_ca_ops->init(sk);
  	if (tcp_ca_needs_ecn(sk))
 diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
-index ff10be8c76cf..752f57e8920f 100644
+index a140d9f7a0a3..d23e5f29d368 100644
 --- a/net/ipv4/tcp_input.c
 +++ b/net/ipv4/tcp_input.c
 @@ -364,7 +364,7 @@ static void __tcp_ecn_check_ce(struct sock *sk, const struct sk_buff *skb)
@@ -8601,7 +7810,7 @@ index ff10be8c76cf..752f57e8920f 100644
  	    tcp_in_quickack_mode(sk) ||
  	    /* Protocol state mandates a one-time immediate ACK */
 diff --git a/net/ipv4/tcp_minisocks.c b/net/ipv4/tcp_minisocks.c
-index 0ecc7311dc6c..82622782486a 100644
+index f0761f060a83..90a9389499e6 100644
 --- a/net/ipv4/tcp_minisocks.c
 +++ b/net/ipv4/tcp_minisocks.c
 @@ -460,6 +460,8 @@ void tcp_ca_openreq_child(struct sock *sk, const struct dst_entry *dst)
@@ -8819,9 +8028,9 @@ index d1ad20ce1c8c..ef74f33c7905 100644
 -- 
 2.45.1
 
-From 36ba28dffeebfb169b90ec7590e8ccb17e8abdfd Mon Sep 17 00:00:00 2001
+From c74040e180cdf6543c37b01f526dd36e966d8333 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Wed, 10 Apr 2024 17:59:18 +0200
+Date: Wed, 22 May 2024 15:40:05 +0200
 Subject: [PATCH 04/10] block
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
@@ -8829,10 +8038,11 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  block/bfq-iosched.c | 120 ++++++++++++++++++++++++++++++++++++--------
  block/bfq-iosched.h |  16 +++++-
  block/mq-deadline.c | 114 +++++++++++++++++++++++++++++++++--------
- 3 files changed, 205 insertions(+), 45 deletions(-)
+ drivers/md/raid5.c  |   4 ++
+ 4 files changed, 209 insertions(+), 45 deletions(-)
 
 diff --git a/block/bfq-iosched.c b/block/bfq-iosched.c
-index 3cce6de464a7..9bd57baa4b0b 100644
+index 4b88a54a9b76..88df08a246fa 100644
 --- a/block/bfq-iosched.c
 +++ b/block/bfq-iosched.c
 @@ -467,6 +467,21 @@ static struct bfq_io_cq *bfq_bic_lookup(struct request_queue *q)
@@ -9305,30 +8515,51 @@ index 02a916ba62ee..8bf621316a9e 100644
  	for (prio = 0; prio <= DD_PRIO_MAX; prio++)
  		if (dd_has_work_for_prio(&dd->per_prio[prio]))
  			return true;
+diff --git a/drivers/md/raid5.c b/drivers/md/raid5.c
+index d874abfc1836..27bdbe1469fb 100644
+--- a/drivers/md/raid5.c
++++ b/drivers/md/raid5.c
+@@ -6734,6 +6734,9 @@ static void raid5d(struct md_thread *thread)
+ 		int batch_size, released;
+ 		unsigned int offset;
+ 
++		if (test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags))
++			goto skip;
++
+ 		released = release_stripe_list(conf, conf->temp_inactive_list);
+ 		if (released)
+ 			clear_bit(R5_DID_ALLOC, &conf->cache_state);
+@@ -6783,6 +6786,7 @@ static void raid5d(struct md_thread *thread)
+ 			!test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags),
+ 			conf->device_lock);
+ 	}
++skip:
+ 	pr_debug("%d stripes handled\n", handled);
+ 
+ 	spin_unlock_irq(&conf->device_lock);
 -- 
 2.45.1
 
-From 2ecc854ecaab0bfd24785286979c7862a3142a1f Mon Sep 17 00:00:00 2001
+From 86934e2d447e9f24b5c1cef4faefbf304436df44 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Fri, 17 May 2024 14:26:50 +0200
+Date: Wed, 22 May 2024 15:40:21 +0200
 Subject: [PATCH 05/10] cachy
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
- .../admin-guide/kernel-parameters.txt         |    9 +
- Makefile                                      |  162 +-
- arch/arm/Makefile                             |   56 +-
- arch/x86/Kconfig.cpu                          |  426 ++-
- arch/x86/Makefile                             |   19 +-
- arch/x86/Makefile_32.cpu                      |   41 -
+ .../admin-guide/kernel-parameters.txt         |   12 +
+ Makefile                                      |    7 +-
+ arch/x86/Kconfig.cpu                          |  424 ++-
+ arch/x86/Makefile                             |   44 +-
  arch/x86/include/asm/pci.h                    |    6 +
  arch/x86/include/asm/vermagic.h               |   74 +
  arch/x86/pci/common.c                         |    7 +-
  block/bfq-iosched.c                           |    6 +
  block/elevator.c                              |   10 +
+ drivers/Makefile                              |   13 +-
  drivers/ata/ahci.c                            |   23 +-
  drivers/cpufreq/Kconfig.x86                   |    2 -
- drivers/firmware/sysfb.c                      |   18 +-
+ drivers/cpufreq/intel_pstate.c                |    2 +
  drivers/gpu/drm/amd/amdgpu/amdgpu.h           |    1 +
  drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c       |   10 +
  drivers/gpu/drm/amd/display/Kconfig           |    6 +
@@ -9369,7 +8600,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  mm/swap.c                                     |    5 +
  mm/vmpressure.c                               |    4 +
  mm/vmscan.c                                   |    8 +
- 54 files changed, 5889 insertions(+), 175 deletions(-)
+ 53 files changed, 5765 insertions(+), 70 deletions(-)
  create mode 100644 drivers/i2c/busses/i2c-nct6775.c
  create mode 100644 drivers/media/v4l2-core/v4l2loopback.c
  create mode 100644 drivers/media/v4l2-core/v4l2loopback.h
@@ -9377,10 +8608,20 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  create mode 100644 drivers/pci/controller/intel-nvme-remap.c
 
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index dd62df26186f..b7be9c04180c 100644
+index 396137ee018d..91c1f316651f 100644
 --- a/Documentation/admin-guide/kernel-parameters.txt
 +++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -4395,6 +4395,15 @@
+@@ -2204,6 +2204,9 @@
+ 			disable
+ 			  Do not enable intel_pstate as the default
+ 			  scaling driver for the supported processors
++			enable
++			  Enable intel_pstate in-case "disable" was passed
++			  previously in the kernel boot parameters
+                         active
+                           Use intel_pstate driver to bypass the scaling
+                           governors layer of cpufreq and provides it own
+@@ -4420,6 +4423,15 @@
  		nomsi		[MSI] If the PCI_MSI kernel config parameter is
  				enabled, this kernel boot option can be used to
  				disable the use of MSI interrupts system-wide.
@@ -9397,165 +8638,10 @@ index dd62df26186f..b7be9c04180c 100644
  				Safety option to keep boot IRQs enabled. This
  				should never be necessary.
 diff --git a/Makefile b/Makefile
-index 01acaf667e78..367ea628be8a 100644
+index a7045435151e..59a8df3ec5aa 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -808,9 +808,164 @@ endif # need-config
- 
- KBUILD_CFLAGS	+= -fno-delete-null-pointer-checks
- 
-+# This selects which ARM instruction set is used.
-+arch-$(CONFIG_CPU_32v7M)	:=-march=armv7-m
-+arch-$(CONFIG_CPU_32v7)		:=-march=armv7-a
-+arch-$(CONFIG_CPU_32v6)		:=-march=armv6
-+# Only override the compiler option if ARMv6. The ARMv6K extensions are
-+# always available in ARMv7
-+ifeq ($(CONFIG_CPU_32v6),y)
-+arch-$(CONFIG_CPU_32v6K)	:=-march=armv6k
-+endif
-+arch-$(CONFIG_CPU_32v5)		:=-march=armv5te
-+arch-$(CONFIG_CPU_32v4T)	:=-march=armv4t
-+arch-$(CONFIG_CPU_32v4)		:=-march=armv4
-+arch-$(CONFIG_CPU_32v3)		:=-march=armv3m
-+
-+# Note that GCC does not numerically define an architecture version
-+# macro, but instead defines a whole series of macros which makes
-+# testing for a specific architecture or later rather impossible.
-+cpp-$(CONFIG_CPU_32v7M)		:=-D__LINUX_ARM_ARCH__=7
-+cpp-$(CONFIG_CPU_32v7)		:=-D__LINUX_ARM_ARCH__=7
-+cpp-$(CONFIG_CPU_32v6)		:=-D__LINUX_ARM_ARCH__=6
-+# Only override the compiler option if ARMv6. The ARMv6K extensions are
-+# always available in ARMv7
-+ifeq ($(CONFIG_CPU_32v6),y)
-+cpp-$(CONFIG_CPU_32v6K)		:=-D__LINUX_ARM_ARCH__=6
-+endif
-+cpp-$(CONFIG_CPU_32v5)		:=-D__LINUX_ARM_ARCH__=5
-+cpp-$(CONFIG_CPU_32v4T)		:=-D__LINUX_ARM_ARCH__=4
-+cpp-$(CONFIG_CPU_32v4)		:=-D__LINUX_ARM_ARCH__=4
-+cpp-$(CONFIG_CPU_32v3)		:=-D__LINUX_ARM_ARCH__=3
-+
-+# This selects how we optimise for the processor.
-+tune-$(CONFIG_CPU_ARM7TDMI)	:=-mtune=arm7tdmi
-+tune-$(CONFIG_CPU_ARM720T)	:=-mtune=arm7tdmi
-+tune-$(CONFIG_CPU_ARM740T)	:=-mtune=arm7tdmi
-+tune-$(CONFIG_CPU_ARM9TDMI)	:=-mtune=arm9tdmi
-+tune-$(CONFIG_CPU_ARM940T)	:=-mtune=arm9tdmi
-+tune-$(CONFIG_CPU_ARM946E)	:=-mtune=arm9e
-+tune-$(CONFIG_CPU_ARM920T)	:=-mtune=arm9tdmi
-+tune-$(CONFIG_CPU_ARM922T)	:=-mtune=arm9tdmi
-+tune-$(CONFIG_CPU_ARM925T)	:=-mtune=arm9tdmi
-+tune-$(CONFIG_CPU_ARM926T)	:=-mtune=arm9tdmi
-+tune-$(CONFIG_CPU_FA526)	:=-mtune=arm9tdmi
-+tune-$(CONFIG_CPU_SA110)	:=-mtune=strongarm110
-+tune-$(CONFIG_CPU_SA1100)	:=-mtune=strongarm1100
-+tune-$(CONFIG_CPU_XSCALE)	:=-mtune=xscale
-+tune-$(CONFIG_CPU_XSC3)		:=-mtune=xscale
-+tune-$(CONFIG_CPU_FEROCEON)	:=-mtune=xscale
-+tune-$(CONFIG_CPU_V6)		:=-mtune=arm1136j-s
-+tune-$(CONFIG_CPU_V6K)		:=-mtune=arm1136j-s
-+
-+KBUILD_CPPFLAGS	+=$(cpp-y)
-+KBUILD_CFLAGS	+=$(arch-y) $(tune-y)
-+KBUILD_AFLAGS	+=$(arch-y) $(tune-y)
-+
-+# This selects which x86 instruction set is used.
-+cflags-$(CONFIG_M486SX)		+= -march=i486
-+cflags-$(CONFIG_M486)		+= -march=i486
-+cflags-$(CONFIG_M586)		+= -march=i586
-+cflags-$(CONFIG_M586TSC)	+= -march=i586
-+cflags-$(CONFIG_M586MMX)	+= -march=pentium-mmx
-+cflags-$(CONFIG_M686)		+= -march=i686
-+cflags-$(CONFIG_MPENTIUMII)	+= -march=i686 $(call tune,pentium2)
-+cflags-$(CONFIG_MPENTIUMIII)	+= -march=i686 $(call tune,pentium3)
-+cflags-$(CONFIG_MPENTIUMM)	+= -march=i686 $(call tune,pentium3)
-+cflags-$(CONFIG_MPENTIUM4)	+= -march=i686 $(call tune,pentium4)
-+cflags-$(CONFIG_MK6)		+= -march=k6
-+# Please note, that patches that add -march=athlon-xp and friends are pointless.
-+# They make zero difference whatsosever to performance at this time.
-+cflags-$(CONFIG_MK7)		+= -march=athlon
-+cflags-$(CONFIG_MK8)		+= $(call cc-option,-march=k8,-march=athlon)
-+cflags-$(CONFIG_MCRUSOE)	+= -march=i686 $(align)
-+cflags-$(CONFIG_MEFFICEON)	+= -march=i686 $(call tune,pentium3) $(align)
-+cflags-$(CONFIG_MWINCHIPC6)	+= $(call cc-option,-march=winchip-c6,-march=i586)
-+cflags-$(CONFIG_MWINCHIP3D)	+= $(call cc-option,-march=winchip2,-march=i586)
-+cflags-$(CONFIG_MCYRIXIII)	+= $(call cc-option,-march=c3,-march=i486) $(align)
-+cflags-$(CONFIG_MVIAC3_2)	+= $(call cc-option,-march=c3-2,-march=i686)
-+cflags-$(CONFIG_MVIAC7)		+= -march=i686
-+cflags-$(CONFIG_MCORE2)		+= -march=i686 $(call tune,core2)
-+cflags-$(CONFIG_MATOM)		+= $(call cc-option,-march=atom,$(call cc-option,-march=core2,-march=i686)) \
-+$(call cc-option,-mtune=atom,$(call cc-option,-mtune=generic))
-+
-+# AMD Elan support
-+cflags-$(CONFIG_MELAN)		+= -march=i486
-+
-+# Geode GX1 support
-+cflags-$(CONFIG_MGEODEGX1)	+= -march=pentium-mmx
-+cflags-$(CONFIG_MGEODE_LX)	+= $(call cc-option,-march=geode,-march=pentium-mmx)
-+# add at the end to overwrite eventual tuning options from earlier
-+# cpu entries
-+cflags-$(CONFIG_X86_GENERIC) 	+= $(call tune,generic,$(call tune,i686))
-+
-+# Bug fix for binutils: this option is required in order to keep
-+# binutils from generating NOPL instructions against our will.
-+ifneq ($(CONFIG_X86_P6_NOP),y)
-+cflags-y			+= $(call cc-option,-Wa$(comma)-mtune=generic32,)
-+endif
-+
-+# x86_64 instruction set
-+cflags64-$(CONFIG_MK8)		+= -march=k8
-+cflags64-$(CONFIG_MPSC)		+= -march=nocona
-+cflags64-$(CONFIG_MK8SSE3)	+= -march=k8-sse3
-+cflags64-$(CONFIG_MK10) 		+= -march=amdfam10
-+cflags64-$(CONFIG_MBARCELONA) 	+= -march=barcelona
-+cflags64-$(CONFIG_MBOBCAT) 	+= -march=btver1
-+cflags64-$(CONFIG_MJAGUAR) 	+= -march=btver2
-+cflags64-$(CONFIG_MBULLDOZER) 	+= -march=bdver1
-+cflags64-$(CONFIG_MPILEDRIVER)	+= -march=bdver2 -mno-tbm
-+cflags64-$(CONFIG_MSTEAMROLLER) 	+= -march=bdver3 -mno-tbm
-+cflags64-$(CONFIG_MEXCAVATOR) 	+= -march=bdver4 -mno-tbm
-+cflags64-$(CONFIG_MZEN) 		+= -march=znver1
-+cflags64-$(CONFIG_MZEN2) 	+= -march=znver2
-+cflags64-$(CONFIG_MZEN3) 	+= -march=znver3
-+cflags64-$(CONFIG_MZEN4) 	+= -march=znver4
-+cflags64-$(CONFIG_MNATIVE_INTEL) += -march=native
-+cflags64-$(CONFIG_MNATIVE_AMD) 	+= -march=native
-+cflags64-$(CONFIG_MATOM) 	+= -march=bonnell
-+cflags64-$(CONFIG_MCORE2) 	+= -march=core2
-+cflags64-$(CONFIG_MNEHALEM) 	+= -march=nehalem
-+cflags64-$(CONFIG_MWESTMERE) 	+= -march=westmere
-+cflags64-$(CONFIG_MSILVERMONT) 	+= -march=silvermont
-+cflags64-$(CONFIG_MGOLDMONT) 	+= -march=goldmont
-+cflags64-$(CONFIG_MGOLDMONTPLUS) += -march=goldmont-plus
-+cflags64-$(CONFIG_MSANDYBRIDGE) 	+= -march=sandybridge
-+cflags64-$(CONFIG_MIVYBRIDGE) 	+= -march=ivybridge
-+cflags64-$(CONFIG_MHASWELL) 	+= -march=haswell
-+cflags64-$(CONFIG_MBROADWELL) 	+= -march=broadwell
-+cflags64-$(CONFIG_MSKYLAKE) 	+= -march=skylake
-+cflags64-$(CONFIG_MSKYLAKEX) 	+= -march=skylake-avx512
-+cflags64-$(CONFIG_MCANNONLAKE) 	+= -march=cannonlake
-+cflags64-$(CONFIG_MICELAKE) 	+= -march=icelake-client
-+cflags64-$(CONFIG_MCASCADELAKE) 	+= -march=cascadelake
-+cflags64-$(CONFIG_MCOOPERLAKE) 	+= -march=cooperlake
-+cflags64-$(CONFIG_MTIGERLAKE) 	+= -march=tigerlake
-+cflags64-$(CONFIG_MSAPPHIRERAPIDS) += -march=sapphirerapids
-+cflags64-$(CONFIG_MROCKETLAKE) 	+= -march=rocketlake
-+cflags64-$(CONFIG_MALDERLAKE) 	+= -march=alderlake
-+cflags64-$(CONFIG_MRAPTORLAKE) 	+= -march=raptorlake
-+cflags64-$(CONFIG_MMETEORLAKE) 	+= -march=meteorlake
-+cflags64-$(CONFIG_MEMERALDRAPIDS)	+= -march=emeraldrapids
-+cflags64-$(CONFIG_GENERIC_CPU2) 	+= -march=x86-64-v2
-+cflags64-$(CONFIG_GENERIC_CPU3) 	+= -march=x86-64-v3
-+cflags64-$(CONFIG_GENERIC_CPU4) 	+= -march=x86-64-v4
-+cflags64-$(CONFIG_GENERIC_CPU)	+= -mtune=generic
-+KBUILD_CFLAGS += $(cflags64-y)
-+
-+rustflags64-$(CONFIG_MK8)		+= -Ctarget-cpu=k8
-+rustflags64-$(CONFIG_MPSC)	+= -Ctarget-cpu=nocona
-+rustflags64-$(CONFIG_MCORE2)	+= -Ctarget-cpu=core2
-+rustflags64-$(CONFIG_MATOM)	+= -Ctarget-cpu=atom
-+rustflags64-$(CONFIG_GENERIC_CPU)	+= -Ztune-cpu=generic
-+KBUILD_RUSTFLAGS += $(rustflags64-y)
-+
+@@ -810,6 +810,9 @@ KBUILD_CFLAGS	+= -fno-delete-null-pointer-checks
  ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
  KBUILD_CFLAGS += -O2
  KBUILD_RUSTFLAGS += -Copt-level=2
@@ -9565,16 +8651,7 @@ index 01acaf667e78..367ea628be8a 100644
  else ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
  KBUILD_CFLAGS += -Os
  KBUILD_RUSTFLAGS += -Copt-level=s
-@@ -990,15 +1145,18 @@ KBUILD_CFLAGS += $(call cc-option, -fstrict-flex-arrays=3)
- KBUILD_CFLAGS-$(CONFIG_CC_NO_STRINGOP_OVERFLOW) += $(call cc-option, -Wno-stringop-overflow)
- KBUILD_CFLAGS-$(CONFIG_CC_STRINGOP_OVERFLOW) += $(call cc-option, -Wstringop-overflow)
- 
-+# disable GCC vectorization on trees
-+KBUILD_CFLAGS	+= $(call cc-option, -fno-tree-vectorize)
-+
- # disable invalid "can't wrap" optimizations for signed / pointers
- KBUILD_CFLAGS	+= -fno-strict-overflow
- 
+@@ -994,9 +997,9 @@ KBUILD_CFLAGS	+= -fno-strict-overflow
  # Make sure -fstack-check isn't enabled (like gentoo apparently did)
  KBUILD_CFLAGS  += -fno-stack-check
  
@@ -9582,86 +8659,12 @@ index 01acaf667e78..367ea628be8a 100644
 +# conserve stack, ivopts and modulo-sched if available
  ifdef CONFIG_CC_IS_GCC
 -KBUILD_CFLAGS   += -fconserve-stack
-+KBUILD_CFLAGS   += -fconserve-stack -fivopts -fmodulo-sched
++KBUILD_CFLAGS   += -fconserve-stack -fivopts -fmodulo-sched -fno-tree-vectorize
  endif
  
  # change __FILE__ to the relative path from the srctree
-diff --git a/arch/arm/Makefile b/arch/arm/Makefile
-index 473280d5adce..c7596c898625 100644
---- a/arch/arm/Makefile
-+++ b/arch/arm/Makefile
-@@ -59,56 +59,6 @@ endif
- #
- KBUILD_CFLAGS	+= $(call cc-option,-fno-ipa-sra)
- 
--# This selects which instruction set is used.
--arch-$(CONFIG_CPU_32v7M)	:=-march=armv7-m
--arch-$(CONFIG_CPU_32v7)		:=-march=armv7-a
--arch-$(CONFIG_CPU_32v6)		:=-march=armv6
--# Only override the compiler option if ARMv6. The ARMv6K extensions are
--# always available in ARMv7
--ifeq ($(CONFIG_CPU_32v6),y)
--arch-$(CONFIG_CPU_32v6K)	:=-march=armv6k
--endif
--arch-$(CONFIG_CPU_32v5)		:=-march=armv5te
--arch-$(CONFIG_CPU_32v4T)	:=-march=armv4t
--arch-$(CONFIG_CPU_32v4)		:=-march=armv4
--arch-$(CONFIG_CPU_32v3)		:=-march=armv3m
--
--# Note that GCC does not numerically define an architecture version
--# macro, but instead defines a whole series of macros which makes
--# testing for a specific architecture or later rather impossible.
--cpp-$(CONFIG_CPU_32v7M)		:=-D__LINUX_ARM_ARCH__=7
--cpp-$(CONFIG_CPU_32v7)		:=-D__LINUX_ARM_ARCH__=7
--cpp-$(CONFIG_CPU_32v6)		:=-D__LINUX_ARM_ARCH__=6
--# Only override the compiler option if ARMv6. The ARMv6K extensions are
--# always available in ARMv7
--ifeq ($(CONFIG_CPU_32v6),y)
--cpp-$(CONFIG_CPU_32v6K)		:=-D__LINUX_ARM_ARCH__=6
--endif
--cpp-$(CONFIG_CPU_32v5)		:=-D__LINUX_ARM_ARCH__=5
--cpp-$(CONFIG_CPU_32v4T)		:=-D__LINUX_ARM_ARCH__=4
--cpp-$(CONFIG_CPU_32v4)		:=-D__LINUX_ARM_ARCH__=4
--cpp-$(CONFIG_CPU_32v3)		:=-D__LINUX_ARM_ARCH__=3
--
--# This selects how we optimise for the processor.
--tune-$(CONFIG_CPU_ARM7TDMI)	:=-mtune=arm7tdmi
--tune-$(CONFIG_CPU_ARM720T)	:=-mtune=arm7tdmi
--tune-$(CONFIG_CPU_ARM740T)	:=-mtune=arm7tdmi
--tune-$(CONFIG_CPU_ARM9TDMI)	:=-mtune=arm9tdmi
--tune-$(CONFIG_CPU_ARM940T)	:=-mtune=arm9tdmi
--tune-$(CONFIG_CPU_ARM946E)	:=-mtune=arm9e
--tune-$(CONFIG_CPU_ARM920T)	:=-mtune=arm9tdmi
--tune-$(CONFIG_CPU_ARM922T)	:=-mtune=arm9tdmi
--tune-$(CONFIG_CPU_ARM925T)	:=-mtune=arm9tdmi
--tune-$(CONFIG_CPU_ARM926T)	:=-mtune=arm9tdmi
--tune-$(CONFIG_CPU_FA526)	:=-mtune=arm9tdmi
--tune-$(CONFIG_CPU_SA110)	:=-mtune=strongarm110
--tune-$(CONFIG_CPU_SA1100)	:=-mtune=strongarm1100
--tune-$(CONFIG_CPU_XSCALE)	:=-mtune=xscale
--tune-$(CONFIG_CPU_XSC3)		:=-mtune=xscale
--tune-$(CONFIG_CPU_FEROCEON)	:=-mtune=xscale
--tune-$(CONFIG_CPU_V6)		:=-mtune=arm1136j-s
--tune-$(CONFIG_CPU_V6K)		:=-mtune=arm1136j-s
--
- ifeq ($(CONFIG_AEABI),y)
- CFLAGS_ABI	:=-mabi=aapcs-linux -mfpu=vfp
- else
-@@ -140,9 +90,9 @@ AFLAGS_ISA	:=$(CFLAGS_ISA)
- endif
- 
- # Need -Uarm for gcc < 3.x
--KBUILD_CPPFLAGS	+=$(cpp-y)
--KBUILD_CFLAGS	+=$(CFLAGS_ABI) $(CFLAGS_ISA) $(arch-y) $(tune-y) $(call cc-option,-mshort-load-bytes,$(call cc-option,-malignment-traps,)) -msoft-float -Uarm
--KBUILD_AFLAGS	+=$(CFLAGS_ABI) $(AFLAGS_ISA) -Wa,$(arch-y) $(tune-y) -include asm/unified.h -msoft-float
-+
-+KBUILD_CFLAGS	+=$(CFLAGS_ABI) $(CFLAGS_ISA) $(call cc-option,-mshort-load-bytes,$(call cc-option,-malignment-traps,)) -msoft-float -Uarm
-+KBUILD_AFLAGS	+=$(CFLAGS_ABI) $(AFLAGS_ISA) -Wa,-include asm/unified.h -msoft-float
- 
- CHECKFLAGS	+= -D__arm__
- 
 diff --git a/arch/x86/Kconfig.cpu b/arch/x86/Kconfig.cpu
-index 2a7279d80460..b6a64a959e09 100644
+index 2a7279d80460..6924a0f5f1c2 100644
 --- a/arch/x86/Kconfig.cpu
 +++ b/arch/x86/Kconfig.cpu
 @@ -157,7 +157,7 @@ config MPENTIUM4
@@ -10148,12 +9151,13 @@ index 2a7279d80460..b6a64a959e09 100644
  
  config X86_HAVE_PAE
  	def_bool y
-@@ -368,24 +745,43 @@ config X86_HAVE_PAE
+@@ -368,18 +745,37 @@ config X86_HAVE_PAE
  
  config X86_CMPXCHG64
  	def_bool y
 -	depends on X86_HAVE_PAE || M586TSC || M586MMX || MK6 || MK7
-+	depends on X86_HAVE_PAE || M586TSC || M586MMX || MK6 || MK7 || MK8 || MK8SSE3 || MK10 \
++	depends on X86_PAE || X86_64 || MCORE2 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 \
++	|| M586TSC || M586MMX || MATOM || MGEODE_LX || MGEODEGX1 || MK6 || MK7 || MK8 || MK8SSE3 || MK10 \
 +	|| MBARCELONA || MBOBCAT || MJAGUAR || MBULLDOZER || MPILEDRIVER || MSTEAMROLLER || MEXCAVATOR || MZEN \
 +	|| MZEN2 || MZEN3 || MZEN4 || MNEHALEM || MWESTMERE || MSILVERMONT || MGOLDMONT || MGOLDMONTPLUS \
 +	|| MSANDYBRIDGE || MIVYBRIDGE || MHASWELL || MBROADWELL || MSKYLAKE || MSKYLAKEX || MCANNONLAKE \
@@ -10188,105 +9192,66 @@ index 2a7279d80460..b6a64a959e09 100644
  	default "5" if X86_32 && X86_CMPXCHG64
  	default "4"
  
- config X86_DEBUGCTLMSR
- 	def_bool y
--	depends on !(MK6 || MWINCHIPC6 || MWINCHIP3D || MCYRIXIII || M586MMX || M586TSC || M586 || M486SX || M486) && !UML
-+	depends on !(MK6 || MWINCHIPC6 || MWINCHIP3D || MCYRIXIII || M586MMX || M586TSC || M586 \
-+	|| M486SX || M486) && !UML
- 
- config IA32_FEAT_CTL
- 	def_bool y
 diff --git a/arch/x86/Makefile b/arch/x86/Makefile
-index da8f3caf2781..adf396b23669 100644
+index 5ab93fcdd691..d7909940b112 100644
 --- a/arch/x86/Makefile
 +++ b/arch/x86/Makefile
-@@ -67,8 +67,8 @@ export BITS
- #
- #    https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53383
- #
--KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx
--KBUILD_RUSTFLAGS += -Ctarget-feature=-sse,-sse2,-sse3,-ssse3,-sse4.1,-sse4.2,-avx,-avx2
-+KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -mno-avx2 -mno-avx512f
-+KBUILD_RUSTFLAGS += -Ctarget-feature=-sse,-sse2,-sse3,-ssse3,-sse4.1,-sse4.2,-avx,-avx2,-avx512f
- 
- ifeq ($(CONFIG_X86_KERNEL_IBT),y)
- #
-@@ -149,21 +149,6 @@ else
- 	# Use -mskip-rax-setup if supported.
- 	KBUILD_CFLAGS += $(call cc-option,-mskip-rax-setup)
- 
--        # FIXME - should be integrated in Makefile.cpu (Makefile_32.cpu)
--        cflags-$(CONFIG_MK8)		+= -march=k8
--        cflags-$(CONFIG_MPSC)		+= -march=nocona
+@@ -156,8 +156,48 @@ else
+         # FIXME - should be integrated in Makefile.cpu (Makefile_32.cpu)
+         cflags-$(CONFIG_MK8)		+= -march=k8
+         cflags-$(CONFIG_MPSC)		+= -march=nocona
 -        cflags-$(CONFIG_MCORE2)		+= -march=core2
 -        cflags-$(CONFIG_MATOM)		+= -march=atom
--        cflags-$(CONFIG_GENERIC_CPU)	+= -mtune=generic
--        KBUILD_CFLAGS += $(cflags-y)
--
--        rustflags-$(CONFIG_MK8)		+= -Ctarget-cpu=k8
--        rustflags-$(CONFIG_MPSC)	+= -Ctarget-cpu=nocona
--        rustflags-$(CONFIG_MCORE2)	+= -Ctarget-cpu=core2
--        rustflags-$(CONFIG_MATOM)	+= -Ctarget-cpu=atom
--        rustflags-$(CONFIG_GENERIC_CPU)	+= -Ztune-cpu=generic
--        KBUILD_RUSTFLAGS += $(rustflags-y)
--
-         KBUILD_CFLAGS += -mno-red-zone
-         KBUILD_CFLAGS += -mcmodel=kernel
-         KBUILD_RUSTFLAGS += -Cno-redzone=y
-diff --git a/arch/x86/Makefile_32.cpu b/arch/x86/Makefile_32.cpu
-index 94834c4b5e5e..81923b4afdf8 100644
---- a/arch/x86/Makefile_32.cpu
-+++ b/arch/x86/Makefile_32.cpu
-@@ -10,44 +10,3 @@ else
- align		:= -falign-functions=0 -falign-jumps=0 -falign-loops=0
- endif
++        cflags-$(CONFIG_MK8SSE3)	+= -march=k8-sse3
++        cflags-$(CONFIG_MK10) 		+= -march=amdfam10
++        cflags-$(CONFIG_MBARCELONA) 	+= -march=barcelona
++        cflags-$(CONFIG_MBOBCAT) 	+= -march=btver1
++        cflags-$(CONFIG_MJAGUAR) 	+= -march=btver2
++        cflags-$(CONFIG_MBULLDOZER) 	+= -march=bdver1
++        cflags-$(CONFIG_MPILEDRIVER)	+= -march=bdver2 -mno-tbm
++        cflags-$(CONFIG_MSTEAMROLLER) 	+= -march=bdver3 -mno-tbm
++        cflags-$(CONFIG_MEXCAVATOR) 	+= -march=bdver4 -mno-tbm
++        cflags-$(CONFIG_MZEN) 		+= -march=znver1
++        cflags-$(CONFIG_MZEN2) 	+= -march=znver2
++        cflags-$(CONFIG_MZEN3) 	+= -march=znver3
++        cflags-$(CONFIG_MZEN4) 	+= -march=znver4
++        cflags-$(CONFIG_MNATIVE_INTEL) += -march=native
++        cflags-$(CONFIG_MNATIVE_AMD) 	+= -march=native
++        cflags-$(CONFIG_MATOM) 	+= -march=bonnell
++        cflags-$(CONFIG_MCORE2) 	+= -march=core2
++        cflags-$(CONFIG_MNEHALEM) 	+= -march=nehalem
++        cflags-$(CONFIG_MWESTMERE) 	+= -march=westmere
++        cflags-$(CONFIG_MSILVERMONT) 	+= -march=silvermont
++        cflags-$(CONFIG_MGOLDMONT) 	+= -march=goldmont
++        cflags-$(CONFIG_MGOLDMONTPLUS) += -march=goldmont-plus
++        cflags-$(CONFIG_MSANDYBRIDGE) 	+= -march=sandybridge
++        cflags-$(CONFIG_MIVYBRIDGE) 	+= -march=ivybridge
++        cflags-$(CONFIG_MHASWELL) 	+= -march=haswell
++        cflags-$(CONFIG_MBROADWELL) 	+= -march=broadwell
++        cflags-$(CONFIG_MSKYLAKE) 	+= -march=skylake
++        cflags-$(CONFIG_MSKYLAKEX) 	+= -march=skylake-avx512
++        cflags-$(CONFIG_MCANNONLAKE) 	+= -march=cannonlake
++        cflags-$(CONFIG_MICELAKE) 	+= -march=icelake-client
++        cflags-$(CONFIG_MCASCADELAKE) 	+= -march=cascadelake
++        cflags-$(CONFIG_MCOOPERLAKE) 	+= -march=cooperlake
++        cflags-$(CONFIG_MTIGERLAKE) 	+= -march=tigerlake
++        cflags-$(CONFIG_MSAPPHIRERAPIDS) += -march=sapphirerapids
++        cflags-$(CONFIG_MROCKETLAKE) 	+= -march=rocketlake
++        cflags-$(CONFIG_MALDERLAKE) 	+= -march=alderlake
++        cflags-$(CONFIG_MRAPTORLAKE) 	+= -march=raptorlake
++        cflags-$(CONFIG_MMETEORLAKE) 	+= -march=meteorlake
++        cflags-$(CONFIG_MEMERALDRAPIDS)	+= -march=emeraldrapids
++        cflags-$(CONFIG_GENERIC_CPU2) 	+= -march=x86-64-v2
++        cflags-$(CONFIG_GENERIC_CPU3) 	+= -march=x86-64-v3
++        cflags-$(CONFIG_GENERIC_CPU4) 	+= -march=x86-64-v4
+         cflags-$(CONFIG_GENERIC_CPU)	+= -mtune=generic
+         KBUILD_CFLAGS += $(cflags-y)
  
--cflags-$(CONFIG_M486SX)		+= -march=i486
--cflags-$(CONFIG_M486)		+= -march=i486
--cflags-$(CONFIG_M586)		+= -march=i586
--cflags-$(CONFIG_M586TSC)	+= -march=i586
--cflags-$(CONFIG_M586MMX)	+= -march=pentium-mmx
--cflags-$(CONFIG_M686)		+= -march=i686
--cflags-$(CONFIG_MPENTIUMII)	+= -march=i686 $(call tune,pentium2)
--cflags-$(CONFIG_MPENTIUMIII)	+= -march=i686 $(call tune,pentium3)
--cflags-$(CONFIG_MPENTIUMM)	+= -march=i686 $(call tune,pentium3)
--cflags-$(CONFIG_MPENTIUM4)	+= -march=i686 $(call tune,pentium4)
--cflags-$(CONFIG_MK6)		+= -march=k6
--# Please note, that patches that add -march=athlon-xp and friends are pointless.
--# They make zero difference whatsosever to performance at this time.
--cflags-$(CONFIG_MK7)		+= -march=athlon
--cflags-$(CONFIG_MK8)		+= $(call cc-option,-march=k8,-march=athlon)
--cflags-$(CONFIG_MCRUSOE)	+= -march=i686 $(align)
--cflags-$(CONFIG_MEFFICEON)	+= -march=i686 $(call tune,pentium3) $(align)
--cflags-$(CONFIG_MWINCHIPC6)	+= $(call cc-option,-march=winchip-c6,-march=i586)
--cflags-$(CONFIG_MWINCHIP3D)	+= $(call cc-option,-march=winchip2,-march=i586)
--cflags-$(CONFIG_MCYRIXIII)	+= $(call cc-option,-march=c3,-march=i486) $(align)
--cflags-$(CONFIG_MVIAC3_2)	+= $(call cc-option,-march=c3-2,-march=i686)
--cflags-$(CONFIG_MVIAC7)		+= -march=i686
--cflags-$(CONFIG_MCORE2)		+= -march=i686 $(call tune,core2)
--cflags-$(CONFIG_MATOM)		+= $(call cc-option,-march=atom,$(call cc-option,-march=core2,-march=i686)) \
--	$(call cc-option,-mtune=atom,$(call cc-option,-mtune=generic))
--
--# AMD Elan support
--cflags-$(CONFIG_MELAN)		+= -march=i486
--
--# Geode GX1 support
--cflags-$(CONFIG_MGEODEGX1)	+= -march=pentium-mmx
--cflags-$(CONFIG_MGEODE_LX)	+= $(call cc-option,-march=geode,-march=pentium-mmx)
--# add at the end to overwrite eventual tuning options from earlier
--# cpu entries
--cflags-$(CONFIG_X86_GENERIC) 	+= $(call tune,generic,$(call tune,i686))
--
--# Bug fix for binutils: this option is required in order to keep
--# binutils from generating NOPL instructions against our will.
--ifneq ($(CONFIG_X86_P6_NOP),y)
--cflags-y			+= $(call cc-option,-Wa$(comma)-mtune=generic32,)
--endif
 diff --git a/arch/x86/include/asm/pci.h b/arch/x86/include/asm/pci.h
-index b40c462b4af3..c4e66e60d559 100644
+index b3ab80a03365..5e883b397ff3 100644
 --- a/arch/x86/include/asm/pci.h
 +++ b/arch/x86/include/asm/pci.h
-@@ -27,6 +27,7 @@ struct pci_sysdata {
+@@ -26,6 +26,7 @@ struct pci_sysdata {
  #if IS_ENABLED(CONFIG_VMD)
  	struct pci_dev	*vmd_dev;	/* VMD Device if in Intel VMD domain */
  #endif
@@ -10294,7 +9259,7 @@ index b40c462b4af3..c4e66e60d559 100644
  };
  
  extern int pci_routeirq;
-@@ -70,6 +71,11 @@ static inline bool is_vmd(struct pci_bus *bus)
+@@ -69,6 +70,11 @@ static inline bool is_vmd(struct pci_bus *bus)
  #define is_vmd(bus)		false
  #endif /* CONFIG_VMD */
  
@@ -10421,14 +9386,14 @@ index ddb798603201..7c20387d8202 100644
  }
 -#endif
 diff --git a/block/bfq-iosched.c b/block/bfq-iosched.c
-index 9bd57baa4b0b..efe818271cf7 100644
+index 88df08a246fa..dd9e77e96279 100644
 --- a/block/bfq-iosched.c
 +++ b/block/bfq-iosched.c
 @@ -7703,6 +7703,7 @@ MODULE_ALIAS("bfq-iosched");
  static int __init bfq_init(void)
  {
  	int ret;
-+	char msg[60] = "BFQ I/O-scheduler: BFQ-CachyOS v6.8";
++	char msg[60] = "BFQ I/O-scheduler: BFQ-CachyOS v6.9";
  
  #ifdef CONFIG_BFQ_GROUP_IOSCHED
  	ret = blkcg_policy_register(&blkcg_policy_bfq);
@@ -10468,11 +9433,44 @@ index 5ff093cb3cf8..1c93fe91b006 100644
  }
  
  /*
+diff --git a/drivers/Makefile b/drivers/Makefile
+index 3bf5cab4b451..3c3ba6266417 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -66,14 +66,8 @@ obj-y				+= char/
+ # iommu/ comes before gpu as gpu are using iommu controllers
+ obj-y				+= iommu/
+ 
+-# gpu/ comes after char for AGP vs DRM startup and after iommu
+-obj-y				+= gpu/
+-
+ obj-$(CONFIG_CONNECTOR)		+= connector/
+ 
+-# i810fb depends on char/agp/
+-obj-$(CONFIG_FB_I810)           += video/fbdev/i810/
+-
+ obj-$(CONFIG_PARPORT)		+= parport/
+ obj-y				+= base/ block/ misc/ mfd/ nfc/
+ obj-$(CONFIG_LIBNVDIMM)		+= nvdimm/
+@@ -85,6 +79,13 @@ obj-y				+= macintosh/
+ obj-y				+= scsi/
+ obj-y				+= nvme/
+ obj-$(CONFIG_ATA)		+= ata/
++
++# gpu/ comes after char for AGP vs DRM startup and after iommu
++obj-y				+= gpu/
++
++# i810fb depends on char/agp/
++obj-$(CONFIG_FB_I810)           += video/fbdev/i810/
++
+ obj-$(CONFIG_TARGET_CORE)	+= target/
+ obj-$(CONFIG_MTD)		+= mtd/
+ obj-$(CONFIG_SPI)		+= spi/
 diff --git a/drivers/ata/ahci.c b/drivers/ata/ahci.c
-index df3fd6474bf2..4303eb5fe11b 100644
+index 6548f10e61d9..c8c662a68ceb 100644
 --- a/drivers/ata/ahci.c
 +++ b/drivers/ata/ahci.c
-@@ -1547,7 +1547,7 @@ static irqreturn_t ahci_thunderx_irq_handler(int irq, void *dev_instance)
+@@ -1619,7 +1619,7 @@ static irqreturn_t ahci_thunderx_irq_handler(int irq, void *dev_instance)
  }
  #endif
  
@@ -10481,7 +9479,7 @@ index df3fd6474bf2..4303eb5fe11b 100644
  		struct ahci_host_priv *hpriv)
  {
  	int i;
-@@ -1560,7 +1560,7 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
+@@ -1632,7 +1632,7 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
  	    pci_resource_len(pdev, bar) < SZ_512K ||
  	    bar != AHCI_PCI_BAR_STANDARD ||
  	    !(readl(hpriv->mmio + AHCI_VSCAP) & 1))
@@ -10490,7 +9488,7 @@ index df3fd6474bf2..4303eb5fe11b 100644
  
  	cap = readq(hpriv->mmio + AHCI_REMAP_CAP);
  	for (i = 0; i < AHCI_MAX_REMAP; i++) {
-@@ -1575,18 +1575,11 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
+@@ -1647,18 +1647,11 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
  	}
  
  	if (!hpriv->remapped_nvme)
@@ -10513,7 +9511,7 @@ index df3fd6474bf2..4303eb5fe11b 100644
  }
  
  static int ahci_get_irq_vector(struct ata_host *host, int port)
-@@ -1806,7 +1799,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+@@ -1887,7 +1880,9 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
  	hpriv->mmio = pcim_iomap_table(pdev)[ahci_pci_bar];
  
  	/* detect remapped nvme devices */
@@ -10544,47 +9542,24 @@ index 438c9e75a04d..1bbfeca5f01e 100644
  	help
  	  This driver adds a CPUFreq driver which utilizes a fine grain
  	  processor performance frequency control range instead of legacy
-diff --git a/drivers/firmware/sysfb.c b/drivers/firmware/sysfb.c
-index 3c197db42c9d..16e4a2e90fae 100644
---- a/drivers/firmware/sysfb.c
-+++ b/drivers/firmware/sysfb.c
-@@ -34,6 +34,22 @@
- #include <linux/screen_info.h>
- #include <linux/sysfb.h>
+diff --git a/drivers/cpufreq/intel_pstate.c b/drivers/cpufreq/intel_pstate.c
+index dbbf299f4219..6db030d3b0ab 100644
+--- a/drivers/cpufreq/intel_pstate.c
++++ b/drivers/cpufreq/intel_pstate.c
+@@ -3586,6 +3586,8 @@ static int __init intel_pstate_setup(char *str)
  
-+static int skip_simpledrm;
-+
-+static int __init simpledrm_disable(char *opt)
-+{
-+	if (!opt)
-+                return -EINVAL;
-+
-+	get_option(&opt, &skip_simpledrm);
-+
-+	if (skip_simpledrm)
-+		pr_info("The simpledrm driver will not be probed\n");
-+
-+	return 0;
-+}
-+early_param("nvidia-drm.modeset", simpledrm_disable);
-+
- static struct platform_device *pd;
- static DEFINE_MUTEX(disable_lock);
- static bool disabled;
-@@ -85,7 +101,7 @@ static __init int sysfb_init(void)
- 
- 	/* try to create a simple-framebuffer device */
- 	compatible = sysfb_parse_mode(si, &mode);
--	if (compatible) {
-+	if (compatible && !skip_simpledrm) {
- 		pd = sysfb_create_simplefb(si, &mode);
- 		if (!IS_ERR(pd))
- 			goto unlock_mutex;
+ 	if (!strcmp(str, "disable"))
+ 		no_load = 1;
++	else if (!strcmp(str, "enable"))
++		no_load = 0;
+ 	else if (!strcmp(str, "active"))
+ 		default_driver = &intel_pstate;
+ 	else if (!strcmp(str, "passive"))
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu.h b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
-index 79827a6dcd7f..ee85a2352771 100644
+index b3b84647207e..bed8a67500d3 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu.h
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
-@@ -153,6 +153,7 @@ struct amdgpu_watchdog_timer
+@@ -151,6 +151,7 @@ struct amdgpu_watchdog_timer {
   */
  extern int amdgpu_modeset;
  extern unsigned int amdgpu_vram_limit;
@@ -10593,7 +9568,7 @@ index 79827a6dcd7f..ee85a2352771 100644
  extern int amdgpu_gart_size;
  extern int amdgpu_gtt_size;
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-index 64b1bb240424..6000aa9690b3 100644
+index e4277298cf1a..1afecc368ab3 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
 @@ -132,6 +132,7 @@ enum AMDGPU_DEBUG_MASK {
@@ -10604,7 +9579,7 @@ index 64b1bb240424..6000aa9690b3 100644
  int amdgpu_vis_vram_limit;
  int amdgpu_gart_size = -1; /* auto */
  int amdgpu_gtt_size = -1; /* auto */
-@@ -241,6 +242,15 @@ struct amdgpu_watchdog_timer amdgpu_watchdog_timer = {
+@@ -243,6 +244,15 @@ struct amdgpu_watchdog_timer amdgpu_watchdog_timer = {
  	.period = 0x0, /* default to 0x0 (timeout disable) */
  };
  
@@ -10636,10 +9611,10 @@ index 901d1961b739..05c49141f580 100644
 +
  endmenu
 diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-index 9044214dfdbd..a5e474fa7cbb 100644
+index d6e71aa808d8..8a7ac090711f 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -4079,7 +4079,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4099,7 +4099,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -10662,10 +9637,10 @@ index c87b64e464ed..6fe07243adc3 100644
   *
   * AMD driver supports pre-defined mathematical functions for transferring
 diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
-index 6e715ef3a556..11c7199ec3b3 100644
+index e23a0a276e33..dd83cf50a89b 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
-@@ -290,7 +290,7 @@ static int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc)
+@@ -338,7 +338,7 @@ static int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc)
  }
  #endif
  
@@ -10674,7 +9649,7 @@ index 6e715ef3a556..11c7199ec3b3 100644
  /**
   * dm_crtc_additional_color_mgmt - enable additional color properties
   * @crtc: DRM CRTC
-@@ -372,7 +372,7 @@ static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
+@@ -420,7 +420,7 @@ static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
  #if defined(CONFIG_DEBUG_FS)
  	.late_register = amdgpu_dm_crtc_late_register,
  #endif
@@ -10683,7 +9658,7 @@ index 6e715ef3a556..11c7199ec3b3 100644
  	.atomic_set_property = amdgpu_dm_atomic_crtc_set_property,
  	.atomic_get_property = amdgpu_dm_atomic_crtc_get_property,
  #endif
-@@ -551,7 +551,7 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
+@@ -599,7 +599,7 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
  
  	drm_mode_crtc_set_gamma_size(&acrtc->base, MAX_COLOR_LEGACY_LUT_ENTRIES);
  
@@ -10724,10 +9699,10 @@ index 8a4c40b4c27e..779880c64575 100644
  #endif
  	/* Create (reset) the plane state */
 diff --git a/drivers/gpu/drm/amd/pm/amdgpu_pm.c b/drivers/gpu/drm/amd/pm/amdgpu_pm.c
-index b4698f985600..6a8e641c5130 100644
+index bbd0169010c2..bb1e169538e5 100644
 --- a/drivers/gpu/drm/amd/pm/amdgpu_pm.c
 +++ b/drivers/gpu/drm/amd/pm/amdgpu_pm.c
-@@ -3034,6 +3034,9 @@ static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
+@@ -3078,6 +3078,9 @@ static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
  					 struct device_attribute *attr,
  					 char *buf)
  {
@@ -10738,10 +9713,10 @@ index b4698f985600..6a8e641c5130 100644
  }
  
 diff --git a/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c b/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
-index ba1597b01a97..13515d75dc23 100644
+index 65333141b1c1..a92be27231a0 100644
 --- a/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
 +++ b/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
-@@ -2718,7 +2718,10 @@ int smu_get_power_limit(void *handle,
+@@ -2730,7 +2730,10 @@ int smu_get_power_limit(void *handle,
  			*limit = smu->max_power_limit;
  			break;
  		case SMU_PPT_LIMIT_MIN:
@@ -10753,7 +9728,7 @@ index ba1597b01a97..13515d75dc23 100644
  			break;
  		default:
  			return -EINVAL;
-@@ -2742,7 +2745,14 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
+@@ -2754,7 +2757,14 @@ static int smu_set_power_limit(void *handle, uint32_t limit)
  		if (smu->ppt_funcs->set_power_limit)
  			return smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
  
@@ -10770,7 +9745,7 @@ index ba1597b01a97..13515d75dc23 100644
  			"New power limit (%d) is out of range [%d,%d]\n",
  			limit, smu->min_power_limit, smu->max_power_limit);
 diff --git a/drivers/i2c/busses/Kconfig b/drivers/i2c/busses/Kconfig
-index 28eb48dd5b32..1cf4c700b108 100644
+index 97989c914260..9879b7bbec2c 100644
 --- a/drivers/i2c/busses/Kconfig
 +++ b/drivers/i2c/busses/Kconfig
 @@ -230,6 +230,15 @@ config I2C_CHT_WC
@@ -11538,10 +10513,10 @@ index 51e0c4954600..35c3ad741870 100644
  }
  
 diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
-index 59445763e55a..568f85414c85 100644
+index 9a74c6316c5d..02acb76b8a93 100644
 --- a/drivers/md/dm-crypt.c
 +++ b/drivers/md/dm-crypt.c
-@@ -3271,6 +3271,11 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
+@@ -3275,6 +3275,11 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
  			goto bad;
  	}
  
@@ -15964,7 +14939,7 @@ index 6030a8235617..60b7fe5fa74a 100644
  {
  	return &init_user_ns;
 diff --git a/init/Kconfig b/init/Kconfig
-index c8a155cf7209..a63f2024953b 100644
+index 664bedb9a71f..98246963db44 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
 @@ -132,6 +132,10 @@ config THREAD_INFO_IN_TASK
@@ -16057,12 +15032,12 @@ index 38ef6d06888e..0f78364efd4f 100644
  
  config SCHED_HRTICK
 diff --git a/kernel/fork.c b/kernel/fork.c
-index 3b9cdb42e757..cda4ff6351f0 100644
+index aebb3e6c96dc..f186c72983b0 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
-@@ -102,6 +102,10 @@
- #include <linux/iommu.h>
- #include <linux/rseq.h>
+@@ -104,6 +104,10 @@
+ #include <uapi/linux/pidfd.h>
+ #include <linux/pidfs.h>
  
 +#ifdef CONFIG_USER_NS
 +#include <linux/user_namespace.h>
@@ -16071,7 +15046,7 @@ index 3b9cdb42e757..cda4ff6351f0 100644
  #include <asm/pgalloc.h>
  #include <linux/uaccess.h>
  #include <asm/mmu_context.h>
-@@ -2261,6 +2265,10 @@ __latent_entropy struct task_struct *copy_process(
+@@ -2154,6 +2158,10 @@ __latent_entropy struct task_struct *copy_process(
  	if ((clone_flags & (CLONE_NEWUSER|CLONE_FS)) == (CLONE_NEWUSER|CLONE_FS))
  		return ERR_PTR(-EINVAL);
  
@@ -16082,7 +15057,7 @@ index 3b9cdb42e757..cda4ff6351f0 100644
  	/*
  	 * Thread groups must share signals as well, and detached threads
  	 * can only be started up within the thread group.
-@@ -3407,6 +3415,12 @@ int ksys_unshare(unsigned long unshare_flags)
+@@ -3301,6 +3309,12 @@ int ksys_unshare(unsigned long unshare_flags)
  	if (unshare_flags & CLONE_NEWNS)
  		unshare_flags |= CLONE_FS;
  
@@ -16096,7 +15071,7 @@ index 3b9cdb42e757..cda4ff6351f0 100644
  	if (err)
  		goto bad_unshare_out;
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index aee5e7a70170..083a039d3433 100644
+index c62805dbd608..95bade948bf5 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
 @@ -73,10 +73,19 @@ unsigned int sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_LOG;
@@ -16133,7 +15108,7 @@ index aee5e7a70170..083a039d3433 100644
  #ifdef CONFIG_NUMA_BALANCING
  /* Restrict the NUMA promotion throughput (MB/s) for each target node. */
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 8c817d0a92f3..ce68f50e76f5 100644
+index ae50f212775e..f7d2fb6cc099 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
 @@ -2544,7 +2544,7 @@ extern void deactivate_task(struct rq *rq, struct task_struct *p, int flags);
@@ -16146,19 +15121,19 @@ index 8c817d0a92f3..ce68f50e76f5 100644
  #else
  #define SCHED_NR_MIGRATE_BREAK 32
 diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 157f7ce2942d..c92d8a4b23fb 100644
+index 81cc974913bb..db581894e611 100644
 --- a/kernel/sysctl.c
 +++ b/kernel/sysctl.c
-@@ -95,6 +95,9 @@ EXPORT_SYMBOL_GPL(sysctl_long_vals);
- #ifdef CONFIG_PERF_EVENTS
- static const int six_hundred_forty_kb = 640 * 1024;
+@@ -80,6 +80,9 @@
+ #ifdef CONFIG_RT_MUTEXES
+ #include <linux/rtmutex.h>
  #endif
 +#ifdef CONFIG_USER_NS
 +#include <linux/user_namespace.h>
 +#endif
  
- 
- static const int ngroups_max = NGROUPS_MAX;
+ /* shared constants to be used in various sysctls */
+ const int sysctl_vals[] = { 0, 1, 2, 3, 4, 100, 200, 1000, 3000, INT_MAX, 65535, -1 };
 @@ -1623,6 +1626,15 @@ static struct ctl_table kern_table[] = {
  		.mode		= 0644,
  		.proc_handler	= proc_dointvec,
@@ -16176,7 +15151,7 @@ index 157f7ce2942d..c92d8a4b23fb 100644
  	{
  		.procname	= "tainted",
 diff --git a/kernel/user_namespace.c b/kernel/user_namespace.c
-index ce4d99df5f0e..8272e2e359f1 100644
+index 0b0b95418b16..c4b835b91fc0 100644
 --- a/kernel/user_namespace.c
 +++ b/kernel/user_namespace.c
 @@ -22,6 +22,13 @@
@@ -16194,10 +15169,10 @@ index ce4d99df5f0e..8272e2e359f1 100644
  static DEFINE_MUTEX(userns_state_mutex);
  
 diff --git a/mm/Kconfig b/mm/Kconfig
-index ffc3a2ba3a8c..0e440573033c 100644
+index b1448aa81e15..64da441d529b 100644
 --- a/mm/Kconfig
 +++ b/mm/Kconfig
-@@ -630,7 +630,7 @@ config COMPACTION
+@@ -614,7 +614,7 @@ config COMPACTION
  config COMPACT_UNEVICTABLE_DEFAULT
  	int
  	depends on COMPACTION
@@ -16207,10 +15182,10 @@ index ffc3a2ba3a8c..0e440573033c 100644
  
  #
 diff --git a/mm/compaction.c b/mm/compaction.c
-index b961db601df4..91d627e8a93d 100644
+index 807b58e6eb68..b8aef0deeb38 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -1830,7 +1830,11 @@ static int sysctl_compact_unevictable_allowed __read_mostly = CONFIG_COMPACT_UNE
+@@ -1938,7 +1938,11 @@ static int sysctl_compact_unevictable_allowed __read_mostly = CONFIG_COMPACT_UNE
   * aggressively the kernel should compact memory in the
   * background. It takes values in the range [0, 100].
   */
@@ -16223,7 +15198,7 @@ index b961db601df4..91d627e8a93d 100644
  static int __read_mostly sysctl_compact_memory;
  
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 6790f93fda45..d601fe3a7285 100644
+index 89f58c7603b2..e6bdebb959f9 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
 @@ -62,7 +62,11 @@ unsigned long transparent_hugepage_flags __read_mostly =
@@ -16239,7 +15214,7 @@ index 6790f93fda45..d601fe3a7285 100644
  	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
  
 diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 3f255534986a..01b3e5cb8da1 100644
+index 3e19b87049db..7b62a21c2ca1 100644
 --- a/mm/page-writeback.c
 +++ b/mm/page-writeback.c
 @@ -71,7 +71,11 @@ static long ratelimit_pages = 32;
@@ -16267,10 +15242,10 @@ index 3f255534986a..01b3e5cb8da1 100644
  EXPORT_SYMBOL_GPL(dirty_writeback_interval);
  
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a663202045dc..7c48b114331b 100644
+index 14d39f34d336..7e73d3df8d1b 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -287,7 +287,11 @@ const char * const migratetype_names[MIGRATE_TYPES] = {
+@@ -288,7 +288,11 @@ const char * const migratetype_names[MIGRATE_TYPES] = {
  
  int min_free_kbytes = 1024;
  int user_min_free_kbytes = -1;
@@ -16282,7 +15257,7 @@ index a663202045dc..7c48b114331b 100644
  static int watermark_scale_factor = 10;
  
  /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
-@@ -2116,16 +2120,17 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
+@@ -2117,16 +2121,17 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
  }
  
  /*
@@ -16304,7 +15279,7 @@ index a663202045dc..7c48b114331b 100644
  
  	spin_lock_irqsave(&zone->lock, flags);
  	for (i = 0; i < count; ++i) {
-@@ -2134,6 +2139,18 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+@@ -2135,6 +2140,18 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
  		if (unlikely(page == NULL))
  			break;
  
@@ -16323,7 +15298,7 @@ index a663202045dc..7c48b114331b 100644
  		/*
  		 * Split buddy pages returned by expand() are received here in
  		 * physical page order. The page is added to the tail of
-@@ -2150,7 +2167,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+@@ -2151,7 +2168,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
  					      -(1 << order));
  	}
  
@@ -16333,10 +15308,10 @@ index a663202045dc..7c48b114331b 100644
  
  	return i;
 diff --git a/mm/swap.c b/mm/swap.c
-index cd8f0150ba3a..42c405a4f114 100644
+index 500a09a48dfd..5f97e8520743 100644
 --- a/mm/swap.c
 +++ b/mm/swap.c
-@@ -1090,6 +1090,10 @@ void folio_batch_remove_exceptionals(struct folio_batch *fbatch)
+@@ -1121,6 +1121,10 @@ void folio_batch_remove_exceptionals(struct folio_batch *fbatch)
   */
  void __init swap_setup(void)
  {
@@ -16347,7 +15322,7 @@ index cd8f0150ba3a..42c405a4f114 100644
  	unsigned long megs = totalram_pages() >> (20 - PAGE_SHIFT);
  
  	/* Use a smaller cluster for small-memory machines */
-@@ -1101,4 +1105,5 @@ void __init swap_setup(void)
+@@ -1132,4 +1136,5 @@ void __init swap_setup(void)
  	 * Right now other parts of the system means that we
  	 * _really_ don't want to cluster much more
  	 */
@@ -16370,10 +15345,10 @@ index bd5183dfd879..3a410f53a07c 100644
  
  /*
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4255619a1a31..5a3fbaf34158 100644
+index 3ef654addd44..f38c96e57cd6 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -185,7 +185,11 @@ struct scan_control {
+@@ -191,7 +191,11 @@ struct scan_control {
  /*
   * From 0 .. 200.  Higher means more swappy.
   */
@@ -16385,7 +15360,7 @@ index 4255619a1a31..5a3fbaf34158 100644
  
  #ifdef CONFIG_MEMCG
  
-@@ -3922,7 +3926,11 @@ static bool lruvec_is_reclaimable(struct lruvec *lruvec, struct scan_control *sc
+@@ -3933,7 +3937,11 @@ static bool lruvec_is_reclaimable(struct lruvec *lruvec, struct scan_control *sc
  }
  
  /* to protect the working set of the last N jiffies */
@@ -16400,45 +15375,10 @@ index 4255619a1a31..5a3fbaf34158 100644
 -- 
 2.45.1
 
-From b8ae04ca558cc1752a6e64552f90feaf737f1484 Mon Sep 17 00:00:00 2001
+From b2be79f64166607472e8fd3bac5170dc64b50616 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Fri, 17 May 2024 14:27:02 +0200
-Subject: [PATCH 06/10] fixes
-
-Signed-off-by: Peter Jung <admin@ptr1337.dev>
----
- arch/Kconfig | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/arch/Kconfig b/arch/Kconfig
-index 03cd763ed40c..84fd697d70c5 100644
---- a/arch/Kconfig
-+++ b/arch/Kconfig
-@@ -1033,7 +1033,7 @@ config ARCH_MMAP_RND_BITS
- 	int "Number of bits to use for ASLR of mmap base address" if EXPERT
- 	range ARCH_MMAP_RND_BITS_MIN ARCH_MMAP_RND_BITS_MAX
- 	default ARCH_MMAP_RND_BITS_DEFAULT if ARCH_MMAP_RND_BITS_DEFAULT
--	default ARCH_MMAP_RND_BITS_MIN
-+	default ARCH_MMAP_RND_BITS_MAX
- 	depends on HAVE_ARCH_MMAP_RND_BITS
- 	help
- 	  This value can be used to select the number of bits to use to
-@@ -1067,7 +1067,7 @@ config ARCH_MMAP_RND_COMPAT_BITS
- 	int "Number of bits to use for ASLR of mmap base address for compatible applications" if EXPERT
- 	range ARCH_MMAP_RND_COMPAT_BITS_MIN ARCH_MMAP_RND_COMPAT_BITS_MAX
- 	default ARCH_MMAP_RND_COMPAT_BITS_DEFAULT if ARCH_MMAP_RND_COMPAT_BITS_DEFAULT
--	default ARCH_MMAP_RND_COMPAT_BITS_MIN
-+	default ARCH_MMAP_RND_COMPAT_BITS_MAX
- 	depends on HAVE_ARCH_MMAP_RND_COMPAT_BITS
- 	help
- 	  This value can be used to select the number of bits to use to
--- 
-2.45.1
-
-From 775351a3262f3f58d780ddfa62f790ef2d729ba1 Mon Sep 17 00:00:00 2001
-From: Peter Jung <admin@ptr1337.dev>
-Date: Fri, 17 May 2024 14:28:18 +0200
-Subject: [PATCH 07/10] handheld
+Date: Wed, 22 May 2024 15:40:37 +0200
+Subject: [PATCH 06/10] deckify
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -16467,21 +15407,11 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  drivers/mfd/Kconfig                           |   11 +
  drivers/mfd/Makefile                          |    2 +
  drivers/mfd/steamdeck.c                       |  147 ++
- drivers/net/wireless/ath/ath11k/core.c        |   88 +
- drivers/net/wireless/ath/ath11k/core.h        |    1 +
- drivers/net/wireless/ath/ath11k/hw.c          |    1 +
- drivers/net/wireless/ath/ath11k/hw.h          |    1 +
- drivers/net/wireless/ath/ath11k/mac.c         |   86 +-
- drivers/net/wireless/ath/ath11k/mhi.c         |    1 +
- drivers/net/wireless/ath/ath11k/pci.c         |   50 +-
- drivers/net/wireless/ath/ath11k/pcic.c        |   11 +
- drivers/net/wireless/ath/ath11k/wmi.c         |   27 +
- drivers/net/wireless/ath/ath11k/wmi.h         |   87 +
  drivers/pci/quirks.c                          |    8 +-
  sound/soc/amd/acp/acp-mach-common.c           |  104 ++
  sound/soc/amd/acp/acp-mach.h                  |    3 +-
  sound/soc/codecs/max98388.c                   |   24 +-
- 39 files changed, 3598 insertions(+), 174 deletions(-)
+ 29 files changed, 3276 insertions(+), 143 deletions(-)
  create mode 100644 Documentation/ABI/testing/sysfs-driver-hid-asus
  create mode 100644 drivers/extcon/extcon-steamdeck.c
  rename drivers/hid/{hid-asus.c => hid-asus-core.c} (89%)
@@ -16796,10 +15726,10 @@ index 000000000000..49cb5d30bf6b
 +MODULE_DESCRIPTION("Steam Deck extcon driver");
 +MODULE_LICENSE("GPL");
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h b/drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h
-index 2e4911050cc5..f5805d0f8f01 100644
+index 1fe21a70ddd0..1738a580ef51 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h
-@@ -436,8 +436,6 @@ struct amdgpu_mode_info {
+@@ -434,8 +434,6 @@ struct amdgpu_mode_info {
  	struct drm_property *regamma_tf_property;
  };
  
@@ -16809,7 +15739,7 @@ index 2e4911050cc5..f5805d0f8f01 100644
  	struct amdgpu_encoder *encoder;
  	uint8_t negative;
 diff --git a/drivers/gpu/drm/amd/amdgpu/atombios_encoders.c b/drivers/gpu/drm/amd/amdgpu/atombios_encoders.c
-index 7672abe6c140..568a816bcf58 100644
+index 25feab188dfe..0243abb0e491 100644
 --- a/drivers/gpu/drm/amd/amdgpu/atombios_encoders.c
 +++ b/drivers/gpu/drm/amd/amdgpu/atombios_encoders.c
 @@ -39,6 +39,10 @@
@@ -16844,10 +15774,10 @@ index 7672abe6c140..568a816bcf58 100644
  	snprintf(bl_name, sizeof(bl_name),
  		 "amdgpu_bl%d", dev->primary->index);
 diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-index a5e474fa7cbb..93d68ea0fb85 100644
+index 8a7ac090711f..2f3e00f0e08f 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -156,6 +156,9 @@ MODULE_FIRMWARE(FIRMWARE_DCN_351_DMUB);
+@@ -157,6 +157,9 @@ MODULE_FIRMWARE(FIRMWARE_DCN_351_DMUB);
  /* Number of bytes in PSP footer for firmware. */
  #define PSP_FOOTER_BYTES 0x100
  
@@ -16857,7 +15787,7 @@ index a5e474fa7cbb..93d68ea0fb85 100644
  /**
   * DOC: overview
   *
-@@ -4094,7 +4097,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4114,7 +4117,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  	return 0;
  }
  
@@ -16866,7 +15796,7 @@ index a5e474fa7cbb..93d68ea0fb85 100644
  #define AMDGPU_DM_DEFAULT_MAX_BACKLIGHT 255
  #define AUX_BL_DEFAULT_TRANSITION_TIME_MS 50
  
-@@ -4112,11 +4115,27 @@ static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
+@@ -4132,11 +4135,27 @@ static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
  	amdgpu_acpi_get_backlight_caps(&caps);
  	if (caps.caps_valid) {
  		dm->backlight_caps[bl_idx].caps_valid = true;
@@ -16894,7 +15824,7 @@ index a5e474fa7cbb..93d68ea0fb85 100644
  		dm->backlight_caps[bl_idx].min_input_signal =
  				AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
  		dm->backlight_caps[bl_idx].max_input_signal =
-@@ -4126,6 +4145,9 @@ static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
+@@ -4146,6 +4165,9 @@ static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
  	if (dm->backlight_caps[bl_idx].aux_support)
  		return;
  
@@ -16904,7 +15834,7 @@ index a5e474fa7cbb..93d68ea0fb85 100644
  	dm->backlight_caps[bl_idx].min_input_signal = AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
  	dm->backlight_caps[bl_idx].max_input_signal = AMDGPU_DM_DEFAULT_MAX_BACKLIGHT;
  #endif
-@@ -4157,7 +4179,7 @@ static u32 convert_brightness_from_user(const struct amdgpu_dm_backlight_caps *c
+@@ -4177,7 +4199,7 @@ static u32 convert_brightness_from_user(const struct amdgpu_dm_backlight_caps *c
  	if (!get_brightness_range(caps, &min, &max))
  		return brightness;
  
@@ -16913,7 +15843,7 @@ index a5e474fa7cbb..93d68ea0fb85 100644
  	return min + DIV_ROUND_CLOSEST((max - min) * brightness,
  				       AMDGPU_MAX_BL_LEVEL);
  }
-@@ -4172,7 +4194,7 @@ static u32 convert_brightness_to_user(const struct amdgpu_dm_backlight_caps *cap
+@@ -4192,7 +4214,7 @@ static u32 convert_brightness_to_user(const struct amdgpu_dm_backlight_caps *cap
  
  	if (brightness < min)
  		return 0;
@@ -16922,7 +15852,7 @@ index a5e474fa7cbb..93d68ea0fb85 100644
  	return DIV_ROUND_CLOSEST(AMDGPU_MAX_BL_LEVEL * (brightness - min),
  				 max - min);
  }
-@@ -7468,7 +7490,8 @@ static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
+@@ -7596,7 +7618,8 @@ static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
  				drm_add_modes_noedid(connector, 1920, 1080);
  	} else {
  		amdgpu_dm_connector_ddc_get_modes(connector, edid);
@@ -16932,7 +15862,7 @@ index a5e474fa7cbb..93d68ea0fb85 100644
  		amdgpu_dm_connector_add_freesync_modes(connector, edid);
  	}
  	amdgpu_dm_fbc_init(connector);
-@@ -8224,7 +8247,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
+@@ -8346,7 +8369,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
  	int planes_count = 0, vpos, hpos;
  	unsigned long flags;
  	u32 target_vblank, last_flip_vblank;
@@ -16942,7 +15872,7 @@ index a5e474fa7cbb..93d68ea0fb85 100644
  	bool pflip_present = false;
  	bool dirty_rects_changed = false;
 diff --git a/drivers/gpu/drm/amd/display/dc/link/link_validation.c b/drivers/gpu/drm/amd/display/dc/link/link_validation.c
-index 5b0bc7f6a188..5a8b0b7c1907 100644
+index 1aed55b0ab6a..27af7505caca 100644
 --- a/drivers/gpu/drm/amd/display/dc/link/link_validation.c
 +++ b/drivers/gpu/drm/amd/display/dc/link/link_validation.c
 @@ -35,6 +35,8 @@
@@ -16954,7 +15884,7 @@ index 5b0bc7f6a188..5a8b0b7c1907 100644
  static uint32_t get_tmds_output_pixel_clock_100hz(const struct dc_crtc_timing *timing)
  {
  
-@@ -278,6 +280,15 @@ static bool dp_validate_mode_timing(
+@@ -276,6 +278,15 @@ static bool dp_validate_mode_timing(
  		timing->v_addressable == (uint32_t) 480)
  		return true;
  
@@ -19419,7 +18349,7 @@ index 000000000000..18317cad7110
 +extern const struct rog_ops rog_ally;
 \ No newline at end of file
 diff --git a/drivers/hid/hid-ids.h b/drivers/hid/hid-ids.h
-index 175b6680087e..fece5a1070ec 100644
+index 8376fb5e2d0b..f1e508a7ef06 100644
 --- a/drivers/hid/hid-ids.h
 +++ b/drivers/hid/hid-ids.h
 @@ -208,6 +208,7 @@
@@ -19691,10 +18621,10 @@ index b08a5ab58528..f166188c21ec 100644
  		break;
  	case ID_CONTROLLER_WIRELESS:
 diff --git a/drivers/hwmon/Kconfig b/drivers/hwmon/Kconfig
-index a608264da87d..cf0fc2ce1017 100644
+index 83945397b6eb..6219ebfef801 100644
 --- a/drivers/hwmon/Kconfig
 +++ b/drivers/hwmon/Kconfig
-@@ -1974,6 +1974,17 @@ config SENSORS_SCH5636
+@@ -2036,6 +2036,17 @@ config SENSORS_SCH5636
  	  This driver can also be built as a module. If so, the module
  	  will be called sch5636.
  
@@ -19713,17 +18643,17 @@ index a608264da87d..cf0fc2ce1017 100644
  	tristate "ST Microelectronics STTS751"
  	depends on I2C
 diff --git a/drivers/hwmon/Makefile b/drivers/hwmon/Makefile
-index 47be39af5c03..b1cc9112a0a6 100644
+index 5c31808f6378..34a4851866cb 100644
 --- a/drivers/hwmon/Makefile
 +++ b/drivers/hwmon/Makefile
-@@ -200,6 +200,7 @@ obj-$(CONFIG_SENSORS_SMSC47B397)+= smsc47b397.o
+@@ -206,6 +206,7 @@ obj-$(CONFIG_SENSORS_SMSC47B397)+= smsc47b397.o
  obj-$(CONFIG_SENSORS_SMSC47M1)	+= smsc47m1.o
  obj-$(CONFIG_SENSORS_SMSC47M192)+= smsc47m192.o
  obj-$(CONFIG_SENSORS_SPARX5)	+= sparx5-temp.o
 +obj-$(CONFIG_SENSORS_STEAMDECK) += steamdeck-hwmon.o
  obj-$(CONFIG_SENSORS_STTS751)	+= stts751.o
+ obj-$(CONFIG_SENSORS_SURFACE_FAN)+= surface_fan.o
  obj-$(CONFIG_SENSORS_SY7636A)	+= sy7636a-hwmon.o
- obj-$(CONFIG_SENSORS_AMC6821)	+= amc6821.o
 diff --git a/drivers/hwmon/steamdeck-hwmon.c b/drivers/hwmon/steamdeck-hwmon.c
 new file mode 100644
 index 000000000000..9d0a5471b181
@@ -20025,10 +18955,10 @@ index 000000000000..9d0a5471b181
 +MODULE_DESCRIPTION("Steam Deck EC sensors driver");
 +MODULE_LICENSE("GPL");
 diff --git a/drivers/leds/Kconfig b/drivers/leds/Kconfig
-index d721b254e1e4..673b751f625b 100644
+index 05e6af88b88c..f1967a88ebeb 100644
 --- a/drivers/leds/Kconfig
 +++ b/drivers/leds/Kconfig
-@@ -917,6 +917,13 @@ config LEDS_ACER_A500
+@@ -927,6 +927,13 @@ config LEDS_ACER_A500
  	  This option enables support for the Power Button LED of
  	  Acer Iconia Tab A500.
  
@@ -20043,7 +18973,7 @@ index d721b254e1e4..673b751f625b 100644
  
  comment "Flash and Torch LED drivers"
 diff --git a/drivers/leds/Makefile b/drivers/leds/Makefile
-index ce07dc295ff0..8b1be8945a57 100644
+index effdfc6f1e95..f2929021afeb 100644
 --- a/drivers/leds/Makefile
 +++ b/drivers/leds/Makefile
 @@ -79,6 +79,7 @@ obj-$(CONFIG_LEDS_POWERNV)		+= leds-powernv.o
@@ -20318,636 +19248,6 @@ index 000000000000..a60fa7db9141
 +MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
 +MODULE_DESCRIPTION("Steam Deck EC MFD core driver");
 +MODULE_LICENSE("GPL");
-diff --git a/drivers/net/wireless/ath/ath11k/core.c b/drivers/net/wireless/ath/ath11k/core.c
-index 0c6ecbb9a066..203e33c2233b 100644
---- a/drivers/net/wireless/ath/ath11k/core.c
-+++ b/drivers/net/wireless/ath/ath11k/core.c
-@@ -17,6 +17,7 @@
- #include "hif.h"
- #include "wow.h"
- #include "fw.h"
-+#include "wmi.h"
- 
- unsigned int ath11k_debug_mask;
- EXPORT_SYMBOL(ath11k_debug_mask);
-@@ -122,6 +123,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
- 		.tcl_ring_retry = true,
- 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
- 		.smp2p_wow_exit = false,
-+		.coex_isolation = false,
- 	},
- 	{
- 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
-@@ -205,6 +207,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
- 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
- 		.smp2p_wow_exit = false,
- 		.support_fw_mac_sequence = false,
-+		.coex_isolation = false,
- 	},
- 	{
- 		.name = "qca6390 hw2.0",
-@@ -372,6 +375,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
- 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
- 		.smp2p_wow_exit = false,
- 		.support_fw_mac_sequence = false,
-+		.coex_isolation = false,
- 	},
- 	{
- 		.name = "wcn6855 hw2.0",
-@@ -411,6 +415,68 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
- 			.fragment_160mhz = false,
- 		},
- 
-+		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
-+					BIT(NL80211_IFTYPE_AP),
-+		.supports_monitor = false,
-+		.supports_shadow_regs = true,
-+		.idle_ps = true,
-+		.supports_sta_ps = true,
-+		.coldboot_cal_mm = false,
-+		.coldboot_cal_ftm = false,
-+		.fw_mem_mode = 0,
-+		.num_vdevs = 16 + 1,
-+		.num_peers = 512,
-+		.supports_suspend = true,
-+		.hal_desc_sz = sizeof(struct hal_rx_desc_wcn6855),
-+		.supports_regdb = true,
-+		.fix_l1ss = false,
-+		.credit_flow = true,
-+		.max_tx_ring = DP_TCL_NUM_RING_MAX_QCA6390,
-+		.hal_params = &ath11k_hw_hal_params_qca6390,
-+		.supports_dynamic_smps_6ghz = false,
-+		.alloc_cacheable_memory = false,
-+		.supports_rssi_stats = true,
-+		.fw_wmi_diag_event = true,
-+		.current_cc_support = true,
-+		.dbr_debug_support = false,
-+		.coex_isolation = false,
-+	},
-+	{
-+		.name = "qca206x hw2.1",
-+		.hw_rev = ATH11K_HW_QCA206X_HW21,
-+		.fw = {
-+			.dir = "QCA206X/hw2.1",
-+			.board_size = 256 * 1024,
-+			.cal_offset = 128 * 1024,
-+		},
-+		.max_radios = 3,
-+		.bdf_addr = 0x4B0C0000,
-+		.hw_ops = &wcn6855_ops,
-+		.ring_mask = &ath11k_hw_ring_mask_qca6390,
-+		.internal_sleep_clock = true,
-+		.regs = &wcn6855_regs,
-+		.qmi_service_ins_id = ATH11K_QMI_WLFW_SERVICE_INS_ID_V01_QCA6390,
-+		.host_ce_config = ath11k_host_ce_config_qca6390,
-+		.ce_count = 9,
-+		.target_ce_config = ath11k_target_ce_config_wlan_qca6390,
-+		.target_ce_count = 9,
-+		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_qca6390,
-+		.svc_to_ce_map_len = 14,
-+		.single_pdev_only = true,
-+		.rxdma1_enable = false,
-+		.num_rxmda_per_pdev = 2,
-+		.rx_mac_buf_ring = true,
-+		.vdev_start_delay = true,
-+		.htt_peer_map_v2 = false,
-+
-+		.spectral = {
-+			.fft_sz = 0,
-+			.fft_pad_sz = 0,
-+			.summary_pad_sz = 0,
-+			.fft_hdr_len = 0,
-+			.max_fft_bins = 0,
-+		},
-+
- 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
- 					BIT(NL80211_IFTYPE_AP),
- 		.supports_monitor = false,
-@@ -457,6 +523,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
- 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
- 		.smp2p_wow_exit = false,
- 		.support_fw_mac_sequence = true,
-+		.coex_isolation = false,
- 	},
- 	{
- 		.name = "wcn6855 hw2.1",
-@@ -1573,6 +1640,18 @@ static void ath11k_core_pdev_destroy(struct ath11k_base *ab)
- 	ath11k_debugfs_pdev_destroy(ab);
- }
- 
-+static int ath11k_core_config_coex_isolation(struct ath11k_base *ab)
-+{
-+       struct ath11k *ar = ath11k_ab_to_ar(ab, 0);
-+       struct wmi_coex_config_params param;
-+
-+       memset(&param, 0, sizeof(struct wmi_coex_config_params));
-+       param.config_type = WMI_COEX_CONFIG_ANTENNA_ISOLATION;
-+       param.config_arg1 = WMI_COEX_ISOLATION_ARG1_DEFAUT;
-+
-+       return ath11k_wmi_send_coex_config(ar, &param);
-+}
-+
- static int ath11k_core_start(struct ath11k_base *ab)
- {
- 	int ret;
-@@ -1670,6 +1749,15 @@ static int ath11k_core_start(struct ath11k_base *ab)
- 		goto err_reo_cleanup;
- 	}
- 
-+	if (ab->hw_params.coex_isolation) {
-+		ret = ath11k_core_config_coex_isolation(ab);
-+		if (ret) {
-+			ath11k_err(ab, "failed to set coex isolation: %d\n",
-+					ret);
-+			goto err_reo_cleanup;
-+		}
-+	}
-+
- 	return 0;
- 
- err_reo_cleanup:
-diff --git a/drivers/net/wireless/ath/ath11k/core.h b/drivers/net/wireless/ath/ath11k/core.h
-index cd829ec70d76..ad0c86384c5b 100644
---- a/drivers/net/wireless/ath/ath11k/core.h
-+++ b/drivers/net/wireless/ath/ath11k/core.h
-@@ -147,6 +147,7 @@ enum ath11k_hw_rev {
- 	ATH11K_HW_WCN6855_HW21,
- 	ATH11K_HW_WCN6750_HW10,
- 	ATH11K_HW_IPQ5018_HW10,
-+	ATH11K_HW_QCA206X_HW21,
- };
- 
- enum ath11k_firmware_mode {
-diff --git a/drivers/net/wireless/ath/ath11k/hw.c b/drivers/net/wireless/ath/ath11k/hw.c
-index 77d8f9237680..409eb565d3f6 100644
---- a/drivers/net/wireless/ath/ath11k/hw.c
-+++ b/drivers/net/wireless/ath/ath11k/hw.c
-@@ -100,6 +100,7 @@ static void ath11k_init_wmi_config_qca6390(struct ath11k_base *ab,
- 	config->num_wow_filters = 0x16;
- 	config->num_keep_alive_pattern = 0;
- 	config->flag1 |= WMI_RSRC_CFG_FLAG1_BSS_CHANNEL_INFO_64;
-+	config->host_service_flags |= WMI_RSRC_CFG_HOST_SERVICE_FLAG_NAN_IFACE_SUPPORT;
- }
- 
- static void ath11k_hw_ipq8074_reo_setup(struct ath11k_base *ab)
-diff --git a/drivers/net/wireless/ath/ath11k/hw.h b/drivers/net/wireless/ath/ath11k/hw.h
-index 1b070747a5db..20fb19e3d82a 100644
---- a/drivers/net/wireless/ath/ath11k/hw.h
-+++ b/drivers/net/wireless/ath/ath11k/hw.h
-@@ -206,6 +206,7 @@ struct ath11k_hw_params {
- 	bool fw_wmi_diag_event;
- 	bool current_cc_support;
- 	bool dbr_debug_support;
-+	bool coex_isolation;
- 	bool global_reset;
- 	const struct cfg80211_sar_capa *bios_sar_capa;
- 	bool m3_fw_support;
-diff --git a/drivers/net/wireless/ath/ath11k/mac.c b/drivers/net/wireless/ath/ath11k/mac.c
-index cc80310088ce..c8409c00af2e 100644
---- a/drivers/net/wireless/ath/ath11k/mac.c
-+++ b/drivers/net/wireless/ath/ath11k/mac.c
-@@ -2474,7 +2474,7 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
- 		    he_mcs_mask[i])
- 			max_nss = i + 1;
- 	}
--	arg->peer_nss = min(sta->deflink.rx_nss, max_nss);
-+	arg->peer_nss = min(arg->peer_nss, (u32)max_nss);
- 
- 	if (arg->peer_phymode == MODE_11AX_HE160 ||
- 	    arg->peer_phymode == MODE_11AX_HE80_80) {
-@@ -4713,6 +4713,7 @@ static void ath11k_sta_rc_update_wk(struct work_struct *wk)
- 
- 	nss = max_t(u32, 1, nss);
- 	nss = min(nss, ath11k_mac_max_nss(ht_mcs_mask, vht_mcs_mask, he_mcs_mask));
-+	nss = min(nss, (u32)ar->num_tx_chains);
- 
- 	if (changed & IEEE80211_RC_BW_CHANGED) {
- 		/* Get the peer phymode */
-@@ -9293,6 +9294,31 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
- 	return 0;
- }
- 
-+static void ath11k_mac_setup_mac_address_list(struct ath11k *ar)
-+{
-+	struct mac_address *addresses;
-+	u16 n_addresses;
-+	int i;
-+
-+	if (!ar->ab->hw_params.single_pdev_only || ar->ab->hw_params.num_rxmda_per_pdev < 2)
-+		return;
-+
-+	n_addresses = 3;
-+	addresses = kcalloc(n_addresses, sizeof(*addresses), GFP_KERNEL);
-+	if (!addresses)
-+		return;
-+
-+	memcpy(addresses[0].addr, ar->mac_addr, ETH_ALEN);
-+	for (i = 1; i < n_addresses; i++) {
-+		memcpy(addresses[i].addr, ar->mac_addr, ETH_ALEN);
-+		addresses[i].addr[0] |= 0x2;
-+		addresses[i].addr[0] += (i - 1) << 4;
-+	}
-+
-+	ar->hw->wiphy->addresses = addresses;
-+	ar->hw->wiphy->n_addresses = n_addresses;
-+}
-+
- static int ath11k_mac_setup_iface_combinations(struct ath11k *ar)
- {
- 	struct ath11k_base *ab = ar->ab;
-@@ -9312,28 +9338,43 @@ static int ath11k_mac_setup_iface_combinations(struct ath11k *ar)
- 		return -ENOMEM;
- 	}
- 
--	limits[0].max = 1;
--	limits[0].types |= BIT(NL80211_IFTYPE_STATION);
-+	if (ab->hw_params.single_pdev_only && ar->ab->hw_params.num_rxmda_per_pdev > 1) {
-+		limits[0].max = 2;
-+		limits[0].types |= BIT(NL80211_IFTYPE_STATION);
- 
--	limits[1].max = 16;
--	limits[1].types |= BIT(NL80211_IFTYPE_AP);
-+		limits[1].max = 1;
-+		limits[1].types |= BIT(NL80211_IFTYPE_AP);
- 
--	if (IS_ENABLED(CONFIG_MAC80211_MESH) &&
--	    ab->hw_params.interface_modes & BIT(NL80211_IFTYPE_MESH_POINT))
--		limits[1].types |= BIT(NL80211_IFTYPE_MESH_POINT);
--
--	combinations[0].limits = limits;
--	combinations[0].n_limits = n_limits;
--	combinations[0].max_interfaces = 16;
--	combinations[0].num_different_channels = 1;
--	combinations[0].beacon_int_infra_match = true;
--	combinations[0].beacon_int_min_gcd = 100;
--	combinations[0].radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
--						BIT(NL80211_CHAN_WIDTH_20) |
--						BIT(NL80211_CHAN_WIDTH_40) |
--						BIT(NL80211_CHAN_WIDTH_80) |
--						BIT(NL80211_CHAN_WIDTH_80P80) |
--						BIT(NL80211_CHAN_WIDTH_160);
-+		combinations[0].limits = limits;
-+		combinations[0].n_limits = 2;
-+		combinations[0].max_interfaces = 3;
-+		combinations[0].num_different_channels = 2;
-+		combinations[0].beacon_int_infra_match = true;
-+		combinations[0].beacon_int_min_gcd = 100;
-+	} else {
-+		limits[0].max = 1;
-+		limits[0].types |= BIT(NL80211_IFTYPE_STATION);
-+
-+		limits[1].max = 16;
-+		limits[1].types |= BIT(NL80211_IFTYPE_AP);
-+
-+		if (IS_ENABLED(CONFIG_MAC80211_MESH) &&
-+		    ab->hw_params.interface_modes & BIT(NL80211_IFTYPE_MESH_POINT))
-+			limits[1].types |= BIT(NL80211_IFTYPE_MESH_POINT);
-+
-+		combinations[0].limits = limits;
-+		combinations[0].n_limits = 2;
-+		combinations[0].max_interfaces = 16;
-+		combinations[0].num_different_channels = 1;
-+		combinations[0].beacon_int_infra_match = true;
-+		combinations[0].beacon_int_min_gcd = 100;
-+		combinations[0].radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
-+							BIT(NL80211_CHAN_WIDTH_20) |
-+							BIT(NL80211_CHAN_WIDTH_40) |
-+							BIT(NL80211_CHAN_WIDTH_80) |
-+							BIT(NL80211_CHAN_WIDTH_80P80) |
-+							BIT(NL80211_CHAN_WIDTH_160);
-+	}
- 
- 	ar->hw->wiphy->iface_combinations = combinations;
- 	ar->hw->wiphy->n_iface_combinations = 1;
-@@ -9398,6 +9439,8 @@ static void __ath11k_mac_unregister(struct ath11k *ar)
- 	kfree(ar->hw->wiphy->iface_combinations[0].limits);
- 	kfree(ar->hw->wiphy->iface_combinations);
- 
-+	kfree(ar->hw->wiphy->addresses);
-+
- 	SET_IEEE80211_DEV(ar->hw, NULL);
- }
- 
-@@ -9440,6 +9483,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
- 	ath11k_pdev_caps_update(ar);
- 
- 	SET_IEEE80211_PERM_ADDR(ar->hw, ar->mac_addr);
-+	ath11k_mac_setup_mac_address_list(ar);
- 
- 	SET_IEEE80211_DEV(ar->hw, ab->dev);
- 
-diff --git a/drivers/net/wireless/ath/ath11k/mhi.c b/drivers/net/wireless/ath/ath11k/mhi.c
-index 337590236485..583286ff7987 100644
---- a/drivers/net/wireless/ath/ath11k/mhi.c
-+++ b/drivers/net/wireless/ath/ath11k/mhi.c
-@@ -443,6 +443,7 @@ int ath11k_mhi_register(struct ath11k_pci *ab_pci)
- 	case ATH11K_HW_QCA6390_HW20:
- 	case ATH11K_HW_WCN6855_HW20:
- 	case ATH11K_HW_WCN6855_HW21:
-+	case ATH11K_HW_QCA206X_HW21:
- 		ath11k_mhi_config = &ath11k_mhi_config_qca6390;
- 		break;
- 	default:
-diff --git a/drivers/net/wireless/ath/ath11k/pci.c b/drivers/net/wireless/ath/ath11k/pci.c
-index 09e65c5e55c4..88f11f6e47b7 100644
---- a/drivers/net/wireless/ath/ath11k/pci.c
-+++ b/drivers/net/wireless/ath/ath11k/pci.c
-@@ -28,6 +28,8 @@
- #define QCN9074_DEVICE_ID		0x1104
- #define WCN6855_DEVICE_ID		0x1103
- 
-+#define SUB_VERSION	0x1910010
-+
- static const struct pci_device_id ath11k_pci_id_table[] = {
- 	{ PCI_VDEVICE(QCOM, QCA6390_DEVICE_ID) },
- 	{ PCI_VDEVICE(QCOM, WCN6855_DEVICE_ID) },
-@@ -108,7 +110,12 @@ static u32 ath11k_pci_window_read32(struct ath11k_base *ab, u32 offset)
- 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
- 	u32 window_start, val;
- 
--	window_start = ath11k_pci_get_window_start(ab, offset);
-+	if (ab->hw_params.static_window_map)
-+        	window_start = ath11k_pci_get_window_start(ab, offset);
-+      	else
-+        	window_start = ATH11K_PCI_WINDOW_START;
-+
-+	//window_start = ath11k_pci_get_window_start(ab, offset);
- 
- 	if (window_start == ATH11K_PCI_WINDOW_START) {
- 		spin_lock_bh(&ab_pci->window_lock);
-@@ -733,6 +740,8 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
- 	u32 soc_hw_version_major, soc_hw_version_minor, addr;
- 	const struct ath11k_pci_ops *pci_ops;
- 	int ret;
-+	u32 sub_version;
-+	int ops_init = 0;
- 
- 	ab = ath11k_core_alloc(&pdev->dev, sizeof(*ab_pci), ATH11K_BUS_PCI);
- 
-@@ -779,8 +788,8 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
- 	case QCA6390_DEVICE_ID:
- 		ath11k_pci_read_hw_version(ab, &soc_hw_version_major,
- 					   &soc_hw_version_minor);
--		switch (soc_hw_version_major) {
--		case 2:
-+ 		switch (soc_hw_version_major) {
-+ 		case 2:
- 			ab->hw_rev = ATH11K_HW_QCA6390_HW20;
- 			break;
- 		default:
-@@ -800,6 +809,13 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
- 		ab->id.bdf_search = ATH11K_BDF_SEARCH_BUS_AND_BOARD;
- 		ath11k_pci_read_hw_version(ab, &soc_hw_version_major,
- 					   &soc_hw_version_minor);
-+		pci_ops = &ath11k_pci_ops_qca6390;
-+		ret = ath11k_pcic_register_pci_ops(ab, pci_ops);
-+		if (ret) {
-+			ath11k_err(ab, "failed to register PCI ops: %d\n", ret);
-+			goto err_pci_free_region;
-+		}
-+		ops_init = 1;
- 		switch (soc_hw_version_major) {
- 		case 2:
- 			switch (soc_hw_version_minor) {
-@@ -809,7 +825,19 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
- 				break;
- 			case 0x10:
- 			case 0x11:
--				ab->hw_rev = ATH11K_HW_WCN6855_HW21;
-+				//ab->hw_rev = ATH11K_HW_WCN6855_HW21;
-+				sub_version = ath11k_pcic_read32(ab, SUB_VERSION);
-+				ath11k_dbg(ab, ATH11K_DBG_PCI, "sub_version 0x%x\n", sub_version);
-+				switch (sub_version) {
-+				case 0x1019A0E1:
-+				case 0x1019B0E1:
-+				case 0x1019C0E1:
-+				case 0x1019D0E1:
-+					ab->hw_rev = ATH11K_HW_QCA206X_HW21;
-+					break;
-+				default:
-+					ab->hw_rev = ATH11K_HW_WCN6855_HW21;
-+				}
- 				break;
- 			default:
- 				goto unsupported_wcn6855_soc;
-@@ -823,7 +851,6 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
- 			goto err_pci_free_region;
- 		}
- 
--		pci_ops = &ath11k_pci_ops_qca6390;
- 		break;
- 	default:
- 		dev_err(&pdev->dev, "Unknown PCI device found: 0x%x\n",
-@@ -832,11 +859,13 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
- 		goto err_pci_free_region;
- 	}
- 
--	ret = ath11k_pcic_register_pci_ops(ab, pci_ops);
--	if (ret) {
--		ath11k_err(ab, "failed to register PCI ops: %d\n", ret);
--		goto err_pci_free_region;
--	}
-+	if(ops_init == 1){
-+		ret = ath11k_pcic_register_pci_ops(ab, pci_ops);
-+		if (ret) {
-+			ath11k_err(ab, "failed to register PCI ops: %d\n", ret);
-+			goto err_pci_free_region;
-+		}
-+ 	}
- 
- 	ret = ath11k_pcic_init_msi_config(ab);
- 	if (ret) {
-@@ -1021,6 +1050,7 @@ static struct pci_driver ath11k_pci_driver = {
- static int ath11k_pci_init(void)
- {
- 	int ret;
-+	u32 sub_version;
- 
- 	ret = pci_register_driver(&ath11k_pci_driver);
- 	if (ret)
-diff --git a/drivers/net/wireless/ath/ath11k/pcic.c b/drivers/net/wireless/ath/ath11k/pcic.c
-index 15e2ceb22a44..c7b4b897d946 100644
---- a/drivers/net/wireless/ath/ath11k/pcic.c
-+++ b/drivers/net/wireless/ath/ath11k/pcic.c
-@@ -115,6 +115,17 @@ static const struct ath11k_msi_config ath11k_msi_config[] = {
- 		},
- 		.hw_rev = ATH11K_HW_WCN6750_HW10,
- 	},
-+	{
-+		.total_vectors = 32,
-+		.total_users = 4,
-+		.users = (struct ath11k_msi_user[]) {
-+			{ .name = "MHI", .num_vectors = 3, .base_vector = 0 },
-+			{ .name = "CE", .num_vectors = 10, .base_vector = 3 },
-+			{ .name = "WAKE", .num_vectors = 1, .base_vector = 13 },
-+			{ .name = "DP", .num_vectors = 18, .base_vector = 14 },
-+		},
-+		.hw_rev = ATH11K_HW_QCA206X_HW21,
-+	},
- };
- 
- int ath11k_pcic_init_msi_config(struct ath11k_base *ab)
-diff --git a/drivers/net/wireless/ath/ath11k/wmi.c b/drivers/net/wireless/ath/ath11k/wmi.c
-index 442afda7ec88..2abf307a793f 100644
---- a/drivers/net/wireless/ath/ath11k/wmi.c
-+++ b/drivers/net/wireless/ath/ath11k/wmi.c
-@@ -4069,6 +4069,7 @@ ath11k_wmi_copy_resource_config(struct wmi_resource_config *wmi_cfg,
- 	wmi_cfg->sched_params = tg_cfg->sched_params;
- 	wmi_cfg->twt_ap_pdev_count = tg_cfg->twt_ap_pdev_count;
- 	wmi_cfg->twt_ap_sta_count = tg_cfg->twt_ap_sta_count;
-+	wmi_cfg->host_service_flags = tg_cfg->host_service_flags;
- 	wmi_cfg->host_service_flags &=
- 		~(1 << WMI_CFG_HOST_SERVICE_FLAG_REG_CC_EXT);
- 	wmi_cfg->host_service_flags |= (tg_cfg->is_reg_cc_ext_event_supported <<
-@@ -9688,3 +9689,29 @@ int ath11k_wmi_sta_keepalive(struct ath11k *ar,
- 
- 	return ath11k_wmi_cmd_send(wmi, skb, WMI_STA_KEEPALIVE_CMDID);
- }
-+
-+int ath11k_wmi_send_coex_config(struct ath11k *ar,
-+				struct wmi_coex_config_params *param)
-+{
-+	struct ath11k_pdev_wmi *wmi = ar->wmi;
-+	struct wmi_coex_config_cmd *cmd;
-+	struct sk_buff *skb;
-+
-+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, sizeof(*cmd));
-+	if (!skb)
-+		return -ENOMEM;
-+
-+	cmd = (struct wmi_coex_config_cmd *)skb->data;
-+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_COEX_CONFIG_CMD) |
-+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
-+	cmd->vdev_id = param->vdev_id;
-+	cmd->config_type = param->config_type;
-+	cmd->config_arg1 = param->config_arg1;
-+	cmd->config_arg2 = param->config_arg2;
-+	cmd->config_arg3 = param->config_arg3;
-+	cmd->config_arg4 = param->config_arg4;
-+	cmd->config_arg5 = param->config_arg5;
-+	cmd->config_arg6 = param->config_arg6;
-+
-+	return ath11k_wmi_cmd_send(wmi, skb, WMI_COEX_CONFIG_CMDID);
-+}
-diff --git a/drivers/net/wireless/ath/ath11k/wmi.h b/drivers/net/wireless/ath/ath11k/wmi.h
-index cd2098d78e86..7cfe0c0f522f 100644
---- a/drivers/net/wireless/ath/ath11k/wmi.h
-+++ b/drivers/net/wireless/ath/ath11k/wmi.h
-@@ -2332,6 +2332,7 @@ struct wmi_init_cmd {
- #define WMI_RSRC_CFG_FLAG1_BSS_CHANNEL_INFO_64 BIT(5)
- #define WMI_RSRC_CFG_FLAG2_CALC_NEXT_DTIM_COUNT_SET BIT(9)
- #define WMI_RSRC_CFG_FLAG1_ACK_RSSI BIT(18)
-+#define WMI_RSRC_CFG_HOST_SERVICE_FLAG_NAN_IFACE_SUPPORT       BIT(0)
- 
- #define WMI_CFG_HOST_SERVICE_FLAG_REG_CC_EXT 4
- 
-@@ -5677,6 +5678,15 @@ struct target_resource_config {
- 	u8 is_reg_cc_ext_event_supported;
- 	u32 ema_max_vap_cnt;
- 	u32 ema_max_profile_period;
-+	u32 max_nlo_ssids;
-+	u32 num_packet_filters;
-+	u32 num_max_sta_vdevs;
-+	u32 max_bssid_indicator;
-+	u32 ul_resp_config;
-+	u32 msdu_flow_override_config0;
-+	u32 msdu_flow_override_config1;
-+	u32 flags2;
-+	u32 host_service_flags;
- };
- 
- enum wmi_debug_log_param {
-@@ -6298,6 +6308,82 @@ enum wmi_sta_keepalive_method {
- 
- const void **ath11k_wmi_tlv_parse_alloc(struct ath11k_base *ab, const void *ptr,
- 					size_t len, gfp_t gfp);
-+enum wmi_coex_config_type {
-+    WMI_COEX_CONFIG_PAGE_P2P_TDM        =  1,
-+    WMI_COEX_CONFIG_PAGE_STA_TDM        =  2,
-+    WMI_COEX_CONFIG_PAGE_SAP_TDM        =  3,
-+    WMI_COEX_CONFIG_DURING_WLAN_CONN    =  4,
-+    WMI_COEX_CONFIG_BTC_ENABLE          =  5,
-+    WMI_COEX_CONFIG_COEX_DBG            =  6,
-+    WMI_COEX_CONFIG_PAGE_P2P_STA_TDM    =  7,
-+    WMI_COEX_CONFIG_INQUIRY_P2P_TDM     =  8,
-+    WMI_COEX_CONFIG_INQUIRY_STA_TDM     =  9,
-+    WMI_COEX_CONFIG_INQUIRY_SAP_TDM     = 10,
-+    WMI_COEX_CONFIG_INQUIRY_P2P_STA_TDM = 11,
-+    WMI_COEX_CONFIG_TX_POWER            = 12,
-+    WMI_COEX_CONFIG_PTA_CONFIG          = 13,
-+    WMI_COEX_CONFIG_AP_TDM              = 14,
-+    WMI_COEX_CONFIG_WLAN_SCAN_PRIORITY  = 15,
-+    WMI_COEX_CONFIG_WLAN_PKT_PRIORITY   = 16,
-+    WMI_COEX_CONFIG_PTA_INTERFACE       = 17,
-+    WMI_COEX_CONFIG_BTC_DUTYCYCLE       = 18,
-+    WMI_COEX_CONFIG_HANDOVER_RSSI       = 19,
-+    WMI_COEX_CONFIG_PTA_BT_INFO         = 20,
-+    WMI_COEX_CONFIG_SINK_WLAN_TDM       = 21,
-+    WMI_COEX_CONFIG_COEX_ENABLE_MCC_TDM = 22,
-+    WMI_COEX_CONFIG_LOWRSSI_A2DPOPP_TDM = 23,
-+    WMI_COEX_CONFIG_BTC_MODE            = 24,
-+    WMI_COEX_CONFIG_ANTENNA_ISOLATION   = 25,
-+    WMI_COEX_CONFIG_BT_LOW_RSSI_THRESHOLD = 26,
-+    WMI_COEX_CONFIG_BT_INTERFERENCE_LEVEL = 27,
-+    WMI_COEX_CONFIG_WLAN_OVER_ZBLOW        = 28,
-+    WMI_COEX_CONFIG_WLAN_MGMT_OVER_BT_A2DP = 29,
-+    WMI_COEX_CONFIG_WLAN_CONN_OVER_LE      = 30,
-+    WMI_COEX_CONFIG_LE_OVER_WLAN_TRAFFIC   = 31,
-+    WMI_COEX_CONFIG_THREE_WAY_COEX_RESET   = 32,
-+    WMI_COEX_CONFIG_THREE_WAY_DELAY_PARA   = 33,
-+    WMI_COEX_CONFIG_THREE_WAY_COEX_START   = 34,
-+    WMI_COEX_CONFIG_MPTA_HELPER_ENABLE     = 35,
-+    WMI_COEX_CONFIG_MPTA_HELPER_ZIGBEE_STATE = 36,
-+    WMI_COEX_CONFIG_MPTA_HELPER_INT_OCS_PARAMS = 37,
-+    WMI_COEX_CONFIG_MPTA_HELPER_MON_OCS_PARAMS   = 38,
-+    WMI_COEX_CONFIG_MPTA_HELPER_INT_MON_DURATION = 39,
-+    WMI_COEX_CONFIG_MPTA_HELPER_ZIGBEE_CHANNEL   = 40,
-+    WMI_COEX_CONFIG_MPTA_HELPER_WLAN_MUTE_DURATION   = 41,
-+    WMI_COEX_CONFIG_BT_SCO_ALLOW_WLAN_2G_SCAN   = 42,
-+    WMI_COEX_CONFIG_ENABLE_2ND_HARMONIC_WAR     = 43,
-+    WMI_COEX_CONFIG_BTCOEX_SEPARATE_CHAIN_MODE  = 44,
-+    WMI_COEX_CONFIG_ENABLE_TPUT_SHAPING = 45,
-+    WMI_COEX_CONFIG_ENABLE_TXBF = 46,
-+    WMI_COEX_CONFIG_FORCED_ALGO = 47,
-+    WMI_COEX_CONFIG_LE_SCAN_POLICY = 48,
-+};
-+
-+struct wmi_coex_config_params {
-+	u32 vdev_id;
-+	u32 config_type;
-+	u32 config_arg1;
-+	u32 config_arg2;
-+	u32 config_arg3;
-+	u32 config_arg4;
-+	u32 config_arg5;
-+	u32 config_arg6;
-+};
-+
-+struct wmi_coex_config_cmd {
-+	u32 tlv_header;
-+	u32 vdev_id;
-+	u32 config_type;
-+	u32 config_arg1;
-+	u32 config_arg2;
-+	u32 config_arg3;
-+	u32 config_arg4;
-+	u32 config_arg5;
-+	u32 config_arg6;
-+} __packed;
-+
-+#define WMI_COEX_ISOLATION_ARG1_DEFAUT     30
-+
- int ath11k_wmi_cmd_send(struct ath11k_pdev_wmi *wmi, struct sk_buff *skb,
- 			u32 cmd_id);
- struct sk_buff *ath11k_wmi_alloc_skb(struct ath11k_wmi_base *wmi_sc, u32 len);
-@@ -6459,6 +6545,7 @@ int ath11k_wmi_scan_prob_req_oui(struct ath11k *ar,
- 				 const u8 mac_addr[ETH_ALEN]);
- int ath11k_wmi_fw_dbglog_cfg(struct ath11k *ar, u32 *module_id_bitmap,
- 			     struct ath11k_fw_dbglog *dbglog);
-+int ath11k_wmi_send_coex_config(struct ath11k *ar, struct wmi_coex_config_params *param);
- int ath11k_wmi_wow_config_pno(struct ath11k *ar, u32 vdev_id,
- 			      struct wmi_pno_scan_req  *pno_scan);
- int ath11k_wmi_wow_del_pattern(struct ath11k *ar, u32 vdev_id, u32 pattern_id);
 diff --git a/drivers/pci/quirks.c b/drivers/pci/quirks.c
 index cfb099dbeb5f..bd03ff857031 100644
 --- a/drivers/pci/quirks.c
@@ -20982,7 +19282,7 @@ index cfb099dbeb5f..bd03ff857031 100644
  /*
   * Synopsys USB 3.x host HAPS platform has a class code of
 diff --git a/sound/soc/amd/acp/acp-mach-common.c b/sound/soc/amd/acp/acp-mach-common.c
-index 504d1b8c4cbb..3411e8d9aab3 100644
+index 665a6ea0a2a8..edb09f8382b3 100644
 --- a/sound/soc/amd/acp/acp-mach-common.c
 +++ b/sound/soc/amd/acp/acp-mach-common.c
 @@ -26,6 +26,7 @@
@@ -20995,7 +19295,7 @@ index 504d1b8c4cbb..3411e8d9aab3 100644
  #define PCO_PLAT_CLK 48000000
 @@ -1282,6 +1283,78 @@ SND_SOC_DAILINK_DEF(nau8821,
  		    DAILINK_COMP_ARRAY(COMP_CODEC("i2c-NVTN2020:00",
- 						  "nau8821-hifi")));
+ 						  NAU8821_CODEC_DAI)));
  
 +static int acp_cs35l41_init(struct snd_soc_pcm_runtime *rtd)
 +{
@@ -21238,9 +19538,654 @@ index 078adec29312..d8974805b5f8 100644
 -- 
 2.45.1
 
-From 9e1e014e403a9b453e9284c17ed807ee69ef88bd Mon Sep 17 00:00:00 2001
+From 6e64acf6c5b99148c93e68def41ed6665758f13e Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Fri, 17 May 2024 14:27:14 +0200
+Date: Wed, 22 May 2024 15:41:17 +0200
+Subject: [PATCH 07/10] fixes
+
+Signed-off-by: Peter Jung <admin@ptr1337.dev>
+---
+ Makefile                                      |   5 +-
+ arch/Kconfig                                  |   4 +-
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c | 126 +++++++++++++++++-
+ .../amd/display/amdgpu_dm/amdgpu_dm_plane.c   |   6 +-
+ drivers/gpu/drm/amd/display/dc/core/dc.c      |  84 ++++++++++++
+ .../gpu/drm/amd/display/dc/core/dc_stream.c   |  87 ++++++++----
+ drivers/gpu/drm/amd/display/dc/dc_stream.h    |  10 ++
+ .../amd/display/dc/hwss/dcn30/dcn30_hwseq.c   |   2 +-
+ fs/btrfs/extent_io.c                          |  22 ++-
+ include/linux/filter.h                        |   6 +-
+ kernel/bpf/trampoline.c                       |   3 +-
+ 11 files changed, 306 insertions(+), 49 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 59a8df3ec5aa..65bc9011eeb4 100644
+--- a/Makefile
++++ b/Makefile
+@@ -945,7 +945,6 @@ endif
+ ifdef CONFIG_LTO_CLANG
+ ifdef CONFIG_LTO_CLANG_THIN
+ CC_FLAGS_LTO	:= -flto=thin -fsplit-lto-unit
+-KBUILD_LDFLAGS	+= --thinlto-cache-dir=$(extmod_prefix).thinlto-cache
+ else
+ CC_FLAGS_LTO	:= -flto
+ endif
+@@ -1480,7 +1479,7 @@ endif # CONFIG_MODULES
+ # Directories & files removed with 'make clean'
+ CLEAN_FILES += vmlinux.symvers modules-only.symvers \
+ 	       modules.builtin modules.builtin.modinfo modules.nsdeps \
+-	       compile_commands.json .thinlto-cache rust/test \
++	       compile_commands.json rust/test \
+ 	       rust-project.json .vmlinux.objs .vmlinux.export.c
+ 
+ # Directories & files removed with 'make mrproper'
+@@ -1786,7 +1785,7 @@ PHONY += compile_commands.json
+ 
+ clean-dirs := $(KBUILD_EXTMOD)
+ clean: rm-files := $(KBUILD_EXTMOD)/Module.symvers $(KBUILD_EXTMOD)/modules.nsdeps \
+-	$(KBUILD_EXTMOD)/compile_commands.json $(KBUILD_EXTMOD)/.thinlto-cache
++	$(KBUILD_EXTMOD)/compile_commands.json
+ 
+ PHONY += prepare
+ # now expand this into a simple variable to reduce the cost of shell evaluations
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 30f7930275d8..318a4e75058b 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -1033,7 +1033,7 @@ config ARCH_MMAP_RND_BITS
+ 	int "Number of bits to use for ASLR of mmap base address" if EXPERT
+ 	range ARCH_MMAP_RND_BITS_MIN ARCH_MMAP_RND_BITS_MAX
+ 	default ARCH_MMAP_RND_BITS_DEFAULT if ARCH_MMAP_RND_BITS_DEFAULT
+-	default ARCH_MMAP_RND_BITS_MIN
++	default ARCH_MMAP_RND_BITS_MAX
+ 	depends on HAVE_ARCH_MMAP_RND_BITS
+ 	help
+ 	  This value can be used to select the number of bits to use to
+@@ -1067,7 +1067,7 @@ config ARCH_MMAP_RND_COMPAT_BITS
+ 	int "Number of bits to use for ASLR of mmap base address for compatible applications" if EXPERT
+ 	range ARCH_MMAP_RND_COMPAT_BITS_MIN ARCH_MMAP_RND_COMPAT_BITS_MAX
+ 	default ARCH_MMAP_RND_COMPAT_BITS_DEFAULT if ARCH_MMAP_RND_COMPAT_BITS_DEFAULT
+-	default ARCH_MMAP_RND_COMPAT_BITS_MIN
++	default ARCH_MMAP_RND_COMPAT_BITS_MAX
+ 	depends on HAVE_ARCH_MMAP_RND_COMPAT_BITS
+ 	help
+ 	  This value can be used to select the number of bits to use to
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+index 2f3e00f0e08f..58397951401a 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+@@ -8350,6 +8350,122 @@ static inline uint32_t get_mem_type(struct drm_framebuffer *fb)
+ 	return abo->tbo.resource ? abo->tbo.resource->mem_type : 0;
+ }
+ 
++/* TODO remove duplicate */
++static int amdgpu_dm_plane_get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
++					       struct dc_cursor_position *position)
++{
++	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
++	int x, y;
++	int xorigin = 0, yorigin = 0;
++
++	if (!crtc || !plane->state->fb)
++		return 0;
++
++	if ((plane->state->crtc_w > amdgpu_crtc->max_cursor_width) ||
++	    (plane->state->crtc_h > amdgpu_crtc->max_cursor_height)) {
++		DRM_ERROR("%s: bad cursor width or height %d x %d\n",
++			  __func__,
++			  plane->state->crtc_w,
++			  plane->state->crtc_h);
++		return -EINVAL;
++	}
++
++	x = plane->state->crtc_x;
++	y = plane->state->crtc_y;
++
++	if (x <= -amdgpu_crtc->max_cursor_width ||
++	    y <= -amdgpu_crtc->max_cursor_height)
++		return 0;
++
++	if (x < 0) {
++		xorigin = min(-x, amdgpu_crtc->max_cursor_width - 1);
++		x = 0;
++	}
++	if (y < 0) {
++		yorigin = min(-y, amdgpu_crtc->max_cursor_height - 1);
++		y = 0;
++	}
++	position->enable = true;
++	position->translate_by_source = true;
++	position->x = x;
++	position->y = y;
++	position->x_hotspot = xorigin;
++	position->y_hotspot = yorigin;
++
++	return 0;
++}
++
++static void amdgpu_dm_update_cursor(struct drm_plane *plane,
++				    struct drm_plane_state *old_plane_state,
++				    struct dc_stream_update *update)
++{
++	struct amdgpu_device *adev = drm_to_adev(plane->dev);
++	struct amdgpu_framebuffer *afb = to_amdgpu_framebuffer(plane->state->fb);
++	struct drm_crtc *crtc = afb ? plane->state->crtc : old_plane_state->crtc;
++	struct dm_crtc_state *crtc_state = crtc ? to_dm_crtc_state(crtc->state) : NULL;
++	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
++	uint64_t address = afb ? afb->address : 0;
++	struct dc_cursor_position position = {0};
++	struct dc_cursor_attributes attributes;
++	int ret;
++
++	if (!plane->state->fb && !old_plane_state->fb)
++		return;
++
++	drm_dbg_atomic(plane->dev, "crtc_id=%d with size %d to %d\n",
++		       amdgpu_crtc->crtc_id, plane->state->crtc_w,
++		       plane->state->crtc_h);
++
++	ret = amdgpu_dm_plane_get_cursor_position(plane, crtc, &position);
++	if (ret)
++		return;
++
++	if (!position.enable) {
++		/* turn off cursor */
++		if (crtc_state && crtc_state->stream) {
++			dc_stream_set_cursor_position(crtc_state->stream,
++						      &position);
++			update->cursor_position = &crtc_state->stream->cursor_position;
++		}
++		return;
++	}
++
++	amdgpu_crtc->cursor_width = plane->state->crtc_w;
++	amdgpu_crtc->cursor_height = plane->state->crtc_h;
++
++	memset(&attributes, 0, sizeof(attributes));
++	attributes.address.high_part = upper_32_bits(address);
++	attributes.address.low_part  = lower_32_bits(address);
++	attributes.width             = plane->state->crtc_w;
++	attributes.height            = plane->state->crtc_h;
++	attributes.color_format      = CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA;
++	attributes.rotation_angle    = 0;
++	attributes.attribute_flags.value = 0;
++
++	/* Enable cursor degamma ROM on DCN3+ for implicit sRGB degamma in DRM
++	 * legacy gamma setup.
++	 */
++	if (crtc_state->cm_is_degamma_srgb &&
++	    adev->dm.dc->caps.color.dpp.gamma_corr)
++		attributes.attribute_flags.bits.ENABLE_CURSOR_DEGAMMA = 1;
++
++	attributes.pitch = afb->base.pitches[0] / afb->base.format->cpp[0];
++
++	if (crtc_state->stream) {
++		if (!dc_stream_set_cursor_attributes(crtc_state->stream,
++						     &attributes))
++			DRM_ERROR("DC failed to set cursor attributes\n");
++
++		update->cursor_attributes = &crtc_state->stream->cursor_attributes;
++
++		if (!dc_stream_set_cursor_position(crtc_state->stream,
++						   &position))
++			DRM_ERROR("DC failed to set cursor position\n");
++
++		update->cursor_position = &crtc_state->stream->cursor_position;
++	}
++}
++
+ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
+ 				    struct drm_device *dev,
+ 				    struct amdgpu_display_manager *dm,
+@@ -8373,6 +8489,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
+ 	bool cursor_update = false;
+ 	bool pflip_present = false;
+ 	bool dirty_rects_changed = false;
++	bool updated_planes_and_streams = false;
+ 	struct {
+ 		struct dc_surface_update surface_updates[MAX_SURFACES];
+ 		struct dc_plane_info plane_infos[MAX_SURFACES];
+@@ -8409,8 +8526,10 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
+ 		/* Cursor plane is handled after stream updates */
+ 		if (plane->type == DRM_PLANE_TYPE_CURSOR) {
+ 			if ((fb && crtc == pcrtc) ||
+-			    (old_plane_state->fb && old_plane_state->crtc == pcrtc))
++			    (old_plane_state->fb && old_plane_state->crtc == pcrtc)) {
+ 				cursor_update = true;
++				amdgpu_dm_update_cursor(plane, old_plane_state, &bundle->stream_update);
++			    }
+ 
+ 			continue;
+ 		}
+@@ -8683,6 +8802,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
+ 					 acrtc_state->stream,
+ 					 &bundle->stream_update,
+ 					 bundle->surface_updates);
++		updated_planes_and_streams = true;
+ 
+ 		/**
+ 		 * Enable or disable the interrupts on the backend.
+@@ -8760,7 +8880,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
+ 	 * This avoids redundant programming in the case where we're going
+ 	 * to be disabling a single plane - those pipes are being disabled.
+ 	 */
+-	if (acrtc_state->active_planes)
++	if (acrtc_state->active_planes && !updated_planes_and_streams)
+ 		amdgpu_dm_commit_cursors(state);
+ 
+ cleanup:
+@@ -8948,7 +9068,7 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_state *state,
+ 
+ 			memset(&position, 0, sizeof(position));
+ 			mutex_lock(&dm->dc_lock);
+-			dc_stream_set_cursor_position(dm_old_crtc_state->stream, &position);
++			dc_stream_program_cursor_position(dm_old_crtc_state->stream, &position);
+ 			mutex_unlock(&dm->dc_lock);
+ 		}
+ 
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c
+index 779880c64575..8c8d0d209d7a 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c
+@@ -1254,7 +1254,7 @@ void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
+ 		/* turn off cursor */
+ 		if (crtc_state && crtc_state->stream) {
+ 			mutex_lock(&adev->dm.dc_lock);
+-			dc_stream_set_cursor_position(crtc_state->stream,
++			dc_stream_program_cursor_position(crtc_state->stream,
+ 						      &position);
+ 			mutex_unlock(&adev->dm.dc_lock);
+ 		}
+@@ -1284,11 +1284,11 @@ void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
+ 
+ 	if (crtc_state->stream) {
+ 		mutex_lock(&adev->dm.dc_lock);
+-		if (!dc_stream_set_cursor_attributes(crtc_state->stream,
++		if (!dc_stream_program_cursor_attributes(crtc_state->stream,
+ 							 &attributes))
+ 			DRM_ERROR("DC failed to set cursor attributes\n");
+ 
+-		if (!dc_stream_set_cursor_position(crtc_state->stream,
++		if (!dc_stream_program_cursor_position(crtc_state->stream,
+ 						   &position))
+ 			DRM_ERROR("DC failed to set cursor position\n");
+ 		mutex_unlock(&adev->dm.dc_lock);
+diff --git a/drivers/gpu/drm/amd/display/dc/core/dc.c b/drivers/gpu/drm/amd/display/dc/core/dc.c
+index d68c83e40d4d..575290784c61 100644
+--- a/drivers/gpu/drm/amd/display/dc/core/dc.c
++++ b/drivers/gpu/drm/amd/display/dc/core/dc.c
+@@ -3188,6 +3188,83 @@ static bool update_planes_and_stream_state(struct dc *dc,
+ 
+ }
+ 
++static void program_cursor_attributes(
++	struct dc *dc,
++	struct dc_stream_state *stream)
++{
++	int i;
++	struct resource_context *res_ctx;
++	struct pipe_ctx *pipe_to_program = NULL;
++
++	if (!stream)
++		return;
++
++	res_ctx = &dc->current_state->res_ctx;
++
++	for (i = 0; i < MAX_PIPES; i++) {
++		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
++
++		if (pipe_ctx->stream != stream)
++			continue;
++
++		if (!pipe_to_program) {
++			pipe_to_program = pipe_ctx;
++			dc->hwss.cursor_lock(dc, pipe_to_program, true);
++			if (pipe_to_program->next_odm_pipe)
++				dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, true);
++		}
++
++		dc->hwss.set_cursor_attribute(pipe_ctx);
++		if (dc->ctx->dmub_srv)
++			dc_send_update_cursor_info_to_dmu(pipe_ctx, i);
++		if (dc->hwss.set_cursor_sdr_white_level)
++			dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
++	}
++
++	if (pipe_to_program) {
++		dc->hwss.cursor_lock(dc, pipe_to_program, false);
++		if (pipe_to_program->next_odm_pipe)
++			dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, false);
++	}
++}
++
++static void program_cursor_position(
++	struct dc *dc,
++	struct dc_stream_state *stream)
++{
++	int i;
++	struct resource_context *res_ctx;
++	struct pipe_ctx *pipe_to_program = NULL;
++
++	if (!stream)
++		return;
++
++	res_ctx = &dc->current_state->res_ctx;
++
++	for (i = 0; i < MAX_PIPES; i++) {
++		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
++
++		if (pipe_ctx->stream != stream ||
++				(!pipe_ctx->plane_res.mi  && !pipe_ctx->plane_res.hubp) ||
++				!pipe_ctx->plane_state ||
++				(!pipe_ctx->plane_res.xfm && !pipe_ctx->plane_res.dpp) ||
++				(!pipe_ctx->plane_res.ipp && !pipe_ctx->plane_res.dpp))
++			continue;
++
++		if (!pipe_to_program) {
++			pipe_to_program = pipe_ctx;
++			dc->hwss.cursor_lock(dc, pipe_to_program, true);
++		}
++
++		dc->hwss.set_cursor_position(pipe_ctx);
++		if (dc->ctx->dmub_srv)
++			dc_send_update_cursor_info_to_dmu(pipe_ctx, i);
++	}
++
++	if (pipe_to_program)
++		dc->hwss.cursor_lock(dc, pipe_to_program, false);
++}
++
+ static void commit_planes_do_stream_update(struct dc *dc,
+ 		struct dc_stream_state *stream,
+ 		struct dc_stream_update *stream_update,
+@@ -3248,6 +3325,13 @@ static void commit_planes_do_stream_update(struct dc *dc,
+ 				}
+ 			}
+ 
++			if (stream_update->cursor_attributes) {
++				program_cursor_attributes(dc, stream);
++			}
++
++			if (stream_update->cursor_position) {
++				program_cursor_position(dc, stream);
++			}
+ 
+ 			/* Full fe update*/
+ 			if (update_type == UPDATE_TYPE_FAST)
+diff --git a/drivers/gpu/drm/amd/display/dc/core/dc_stream.c b/drivers/gpu/drm/amd/display/dc/core/dc_stream.c
+index 51a970fcb5d0..5601ee8a8d41 100644
+--- a/drivers/gpu/drm/amd/display/dc/core/dc_stream.c
++++ b/drivers/gpu/drm/amd/display/dc/core/dc_stream.c
+@@ -278,7 +278,6 @@ bool dc_stream_set_cursor_attributes(
+ 	const struct dc_cursor_attributes *attributes)
+ {
+ 	struct dc  *dc;
+-	bool reset_idle_optimizations = false;
+ 
+ 	if (NULL == stream) {
+ 		dm_error("DC: dc_stream is NULL!\n");
+@@ -309,20 +308,36 @@ bool dc_stream_set_cursor_attributes(
+ 
+ 	stream->cursor_attributes = *attributes;
+ 
+-	dc_z10_restore(dc);
+-	/* disable idle optimizations while updating cursor */
+-	if (dc->idle_optimizations_allowed) {
+-		dc_allow_idle_optimizations(dc, false);
+-		reset_idle_optimizations = true;
+-	}
++	return true;
++}
+ 
+-	program_cursor_attributes(dc, stream, attributes);
++bool dc_stream_program_cursor_attributes(
++	struct dc_stream_state *stream,
++	const struct dc_cursor_attributes *attributes)
++{
++	struct dc  *dc;
++	bool reset_idle_optimizations = false;
+ 
+-	/* re-enable idle optimizations if necessary */
+-	if (reset_idle_optimizations)
+-		dc_allow_idle_optimizations(dc, true);
++	dc = stream ? stream->ctx->dc : NULL;
+ 
+-	return true;
++	if (dc_stream_set_cursor_attributes(stream, attributes)) {
++		dc_z10_restore(dc);
++		/* disable idle optimizations while updating cursor */
++		if (dc->idle_optimizations_allowed) {
++			dc_allow_idle_optimizations(dc, false);
++			reset_idle_optimizations = true;
++		}
++
++		program_cursor_attributes(dc, stream, attributes);
++
++		/* re-enable idle optimizations if necessary */
++		if (reset_idle_optimizations)
++			dc_allow_idle_optimizations(dc, true);
++
++		return true;
++	}
++
++	return false;
+ }
+ 
+ static void program_cursor_position(
+@@ -367,9 +382,6 @@ bool dc_stream_set_cursor_position(
+ 	struct dc_stream_state *stream,
+ 	const struct dc_cursor_position *position)
+ {
+-	struct dc *dc;
+-	bool reset_idle_optimizations = false;
+-
+ 	if (NULL == stream) {
+ 		dm_error("DC: dc_stream is NULL!\n");
+ 		return false;
+@@ -380,24 +392,43 @@ bool dc_stream_set_cursor_position(
+ 		return false;
+ 	}
+ 
++	stream->cursor_position = *position;
++
++	return true;
++}
++
++bool dc_stream_program_cursor_position(
++	struct dc_stream_state *stream,
++	const struct dc_cursor_position *position)
++{
++	struct dc *dc;
++	bool reset_idle_optimizations = false;
++	const struct dc_cursor_position *old_position;
++
++	old_position = stream ? &stream->cursor_position : NULL;
+ 	dc = stream->ctx->dc;
+-	dc_z10_restore(dc);
+ 
+-	/* disable idle optimizations if enabling cursor */
+-	if (dc->idle_optimizations_allowed && (!stream->cursor_position.enable || dc->debug.exit_idle_opt_for_cursor_updates)
+-			&& position->enable) {
+-		dc_allow_idle_optimizations(dc, false);
+-		reset_idle_optimizations = true;
+-	}
++	if (dc_stream_set_cursor_position(stream, position)) {
++		dc_z10_restore(dc);
+ 
+-	stream->cursor_position = *position;
++		/* disable idle optimizations if enabling cursor */
++		if (dc->idle_optimizations_allowed &&
++		    (!old_position->enable || dc->debug.exit_idle_opt_for_cursor_updates) &&
++		    position->enable) {
++			dc_allow_idle_optimizations(dc, false);
++			reset_idle_optimizations = true;
++		}
+ 
+-	program_cursor_position(dc, stream, position);
+-	/* re-enable idle optimizations if necessary */
+-	if (reset_idle_optimizations)
+-		dc_allow_idle_optimizations(dc, true);
+ 
+-	return true;
++		program_cursor_position(dc, stream, position);
++		/* re-enable idle optimizations if necessary */
++		if (reset_idle_optimizations)
++			dc_allow_idle_optimizations(dc, true);
++
++		return true;
++	}
++
++	return false;
+ }
+ 
+ bool dc_stream_add_writeback(struct dc *dc,
+diff --git a/drivers/gpu/drm/amd/display/dc/dc_stream.h b/drivers/gpu/drm/amd/display/dc/dc_stream.h
+index ee10941caa59..df86668f560f 100644
+--- a/drivers/gpu/drm/amd/display/dc/dc_stream.h
++++ b/drivers/gpu/drm/amd/display/dc/dc_stream.h
+@@ -327,6 +327,9 @@ struct dc_stream_update {
+ 
+ 	struct test_pattern *pending_test_pattern;
+ 	struct dc_crtc_timing_adjust *crtc_timing_adjust;
++
++	struct dc_cursor_attributes *cursor_attributes;
++	struct dc_cursor_position *cursor_position;
+ };
+ 
+ bool dc_is_stream_unchanged(
+@@ -478,10 +481,17 @@ bool dc_stream_set_cursor_attributes(
+ 	struct dc_stream_state *stream,
+ 	const struct dc_cursor_attributes *attributes);
+ 
++bool dc_stream_program_cursor_attributes(
++	struct dc_stream_state *stream,
++	const struct dc_cursor_attributes *attributes);
++
+ bool dc_stream_set_cursor_position(
+ 	struct dc_stream_state *stream,
+ 	const struct dc_cursor_position *position);
+ 
++bool dc_stream_program_cursor_position(
++	struct dc_stream_state *stream,
++	const struct dc_cursor_position *position);
+ 
+ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
+ 				struct dc_stream_state *stream,
+diff --git a/drivers/gpu/drm/amd/display/dc/hwss/dcn30/dcn30_hwseq.c b/drivers/gpu/drm/amd/display/dc/hwss/dcn30/dcn30_hwseq.c
+index 8bc3d01537bb..f91169c80f7f 100644
+--- a/drivers/gpu/drm/amd/display/dc/hwss/dcn30/dcn30_hwseq.c
++++ b/drivers/gpu/drm/amd/display/dc/hwss/dcn30/dcn30_hwseq.c
+@@ -1042,7 +1042,7 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
+ 
+ 					/* Use copied cursor, and it's okay to not switch back */
+ 					cursor_attr.address.quad_part = cmd.mall.cursor_copy_dst.quad_part;
+-					dc_stream_set_cursor_attributes(stream, &cursor_attr);
++					dc_stream_program_cursor_attributes(stream, &cursor_attr);
+ 				}
+ 
+ 				/* Enable MALL */
+diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+index 2776112dbdf8..bf8bd8aa117f 100644
+--- a/fs/btrfs/extent_io.c
++++ b/fs/btrfs/extent_io.c
+@@ -4261,6 +4261,13 @@ void set_extent_buffer_uptodate(struct extent_buffer *eb)
+ 	}
+ }
+ 
++static void clear_extent_buffer_reading(struct extent_buffer *eb)
++{
++	clear_bit(EXTENT_BUFFER_READING, &eb->bflags);
++	smp_mb__after_atomic();
++	wake_up_bit(&eb->bflags, EXTENT_BUFFER_READING);
++}
++
+ static void end_bbio_meta_read(struct btrfs_bio *bbio)
+ {
+ 	struct extent_buffer *eb = bbio->private;
+@@ -4269,6 +4276,13 @@ static void end_bbio_meta_read(struct btrfs_bio *bbio)
+ 	struct folio_iter fi;
+ 	u32 bio_offset = 0;
+ 
++	/*
++	 * If the extent buffer is marked UPTODATE before the read operation
++	 * completes, other calls to read_extent_buffer_pages() will return
++	 * early without waiting for the read to finish, causing data races.
++	 */
++	WARN_ON(test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags));
++
+ 	eb->read_mirror = bbio->mirror_num;
+ 
+ 	if (uptodate &&
+@@ -4295,9 +4309,7 @@ static void end_bbio_meta_read(struct btrfs_bio *bbio)
+ 		bio_offset += len;
+ 	}
+ 
+-	clear_bit(EXTENT_BUFFER_READING, &eb->bflags);
+-	smp_mb__after_atomic();
+-	wake_up_bit(&eb->bflags, EXTENT_BUFFER_READING);
++	clear_extent_buffer_reading(eb);
+ 	free_extent_buffer(eb);
+ 
+ 	bio_put(&bbio->bio);
+@@ -4331,9 +4343,7 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num,
+ 	 * will now be set, and we shouldn't read it in again.
+ 	 */
+ 	if (unlikely(test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))) {
+-		clear_bit(EXTENT_BUFFER_READING, &eb->bflags);
+-		smp_mb__after_atomic();
+-		wake_up_bit(&eb->bflags, EXTENT_BUFFER_READING);
++		clear_extent_buffer_reading(eb);
+ 		return 0;
+ 	}
+ 
+diff --git a/include/linux/filter.h b/include/linux/filter.h
+index 219ee7a76874..6286e9ce13a6 100644
+--- a/include/linux/filter.h
++++ b/include/linux/filter.h
+@@ -644,14 +644,16 @@ static __always_inline u32 __bpf_prog_run(const struct bpf_prog *prog,
+ 	cant_migrate();
+ 	if (static_branch_unlikely(&bpf_stats_enabled_key)) {
+ 		struct bpf_prog_stats *stats;
+-		u64 start = sched_clock();
++		u64 duration, start = sched_clock();
+ 		unsigned long flags;
+ 
+ 		ret = dfunc(ctx, prog->insnsi, prog->bpf_func);
++
++		duration = sched_clock() - start;
+ 		stats = this_cpu_ptr(prog->stats);
+ 		flags = u64_stats_update_begin_irqsave(&stats->syncp);
+ 		u64_stats_inc(&stats->cnt);
+-		u64_stats_add(&stats->nsecs, sched_clock() - start);
++		u64_stats_add(&stats->nsecs, duration);
+ 		u64_stats_update_end_irqrestore(&stats->syncp, flags);
+ 	} else {
+ 		ret = dfunc(ctx, prog->insnsi, prog->bpf_func);
+diff --git a/kernel/bpf/trampoline.c b/kernel/bpf/trampoline.c
+index db7599c59c78..146de96e99b8 100644
+--- a/kernel/bpf/trampoline.c
++++ b/kernel/bpf/trampoline.c
+@@ -883,12 +883,13 @@ static void notrace update_prog_stats(struct bpf_prog *prog,
+ 	     * Hence check that 'start' is valid.
+ 	     */
+ 	    start > NO_START_TIME) {
++		u64 duration = sched_clock() - start;
+ 		unsigned long flags;
+ 
+ 		stats = this_cpu_ptr(prog->stats);
+ 		flags = u64_stats_update_begin_irqsave(&stats->syncp);
+ 		u64_stats_inc(&stats->cnt);
+-		u64_stats_add(&stats->nsecs, sched_clock() - start);
++		u64_stats_add(&stats->nsecs, duration);
+ 		u64_stats_update_end_irqrestore(&stats->syncp, flags);
+ 	}
+ }
+-- 
+2.45.1
+
+From 0d29859417f6fd3ef8ae3a8a46728fcfafa36394 Mon Sep 17 00:00:00 2001
+From: Peter Jung <admin@ptr1337.dev>
+Date: Wed, 22 May 2024 15:41:30 +0200
 Subject: [PATCH 08/10] ksm
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
@@ -21678,10 +20623,10 @@ index faad00cce269..c7c9eb656468 100644
 -- 
 2.45.1
 
-From 53778621a2aeb70dfa59f6806b7a924e36bc58b4 Mon Sep 17 00:00:00 2001
+From 40e88f6168d678ab9a2ba3b39b66b3c76f7d5672 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Mon, 20 May 2024 11:28:24 +0200
-Subject: [PATCH] ntsync
+Date: Wed, 22 May 2024 15:41:58 +0200
+Subject: [PATCH 09/10] ntsync
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -21708,22 +20653,22 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  create mode 100644 tools/testing/selftests/drivers/ntsync/ntsync.c
 
 diff --git a/Documentation/userspace-api/index.rst b/Documentation/userspace-api/index.rst
-index 09f61bd2ac2e..f5a72ed27def 100644
+index afecfe3cc4a8..d5745a500fa7 100644
 --- a/Documentation/userspace-api/index.rst
 +++ b/Documentation/userspace-api/index.rst
-@@ -34,6 +34,7 @@ place where this information is gathered.
-    tee
-    isapnp
-    dcdbas
+@@ -62,6 +62,7 @@ Everything else
+    vduse
+    futex2
+    perf_ring_buffer
 +   ntsync
  
  .. only::  subproject and html
  
 diff --git a/Documentation/userspace-api/ioctl/ioctl-number.rst b/Documentation/userspace-api/ioctl/ioctl-number.rst
-index 457e16f06e04..2f5c6994f042 100644
+index c472423412bf..a141e8e65c5d 100644
 --- a/Documentation/userspace-api/ioctl/ioctl-number.rst
 +++ b/Documentation/userspace-api/ioctl/ioctl-number.rst
-@@ -173,6 +173,8 @@ Code  Seq#    Include File                                           Comments
+@@ -174,6 +174,8 @@ Code  Seq#    Include File                                           Comments
  'M'   00-0F  drivers/video/fsl-diu-fb.h                              conflict!
  'N'   00-1F  drivers/usb/scanner.h
  'N'   40-7F  drivers/block/nvme.c
@@ -22137,10 +21082,10 @@ index 000000000000..767844637a7d
 +  ``objs`` and in ``alert``. If this is attempted, the function fails
 +  with ``EINVAL``.
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 1aabf1c15bb3..91af49091a3c 100644
+index 28e20975c26f..5845f3dd0488 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -15609,6 +15609,15 @@ T:	git https://github.com/Paragon-Software-Group/linux-ntfs3.git
+@@ -15721,6 +15721,15 @@ T:	git https://github.com/Paragon-Software-Group/linux-ntfs3.git
  F:	Documentation/filesystems/ntfs3.rst
  F:	fs/ntfs3/
  
@@ -23497,11 +22442,11 @@ index 000000000000..4a8095a3fc34
 +
 +#endif
 diff --git a/tools/testing/selftests/Makefile b/tools/testing/selftests/Makefile
-index 15b6a111c3be..6c714a4e6478 100644
+index e1504833654d..6f95206325e1 100644
 --- a/tools/testing/selftests/Makefile
 +++ b/tools/testing/selftests/Makefile
-@@ -15,6 +15,7 @@ TARGETS += cpu-hotplug
- TARGETS += damon
+@@ -16,6 +16,7 @@ TARGETS += damon
+ TARGETS += devices
  TARGETS += dmabuf-heaps
  TARGETS += drivers/dma-buf
 +TARGETS += drivers/ntsync
@@ -24950,9 +23895,10 @@ index 000000000000..5fa2c9a0768c
 +TEST_HARNESS_MAIN
 -- 
 2.45.1
-From 02ff530c07f9271a085e94f51bce3424c85edff5 Mon Sep 17 00:00:00 2001
+
+From af42b9e32f104483802897532eaf3bb4f6d2fb84 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Fri, 17 May 2024 14:28:37 +0200
+Date: Wed, 22 May 2024 15:42:13 +0200
 Subject: [PATCH 10/10] zstd
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
