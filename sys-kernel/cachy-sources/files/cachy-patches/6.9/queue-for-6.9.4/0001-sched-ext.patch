@@ -1,6 +1,6 @@
-From a255fdc479ab1fac3a4f463512573bbdd9593787 Mon Sep 17 00:00:00 2001
+From b535e347807b1d2ee8dbbba9462a3d094b8f760f Mon Sep 17 00:00:00 2001
 From: Piotr Gorski <lucjan.lucjanov@gmail.com>
-Date: Wed, 29 May 2024 17:58:11 +0200
+Date: Wed, 5 Jun 2024 21:26:49 +0200
 Subject: [PATCH] sched-ext
 
 Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
@@ -70,7 +70,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  kernel/sched/cpufreq_schedutil.c              |   50 +-
  kernel/sched/deadline.c                       |    4 +-
  kernel/sched/debug.c                          |    3 +
- kernel/sched/ext.c                            | 6946 +++++++++++++++++
+ kernel/sched/ext.c                            | 6967 +++++++++++++++++
  kernel/sched/ext.h                            |  139 +
  kernel/sched/fair.c                           |   25 +-
  kernel/sched/idle.c                           |    2 +
@@ -107,12 +107,12 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  tools/sched_ext/Makefile                      |  246 +
  tools/sched_ext/README.md                     |  270 +
  .../sched_ext/include/bpf-compat/gnu/stubs.h  |   11 +
- tools/sched_ext/include/scx/common.bpf.h      |  347 +
+ tools/sched_ext/include/scx/common.bpf.h      |  349 +
  tools/sched_ext/include/scx/common.h          |   71 +
  tools/sched_ext/include/scx/compat.bpf.h      |  120 +
  tools/sched_ext/include/scx/compat.h          |  208 +
  tools/sched_ext/include/scx/user_exit_info.h  |  111 +
- tools/sched_ext/scx_central.bpf.c             |  361 +
+ tools/sched_ext/scx_central.bpf.c             |  362 +
  tools/sched_ext/scx_central.c                 |  135 +
  tools/sched_ext/scx_flatcg.bpf.c              |  939 +++
  tools/sched_ext/scx_flatcg.c                  |  233 +
@@ -120,7 +120,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  tools/sched_ext/scx_qmap.bpf.c                |  728 ++
  tools/sched_ext/scx_qmap.c                    |  154 +
  tools/sched_ext/scx_show_state.py             |   39 +
- tools/sched_ext/scx_simple.bpf.c              |  149 +
+ tools/sched_ext/scx_simple.bpf.c              |  157 +
  tools/sched_ext/scx_simple.c                  |  107 +
  tools/testing/selftests/bpf/bench.c           |   33 +-
  .../bpf/benchs/bench_local_storage_create.c   |    2 +-
@@ -153,30 +153,26 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  .../net/hw}/ethtool_extended_state.sh         |    5 +-
  .../net/hw}/ethtool_lib.sh                    |    0
  .../net/hw}/ethtool_mm.sh                     |    3 +-
- .../net/hw}/ethtool_rmon.sh                   |    7 +-
+ .../net/hw}/ethtool_rmon.sh                   |    3 +-
  .../net/hw}/hw_stats_l3.sh                    |   19 +-
  .../net/hw}/hw_stats_l3_gre.sh                |    7 +-
  .../forwarding => drivers/net/hw}/loopback.sh |    5 +-
  .../testing/selftests/drivers/net/hw/settings |    1 +
- .../selftests/drivers/net/mlxsw/mlxsw_lib.sh  |    2 +-
- .../net/mlxsw/spectrum-2/resource_scale.sh    |    1 -
- .../net/mlxsw/spectrum/resource_scale.sh      |    1 -
  tools/testing/selftests/net/Makefile          |    1 -
  .../testing/selftests/net/forwarding/Makefile |    9 +-
  tools/testing/selftests/net/forwarding/README |   33 +
  .../net/forwarding/forwarding.config.sample   |   53 +-
  .../selftests/net/forwarding/ipip_lib.sh      |    1 -
- tools/testing/selftests/net/forwarding/lib.sh |  255 +-
+ tools/testing/selftests/net/forwarding/lib.sh |  194 +-
  .../selftests/net/forwarding/lib_sh_test.sh   |  208 +
- .../net/forwarding/router_mpath_nh_lib.sh     |   12 +-
+ .../net/forwarding/router_mpath_nh_lib.sh     |    1 -
  .../selftests/net/forwarding/sch_ets_tests.sh |   19 +-
  .../selftests/net/forwarding/sch_red.sh       |   10 +-
  .../selftests/net/forwarding/sch_tbf_core.sh  |    2 +-
  .../selftests/net/forwarding/tc_common.sh     |    2 +-
  .../selftests/net/forwarding/tc_tunnel_key.sh |    2 -
- tools/testing/selftests/net/lib.sh            |   48 +-
  tools/testing/selftests/sched_ext/.gitignore  |    6 +
- tools/testing/selftests/sched_ext/Makefile    |  217 +
+ tools/testing/selftests/sched_ext/Makefile    |  218 +
  tools/testing/selftests/sched_ext/config      |    9 +
  .../selftests/sched_ext/create_dsq.bpf.c      |   58 +
  .../testing/selftests/sched_ext/create_dsq.c  |   57 +
@@ -184,6 +180,8 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  .../selftests/sched_ext/ddsp_bogus_dsq_fail.c |   57 +
  .../sched_ext/ddsp_vtimelocal_fail.bpf.c      |   39 +
  .../sched_ext/ddsp_vtimelocal_fail.c          |   56 +
+ .../selftests/sched_ext/dsp_local_on.bpf.c    |   65 +
+ .../selftests/sched_ext/dsp_local_on.c        |   58 +
  .../sched_ext/enq_last_no_enq_fails.bpf.c     |   21 +
  .../sched_ext/enq_last_no_enq_fails.c         |   60 +
  .../sched_ext/enq_select_cpu_fails.bpf.c      |   43 +
@@ -223,7 +221,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  .../selftests/sched_ext/test_example.c        |   49 +
  tools/testing/selftests/sched_ext/util.c      |   71 +
  tools/testing/selftests/sched_ext/util.h      |   13 +
- 218 files changed, 18426 insertions(+), 1109 deletions(-)
+ 216 files changed, 18496 insertions(+), 1067 deletions(-)
  create mode 100755 .github/workflows/run-schedulers
  create mode 100644 .github/workflows/sched-ext.config
  create mode 100644 .github/workflows/test-kernel.yml
@@ -258,7 +256,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  rename tools/testing/selftests/{net/forwarding => drivers/net/hw}/ethtool_extended_state.sh (96%)
  rename tools/testing/selftests/{net/forwarding => drivers/net/hw}/ethtool_lib.sh (100%)
  rename tools/testing/selftests/{net/forwarding => drivers/net/hw}/ethtool_mm.sh (99%)
- rename tools/testing/selftests/{net/forwarding => drivers/net/hw}/ethtool_rmon.sh (92%)
+ rename tools/testing/selftests/{net/forwarding => drivers/net/hw}/ethtool_rmon.sh (97%)
  rename tools/testing/selftests/{net/forwarding => drivers/net/hw}/hw_stats_l3.sh (96%)
  rename tools/testing/selftests/{net/forwarding => drivers/net/hw}/hw_stats_l3_gre.sh (92%)
  rename tools/testing/selftests/{net/forwarding => drivers/net/hw}/loopback.sh (92%)
@@ -273,6 +271,8 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  create mode 100644 tools/testing/selftests/sched_ext/ddsp_bogus_dsq_fail.c
  create mode 100644 tools/testing/selftests/sched_ext/ddsp_vtimelocal_fail.bpf.c
  create mode 100644 tools/testing/selftests/sched_ext/ddsp_vtimelocal_fail.c
+ create mode 100644 tools/testing/selftests/sched_ext/dsp_local_on.bpf.c
+ create mode 100644 tools/testing/selftests/sched_ext/dsp_local_on.c
  create mode 100644 tools/testing/selftests/sched_ext/enq_last_no_enq_fails.bpf.c
  create mode 100644 tools/testing/selftests/sched_ext/enq_last_no_enq_fails.c
  create mode 100644 tools/testing/selftests/sched_ext/enq_select_cpu_fails.bpf.c
@@ -1037,7 +1037,7 @@ index 5845f3dd0..eb18013dd 100644
  R:	John Garry <john.g.garry@oracle.com>
  R:	Jason Yan <yanaijie@huawei.com>
 diff --git a/Makefile b/Makefile
-index 773bbd564..dd1d8efa3 100644
+index 880b493c4..46e267d3b 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1346,6 +1346,12 @@ ifneq ($(wildcard $(resolve_btfids_O)),)
@@ -1793,10 +1793,10 @@ index d362aacf9..4df2f9055 100644
  extern void sched_dead(struct task_struct *p);
  
 diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
-index 4ff48eda3..215ce6d43 100644
+index 5b1078c16..15a81adfb 100644
 --- a/include/linux/skbuff.h
 +++ b/include/linux/skbuff.h
-@@ -4073,12 +4073,6 @@ int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
+@@ -4064,12 +4064,6 @@ int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
  				 struct iov_iter *from, int len);
  int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *frm);
  void skb_free_datagram(struct sock *sk, struct sk_buff *skb);
@@ -2189,7 +2189,7 @@ index 3bac0a8ce..359a14cc7 100644
  /* Can be ORed in to make sure the process is reverted back to SCHED_NORMAL on fork */
  #define SCHED_RESET_ON_FORK     0x40000000
 diff --git a/init/Kconfig b/init/Kconfig
-index 98246963d..5faa865ba 100644
+index 62ea15658..a176068ec 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
 @@ -1037,6 +1037,11 @@ config RT_GROUP_SCHED
@@ -2594,10 +2594,10 @@ index 146de96e9..26ae703d3 100644
  
  int __weak arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 diff --git a/kernel/bpf/verifier.c b/kernel/bpf/verifier.c
-index 2c90b1eb1..308574f75 100644
+index 8a29309db..7a49659ae 100644
 --- a/kernel/bpf/verifier.c
 +++ b/kernel/bpf/verifier.c
-@@ -10216,8 +10216,8 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
+@@ -10220,8 +10220,8 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
  	if (env->ops->get_func_proto)
  		fn = env->ops->get_func_proto(func_id, env->prog);
  	if (!fn) {
@@ -2608,7 +2608,7 @@ index 2c90b1eb1..308574f75 100644
  		return -EINVAL;
  	}
  
-@@ -14579,7 +14579,19 @@ static void regs_refine_cond_op(struct bpf_reg_state *reg1, struct bpf_reg_state
+@@ -14583,7 +14583,19 @@ static void regs_refine_cond_op(struct bpf_reg_state *reg1, struct bpf_reg_state
  	struct tnum t;
  	u64 val;
  
@@ -2629,7 +2629,7 @@ index 2c90b1eb1..308574f75 100644
  	switch (opcode) {
  	case BPF_JEQ:
  		if (is_jmp32) {
-@@ -14722,14 +14734,6 @@ static void regs_refine_cond_op(struct bpf_reg_state *reg1, struct bpf_reg_state
+@@ -14726,14 +14738,6 @@ static void regs_refine_cond_op(struct bpf_reg_state *reg1, struct bpf_reg_state
  			reg2->smin_value = max(reg1->smin_value + 1, reg2->smin_value);
  		}
  		break;
@@ -2644,7 +2644,7 @@ index 2c90b1eb1..308574f75 100644
  	default:
  		return;
  	}
-@@ -19195,6 +19199,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
+@@ -19199,6 +19203,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
  		if (bpf_prog_calc_tag(func[i]))
  			goto out_free;
  		func[i]->is_func = 1;
@@ -2652,7 +2652,7 @@ index 2c90b1eb1..308574f75 100644
  		func[i]->aux->func_idx = i;
  		/* Below members will be freed only at prog->aux */
  		func[i]->aux->btf = prog->aux->btf;
-@@ -19299,10 +19304,14 @@ static int jit_subprogs(struct bpf_verifier_env *env)
+@@ -19303,10 +19308,14 @@ static int jit_subprogs(struct bpf_verifier_env *env)
  	 * bpf_prog_load will add the kallsyms for the main program.
  	 */
  	for (i = 1; i < env->subprog_cnt; i++) {
@@ -3798,10 +3798,10 @@ index 8d5d98a58..6f306e1c9 100644
  
 diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
 new file mode 100644
-index 000000000..b4ecefeb8
+index 000000000..334593a1c
 --- /dev/null
 +++ b/kernel/sched/ext.c
-@@ -0,0 +1,6946 @@
+@@ -0,0 +1,6967 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
 + * BPF extensible scheduler class: Documentation/scheduler/sched-ext.rst
@@ -4821,7 +4821,7 @@ index 000000000..b4ecefeb8
 +static u32 highest_bit(u32 flags)
 +{
 +	int bit = fls(flags);
-+	return bit ? 1 << (bit - 1) : 0;
++	return ((u64) 1 << bit) >> 1;
 +}
 +
 +/*
@@ -5073,6 +5073,28 @@ index 000000000..b4ecefeb8
 +}
 +
 +/**
++ * scx_task_iter_rq_unlock - Unlock rq locked by a task iterator
++ * @iter: iterator to unlock rq for
++ *
++ * If @iter is in the middle of a locked iteration, it may be locking the rq of
++ * the task currently being visited. Unlock the rq if so. This function can be
++ * safely called anytime during an iteration.
++ *
++ * Returns %true if the rq @iter was locking is unlocked. %false if @iter was
++ * not locking an rq.
++ */
++static bool scx_task_iter_rq_unlock(struct scx_task_iter *iter)
++{
++	if (iter->locked) {
++		task_rq_unlock(iter->rq, iter->locked, &iter->rf);
++		iter->locked = NULL;
++		return true;
++	} else {
++		return false;
++	}
++}
++
++/**
 + * scx_task_iter_exit - Exit a task iterator
 + * @iter: iterator to exit
 + *
@@ -5082,19 +5104,10 @@ index 000000000..b4ecefeb8
 + */
 +static void scx_task_iter_exit(struct scx_task_iter *iter)
 +{
-+	struct list_head *cursor = &iter->cursor.tasks_node;
-+
 +	lockdep_assert_held(&scx_tasks_lock);
 +
-+	if (iter->locked) {
-+		task_rq_unlock(iter->rq, iter->locked, &iter->rf);
-+		iter->locked = NULL;
-+	}
-+
-+	if (list_empty(cursor))
-+		return;
-+
-+	list_del_init(cursor);
++	scx_task_iter_rq_unlock(iter);
++	list_del_init(&iter->cursor.tasks_node);
 +}
 +
 +/**
@@ -5124,15 +5137,20 @@ index 000000000..b4ecefeb8
 +}
 +
 +/**
-+ * scx_task_iter_next_filtered - Next non-idle task
++ * scx_task_iter_next_locked - Next non-idle task with its rq locked
 + * @iter: iterator to walk
++ * @include_dead: Whether we should include dead tasks in the iteration
 + *
-+ * Visit the next non-idle task. See scx_task_iter_init() for details.
++ * Visit the non-idle task with its rq lock held. Allows callers to specify
++ * whether they would like to filter out dead tasks. See scx_task_iter_init()
++ * for details.
 + */
 +static struct task_struct *
-+scx_task_iter_next_filtered(struct scx_task_iter *iter)
++scx_task_iter_next_locked(struct scx_task_iter *iter, bool include_dead)
 +{
 +	struct task_struct *p;
++retry:
++	scx_task_iter_rq_unlock(iter);
 +
 +	while ((p = scx_task_iter_next(iter))) {
 +		/*
@@ -5140,34 +5158,24 @@ index 000000000..b4ecefeb8
 +		 * which haven't yet been onlined. Test sched_class directly.
 +		 */
 +		if (p->sched_class != &idle_sched_class)
-+			return p;
++			break;
 +	}
-+	return NULL;
-+}
-+
-+/**
-+ * scx_task_iter_next_filtered_locked - Next non-idle task with its rq locked
-+ * @iter: iterator to walk
-+ *
-+ * Visit the next non-idle task with its rq lock held. See scx_task_iter_init()
-+ * for details.
-+ */
-+static struct task_struct *
-+scx_task_iter_next_filtered_locked(struct scx_task_iter *iter)
-+{
-+	struct task_struct *p;
-+
-+	if (iter->locked) {
-+		task_rq_unlock(iter->rq, iter->locked, &iter->rf);
-+		iter->locked = NULL;
-+	}
-+
-+	p = scx_task_iter_next_filtered(iter);
 +	if (!p)
 +		return NULL;
 +
 +	iter->rq = task_rq_lock(p, &iter->rf);
 +	iter->locked = p;
++
++	/*
++	 * If we see %TASK_DEAD, @p already disabled preemption, is about to do
++	 * the final __schedule(), won't ever need to be scheduled again and can
++	 * thus be safely ignored. If we don't see %TASK_DEAD, @p can't enter
++	 * the final __schedle() while we're locking its rq and thus will stay
++	 * alive until the rq is unlocked.
++	 */
++	if (!include_dead && READ_ONCE(p->__state) == TASK_DEAD)
++		goto retry;
++
 +	return p;
 +}
 +
@@ -6198,7 +6206,7 @@ index 000000000..b4ecefeb8
 +		}
 +
 +		/* if the destination CPU is idle, wake it up */
-+		if (dsp && p->sched_class > dst_rq->curr->sched_class)
++		if (dsp && p->sched_class < dst_rq->curr->sched_class)
 +			resched_curr(dst_rq);
 +
 +		dispatch_to_local_dsq_unlock(rq, rf, src_rq, locked_dst_rq);
@@ -7637,7 +7645,7 @@ index 000000000..b4ecefeb8
 + *   isn't tied to the CPU at that point. Preemption is implemented by resetting
 + *   the victim task's slice to 0 and triggering reschedule on the target CPU.
 + *
-+ * - migrate_task_rq: Unncessary as task to cpu mapping is transient.
++ * - migrate_task_rq: Unnecessary as task to cpu mapping is transient.
 + *
 + * - task_fork/dead: We need fork/dead notifications for all tasks regardless of
 + *   their current sched_class. Call them directly from sched core instead.
@@ -8191,19 +8199,31 @@ index 000000000..b4ecefeb8
 +
 +	spin_lock_irq(&scx_tasks_lock);
 +	scx_task_iter_init(&sti);
-+	while ((p = scx_task_iter_next_filtered_locked(&sti))) {
++	/*
++	 * Invoke scx_ops_exit_task() on all non-idle tasks, including
++	 * TASK_DEAD tasks. Because dead tasks may have a nonzero refcount,
++	 * we may not have invoked sched_ext_free() on them by the time a
++	 * scheduler is disabled. We must therefore exit the task here, or we'd
++	 * fail to invoke ops.exit_task(), as the scheduler will have been
++	 * unloaded by the time the task is subsequently exited on the
++	 * sched_ext_free() path.
++	 */
++	while ((p = scx_task_iter_next_locked(&sti, true))) {
 +		const struct sched_class *old_class = p->sched_class;
 +		struct sched_enq_and_set_ctx ctx;
 +
-+		sched_deq_and_put_task(p, DEQUEUE_SAVE | DEQUEUE_MOVE, &ctx);
++		if (READ_ONCE(p->__state) != TASK_DEAD) {
++			sched_deq_and_put_task(p, DEQUEUE_SAVE | DEQUEUE_MOVE,
++					       &ctx);
 +
-+		p->scx.slice = min_t(u64, p->scx.slice, SCX_SLICE_DFL);
-+		__setscheduler_prio(p, p->prio);
-+		check_class_changing(task_rq(p), p, old_class);
++			p->scx.slice = min_t(u64, p->scx.slice, SCX_SLICE_DFL);
++			__setscheduler_prio(p, p->prio);
++			check_class_changing(task_rq(p), p, old_class);
 +
-+		sched_enq_and_set_task(&ctx);
++			sched_enq_and_set_task(&ctx);
 +
-+		check_class_changed(task_rq(p), p, old_class, p->prio);
++			check_class_changed(task_rq(p), p, old_class, p->prio);
++		}
 +		scx_ops_exit_task(p);
 +	}
 +	scx_task_iter_exit(&sti);
@@ -8832,8 +8852,9 @@ index 000000000..b4ecefeb8
 +	spin_lock_irq(&scx_tasks_lock);
 +
 +	scx_task_iter_init(&sti);
-+	while ((p = scx_task_iter_next_filtered(&sti))) {
++	while ((p = scx_task_iter_next_locked(&sti, false))) {
 +		get_task_struct(p);
++		scx_task_iter_rq_unlock(&sti);
 +		spin_unlock_irq(&scx_tasks_lock);
 +
 +		ret = scx_ops_init_task(p, task_group(p), false);
@@ -8885,7 +8906,7 @@ index 000000000..b4ecefeb8
 +	WRITE_ONCE(scx_switching_all, !(ops->flags & SCX_OPS_SWITCH_PARTIAL));
 +
 +	scx_task_iter_init(&sti);
-+	while ((p = scx_task_iter_next_filtered_locked(&sti))) {
++	while ((p = scx_task_iter_next_locked(&sti, false))) {
 +		const struct sched_class *old_class = p->sched_class;
 +		struct sched_enq_and_set_ctx ctx;
 +
@@ -11950,7 +11971,7 @@ index e8fb4ef8a..9ada82940 100644
  	dev_boot_phase = 0;
  
 diff --git a/net/core/filter.c b/net/core/filter.c
-index ae5254f71..8120c3ddd 100644
+index a5856a8b4..d5a795cc7 100644
 --- a/net/core/filter.c
 +++ b/net/core/filter.c
 @@ -87,6 +87,9 @@
@@ -11963,7 +11984,7 @@ index ae5254f71..8120c3ddd 100644
  static const struct bpf_func_proto *
  bpf_sk_base_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog);
  
-@@ -5906,7 +5909,10 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
+@@ -5905,7 +5908,10 @@ static int bpf_ipv4_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
  
  		err = fib_table_lookup(tb, &fl4, &res, FIB_LOOKUP_NOREF);
  	} else {
@@ -11975,7 +11996,7 @@ index ae5254f71..8120c3ddd 100644
  		fl4.flowi4_secid = 0;
  		fl4.flowi4_tun_key.tun_id = 0;
  		fl4.flowi4_uid = sock_net_uid(net, NULL);
-@@ -6049,7 +6055,10 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
+@@ -6048,7 +6054,10 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
  		err = ipv6_stub->fib6_table_lookup(net, tb, oif, &fl6, &res,
  						   strict);
  	} else {
@@ -11987,7 +12008,7 @@ index ae5254f71..8120c3ddd 100644
  		fl6.flowi6_secid = 0;
  		fl6.flowi6_tun_key.tun_id = 0;
  		fl6.flowi6_uid = sock_net_uid(net, NULL);
-@@ -6127,7 +6136,7 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
+@@ -6126,7 +6135,7 @@ static int bpf_ipv6_fib_lookup(struct net *net, struct bpf_fib_lookup *params,
  
  #define BPF_FIB_LOOKUP_MASK (BPF_FIB_LOOKUP_DIRECT | BPF_FIB_LOOKUP_OUTPUT | \
  			     BPF_FIB_LOOKUP_SKIP_NEIGH | BPF_FIB_LOOKUP_TBID | \
@@ -11996,7 +12017,7 @@ index ae5254f71..8120c3ddd 100644
  
  BPF_CALL_4(bpf_xdp_fib_lookup, struct xdp_buff *, ctx,
  	   struct bpf_fib_lookup *, params, int, plen, u32, flags)
-@@ -8364,8 +8373,6 @@ sk_msg_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+@@ -8363,8 +8372,6 @@ sk_msg_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
  		return &bpf_event_output_data_proto;
  	case BPF_FUNC_get_current_uid_gid:
  		return &bpf_get_current_uid_gid_proto;
@@ -12064,10 +12085,10 @@ index 44869ea08..5dbed91c6 100644
  
  static const struct btf_kfunc_id_set tcp_cubic_kfunc_set = {
 diff --git a/net/ipv4/tcp_dctcp.c b/net/ipv4/tcp_dctcp.c
-index e33fbe493..6b712a33d 100644
+index b00428085..8a45a4aea 100644
 --- a/net/ipv4/tcp_dctcp.c
 +++ b/net/ipv4/tcp_dctcp.c
-@@ -261,16 +261,12 @@ static struct tcp_congestion_ops dctcp_reno __read_mostly = {
+@@ -272,16 +272,12 @@ static struct tcp_congestion_ops dctcp_reno __read_mostly = {
  };
  
  BTF_KFUNCS_START(tcp_dctcp_check_kfunc_ids)
@@ -13324,10 +13345,10 @@ index 000000000..ad7d139ce
 + */
 diff --git a/tools/sched_ext/include/scx/common.bpf.h b/tools/sched_ext/include/scx/common.bpf.h
 new file mode 100644
-index 000000000..b59aa7c57
+index 000000000..d0b708e95
 --- /dev/null
 +++ b/tools/sched_ext/include/scx/common.bpf.h
-@@ -0,0 +1,347 @@
+@@ -0,0 +1,349 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
 + * Copyright (c) 2022 Meta Platforms, Inc. and affiliates.
@@ -13606,6 +13627,8 @@ index 000000000..b59aa7c57
 +/* useful compiler attributes */
 +#define likely(x) __builtin_expect(!!(x), 1)
 +#define unlikely(x) __builtin_expect(!!(x), 0)
++#define __maybe_unused __attribute__((__unused__))
++
 +
 +void *bpf_obj_new_impl(__u64 local_type_id, void *meta) __ksym;
 +void bpf_obj_drop_impl(void *kptr, void *meta) __ksym;
@@ -14211,10 +14234,10 @@ index 000000000..2d86d01a9
 +#endif	/* __USER_EXIT_INFO_H */
 diff --git a/tools/sched_ext/scx_central.bpf.c b/tools/sched_ext/scx_central.bpf.c
 new file mode 100644
-index 000000000..1ab8a42ed
+index 000000000..b297ccbd7
 --- /dev/null
 +++ b/tools/sched_ext/scx_central.bpf.c
-@@ -0,0 +1,361 @@
+@@ -0,0 +1,362 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
 + * A central FIFO sched_ext scheduler which demonstrates the followings:
@@ -14522,6 +14545,7 @@ index 000000000..1ab8a42ed
 +	struct bpf_timer *timer;
 +	int ret;
 +
++	__COMPAT_scx_bpf_switch_all();
 +	ret = scx_bpf_create_dsq(FALLBACK_DSQ_ID, -1);
 +	if (ret)
 +		return ret;
@@ -14719,7 +14743,7 @@ index 000000000..1e0568624
 +}
 diff --git a/tools/sched_ext/scx_flatcg.bpf.c b/tools/sched_ext/scx_flatcg.bpf.c
 new file mode 100644
-index 000000000..a9c2fa41a
+index 000000000..389bea204
 --- /dev/null
 +++ b/tools/sched_ext/scx_flatcg.bpf.c
 @@ -0,0 +1,939 @@
@@ -14741,7 +14765,7 @@ index 000000000..a9c2fa41a
 + *
 + * For example, B is competing against C and in that competition its share is
 + * 100/(100+100) == 1/2. At its parent level, A is competing against D and A's
-+ * share in that competition is 200/(200+100) == 1/3. B's eventual share in the
++ * share in that competition is 100/(200+100) == 1/3. B's eventual share in the
 + * system can be calculated by multiplying the two shares, 1/2 * 1/3 == 1/6. C's
 + * eventual shaer is the same at 1/6. D is only competing at the top level and
 + * its share is 200/(100+200) == 2/3.
@@ -16899,10 +16923,10 @@ index 000000000..d457d2a74
 +print(f'nr_rejected   : {read_atomic("scx_nr_rejected")}')
 diff --git a/tools/sched_ext/scx_simple.bpf.c b/tools/sched_ext/scx_simple.bpf.c
 new file mode 100644
-index 000000000..535fe52f5
+index 000000000..6fc66ab98
 --- /dev/null
 +++ b/tools/sched_ext/scx_simple.bpf.c
-@@ -0,0 +1,149 @@
+@@ -0,0 +1,157 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
 + * A simple scheduler.
@@ -16934,6 +16958,13 @@ index 000000000..535fe52f5
 +static u64 vtime_now;
 +UEI_DEFINE(uei);
 +
++/*
++ * Built-in DSQs such as SCX_DSQ_GLOBAL cannot be used as priority queues
++ * (meaning, cannot be dispatched to with scx_bpf_dispatch_vtime()). We
++ * therefore create a separate DSQ with ID 0 that we dispatch to and consume
++ * from. If scx_simple only supported global FIFO scheduling, then we could
++ * just use SCX_DSQ_GLOBAL.
++ */
 +#define SHARED_DSQ 0
 +
 +struct {
@@ -17034,6 +17065,7 @@ index 000000000..535fe52f5
 +
 +s32 BPF_STRUCT_OPS_SLEEPABLE(simple_init)
 +{
++	__COMPAT_scx_bpf_switch_all();
 +	return scx_bpf_create_dsq(SHARED_DSQ, -1);
 +}
 +
@@ -19890,10 +19922,10 @@ index 50d5bfb17..c301e735c 100755
  traffic_test()
  {
 diff --git a/tools/testing/selftests/net/forwarding/ethtool_rmon.sh b/tools/testing/selftests/drivers/net/hw/ethtool_rmon.sh
-similarity index 92%
+similarity index 97%
 rename from tools/testing/selftests/net/forwarding/ethtool_rmon.sh
 rename to tools/testing/selftests/drivers/net/hw/ethtool_rmon.sh
-index 41a34a61f..e2a1c10d3 100755
+index e78776db8..e2a1c10d3 100755
 --- a/tools/testing/selftests/net/forwarding/ethtool_rmon.sh
 +++ b/tools/testing/selftests/drivers/net/hw/ethtool_rmon.sh
 @@ -7,7 +7,8 @@ ALL_TESTS="
@@ -19906,24 +19938,6 @@ index 41a34a61f..e2a1c10d3 100755
  
  ETH_FCS_LEN=4
  ETH_HLEN=$((6+6+2))
-@@ -78,7 +79,7 @@ rmon_histogram()
- 
- 		for if in $iface $neigh; do
- 			if ! ensure_mtu $if ${bucket[0]}; then
--				log_test_skip "$if does not support the required MTU for $step"
-+				log_test_xfail "$if does not support the required MTU for $step"
- 				return
- 			fi
- 		done
-@@ -93,7 +94,7 @@ rmon_histogram()
- 		jq -r ".[0].rmon[\"${set}-pktsNtoM\"][]|[.low, .high]|@tsv" 2>/dev/null)
- 
- 	if [ $nbuckets -eq 0 ]; then
--		log_test_skip "$iface does not support $set histogram counters"
-+		log_test_xfail "$iface does not support $set histogram counters"
- 		return
- 	fi
- }
 diff --git a/tools/testing/selftests/net/forwarding/hw_stats_l3.sh b/tools/testing/selftests/drivers/net/hw/hw_stats_l3.sh
 similarity index 96%
 rename from tools/testing/selftests/net/forwarding/hw_stats_l3.sh
@@ -20017,43 +20031,6 @@ index 000000000..e7b941753
 +++ b/tools/testing/selftests/drivers/net/hw/settings
 @@ -0,0 +1 @@
 +timeout=0
-diff --git a/tools/testing/selftests/drivers/net/mlxsw/mlxsw_lib.sh b/tools/testing/selftests/drivers/net/mlxsw/mlxsw_lib.sh
-index 6369927e9..48395cfd4 100644
---- a/tools/testing/selftests/drivers/net/mlxsw/mlxsw_lib.sh
-+++ b/tools/testing/selftests/drivers/net/mlxsw/mlxsw_lib.sh
-@@ -42,7 +42,7 @@ __mlxsw_only_on_spectrum()
- 	local src=$1; shift
- 
- 	if ! mlxsw_on_spectrum "$rev"; then
--		log_test_skip $src:$caller "(Spectrum-$rev only)"
-+		log_test_xfail $src:$caller "(Spectrum-$rev only)"
- 		return 1
- 	fi
- }
-diff --git a/tools/testing/selftests/drivers/net/mlxsw/spectrum-2/resource_scale.sh b/tools/testing/selftests/drivers/net/mlxsw/spectrum-2/resource_scale.sh
-index a88d8a8c8..899b68926 100755
---- a/tools/testing/selftests/drivers/net/mlxsw/spectrum-2/resource_scale.sh
-+++ b/tools/testing/selftests/drivers/net/mlxsw/spectrum-2/resource_scale.sh
-@@ -47,7 +47,6 @@ for current_test in ${TESTS:-$ALL_TESTS}; do
- 		RET=0
- 		target=$(${current_test}_get_target "$should_fail")
- 		if ((target == 0)); then
--			log_test_skip "'$current_test' should_fail=$should_fail test"
- 			continue
- 		fi
- 
-diff --git a/tools/testing/selftests/drivers/net/mlxsw/spectrum/resource_scale.sh b/tools/testing/selftests/drivers/net/mlxsw/spectrum/resource_scale.sh
-index f981c957f..482ebb744 100755
---- a/tools/testing/selftests/drivers/net/mlxsw/spectrum/resource_scale.sh
-+++ b/tools/testing/selftests/drivers/net/mlxsw/spectrum/resource_scale.sh
-@@ -52,7 +52,6 @@ for current_test in ${TESTS:-$ALL_TESTS}; do
- 			RET=0
- 			target=$(${current_test}_get_target "$should_fail")
- 			if ((target == 0)); then
--				log_test_skip "'$current_test' [$profile] should_fail=$should_fail test"
- 				continue
- 			fi
- 			${current_test}_setup_prepare
 diff --git a/tools/testing/selftests/net/Makefile b/tools/testing/selftests/net/Makefile
 index 7b6918d5f..cb418a234 100644
 --- a/tools/testing/selftests/net/Makefile
@@ -20232,7 +20209,7 @@ index 30f36a57b..01e62c4ac 100644
  h1_create()
  {
 diff --git a/tools/testing/selftests/net/forwarding/lib.sh b/tools/testing/selftests/net/forwarding/lib.sh
-index e579c2e0c..4103ed7af 100644
+index e78f11140..6a069eb7f 100644
 --- a/tools/testing/selftests/net/forwarding/lib.sh
 +++ b/tools/testing/selftests/net/forwarding/lib.sh
 @@ -1,34 +1,88 @@
@@ -20349,7 +20326,7 @@ index e579c2e0c..4103ed7af 100644
  
  net_forwarding_dir=$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")
  
-@@ -205,17 +259,6 @@ check_port_mab_support()
+@@ -179,17 +233,6 @@ check_port_mab_support()
  	fi
  }
  
@@ -20367,55 +20344,8 @@ index e579c2e0c..4103ed7af 100644
  if [[ "$(id -u)" -ne 0 ]]; then
  	echo "SKIP: need root privileges"
  	exit $ksft_skip
-@@ -358,14 +401,31 @@ EXIT_STATUS=0
- # Per-test return value. Clear at the beginning of each test.
- RET=0
- 
-+ret_set_ksft_status()
-+{
-+	local ksft_status=$1; shift
-+	local msg=$1; shift
-+
-+	RET=$(ksft_status_merge $RET $ksft_status)
-+	if (( $? )); then
-+		retmsg=$msg
-+	fi
-+}
-+
-+# Whether FAILs should be interpreted as XFAILs. Internal.
-+FAIL_TO_XFAIL=
-+
- check_err()
- {
- 	local err=$1
- 	local msg=$2
- 
--	if [[ $RET -eq 0 && $err -ne 0 ]]; then
--		RET=$err
--		retmsg=$msg
-+	if ((err)); then
-+		if [[ $FAIL_TO_XFAIL = yes ]]; then
-+			ret_set_ksft_status $ksft_xfail "$msg"
-+		else
-+			ret_set_ksft_status $ksft_fail "$msg"
-+		fi
- 	fi
- }
- 
-@@ -374,10 +434,7 @@ check_fail()
- 	local err=$1
- 	local msg=$2
- 
--	if [[ $RET -eq 0 && $err -eq 0 ]]; then
--		RET=1
--		retmsg=$msg
--	fi
-+	check_err $((!err)) "$msg"
- }
- 
- check_err_fail()
-@@ -393,6 +450,85 @@ check_err_fail()
- 	fi
+@@ -430,6 +473,85 @@ handle_test_result_skip()
+ 	log_test_result "$test_name" "$opt_str" SKIP "$retmsg"
  }
  
 +xfail_on_slow()
@@ -20500,53 +20430,6 @@ index e579c2e0c..4103ed7af 100644
  log_test()
  {
  	local test_name=$1
-@@ -402,31 +538,28 @@ log_test()
- 		opt_str="($opt_str)"
- 	fi
- 
--	if [[ $RET -ne 0 ]]; then
--		EXIT_STATUS=1
--		printf "TEST: %-60s  [FAIL]\n" "$test_name $opt_str"
--		if [[ ! -z "$retmsg" ]]; then
--			printf "\t%s\n" "$retmsg"
--		fi
--		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
--			echo "Hit enter to continue, 'q' to quit"
--			read a
--			[ "$a" = "q" ] && exit 1
--		fi
--		return 1
-+	if ((RET == ksft_pass)); then
-+		handle_test_result_pass "$test_name" "$opt_str"
-+	elif ((RET == ksft_xfail)); then
-+		handle_test_result_xfail "$test_name" "$opt_str"
-+	elif ((RET == ksft_skip)); then
-+		handle_test_result_skip "$test_name" "$opt_str"
-+	else
-+		handle_test_result_fail "$test_name" "$opt_str"
- 	fi
- 
--	printf "TEST: %-60s  [ OK ]\n" "$test_name $opt_str"
--	return 0
-+	EXIT_STATUS=$(ksft_exit_status_merge $EXIT_STATUS $RET)
-+	return $RET
- }
- 
- log_test_skip()
- {
--	local test_name=$1
--	local opt_str=$2
-+	RET=$ksft_skip retmsg= log_test "$@"
-+}
- 
--	printf "TEST: %-60s  [SKIP]\n" "$test_name $opt_str"
--	return 0
-+log_test_xfail()
-+{
-+	RET=$ksft_xfail retmsg= log_test "$@"
- }
- 
- log_info()
 diff --git a/tools/testing/selftests/net/forwarding/lib_sh_test.sh b/tools/testing/selftests/net/forwarding/lib_sh_test.sh
 new file mode 100755
 index 000000000..ff2acccca
@@ -20762,33 +20645,10 @@ index 000000000..ff2acccca
 +
 +exit $EXIT_STATUS
 diff --git a/tools/testing/selftests/net/forwarding/router_mpath_nh_lib.sh b/tools/testing/selftests/net/forwarding/router_mpath_nh_lib.sh
-index 7e7d62161..2903294d8 100644
+index b2d2c6cec..358b76b25 100644
 --- a/tools/testing/selftests/net/forwarding/router_mpath_nh_lib.sh
 +++ b/tools/testing/selftests/net/forwarding/router_mpath_nh_lib.sh
-@@ -56,21 +56,12 @@ nh_stats_test_dispatch_swhw()
- 	local group_id=$1; shift
- 	local mz="$@"
- 
--	local used
--
- 	nh_stats_do_test "$what" "$nh1_id" "$nh2_id" "$group_id" \
- 			 nh_stats_get "${mz[@]}"
- 
--	used=$(ip -s -j -d nexthop show id $group_id |
--		   jq '.[].hw_stats.used')
--	kind=$(ip -j -d link show dev $rp11 |
--		   jq -r '.[].linkinfo.info_kind')
--	if [[ $used == true ]]; then
-+	xfail_on_veth $rp11 \
- 		nh_stats_do_test "HW $what" "$nh1_id" "$nh2_id" "$group_id" \
- 				 nh_stats_get_hw "${mz[@]}"
--	elif [[ $kind == veth ]]; then
--		log_test_skip "HW stats not offloaded on veth topology"
--	fi
- }
- 
- nh_stats_test_dispatch()
-@@ -83,7 +74,6 @@ nh_stats_test_dispatch()
+@@ -83,7 +83,6 @@ nh_stats_test_dispatch()
  	local mz="$@"
  
  	local enabled
@@ -20920,73 +20780,6 @@ index 5a5dd9034..79775b10b 100755
  
  ALL_TESTS="tunnel_key_nofrag_test"
  
-diff --git a/tools/testing/selftests/net/lib.sh b/tools/testing/selftests/net/lib.sh
-index 56a9454b7..28793b78a 100644
---- a/tools/testing/selftests/net/lib.sh
-+++ b/tools/testing/selftests/net/lib.sh
-@@ -4,16 +4,60 @@
- ##############################################################################
- # Defines
- 
--WAIT_TIMEOUT=${WAIT_TIMEOUT:=20}
-+: "${WAIT_TIMEOUT:=20}"
-+
- BUSYWAIT_TIMEOUT=$((WAIT_TIMEOUT * 1000)) # ms
- 
--# Kselftest framework requirement - SKIP code is 4.
-+# Kselftest framework constants.
-+ksft_pass=0
-+ksft_fail=1
-+ksft_xfail=2
- ksft_skip=4
-+
- # namespace list created by setup_ns
- NS_LIST=""
- 
- ##############################################################################
- # Helpers
-+
-+__ksft_status_merge()
-+{
-+	local a=$1; shift
-+	local b=$1; shift
-+	local -A weights
-+	local weight=0
-+
-+	for i in "$@"; do
-+		weights[$i]=$((weight++))
-+	done
-+
-+	if [[ ${weights[$a]} > ${weights[$b]} ]]; then
-+		echo "$a"
-+		return 0
-+	else
-+		echo "$b"
-+		return 1
-+	fi
-+}
-+
-+ksft_status_merge()
-+{
-+	local a=$1; shift
-+	local b=$1; shift
-+
-+	__ksft_status_merge "$a" "$b" \
-+		$ksft_pass $ksft_xfail $ksft_skip $ksft_fail
-+}
-+
-+ksft_exit_status_merge()
-+{
-+	local a=$1; shift
-+	local b=$1; shift
-+
-+	__ksft_status_merge "$a" "$b" \
-+		$ksft_xfail $ksft_pass $ksft_skip $ksft_fail
-+}
-+
- busywait()
- {
- 	local timeout=$1; shift
 diff --git a/tools/testing/selftests/sched_ext/.gitignore b/tools/testing/selftests/sched_ext/.gitignore
 new file mode 100644
 index 000000000..ae5491a11
@@ -21001,10 +20794,10 @@ index 000000000..ae5491a11
 +!config
 diff --git a/tools/testing/selftests/sched_ext/Makefile b/tools/testing/selftests/sched_ext/Makefile
 new file mode 100644
-index 000000000..1fd1b99de
+index 000000000..0754a2c11
 --- /dev/null
 +++ b/tools/testing/selftests/sched_ext/Makefile
-@@ -0,0 +1,217 @@
+@@ -0,0 +1,218 @@
 +# SPDX-License-Identifier: GPL-2.0
 +# Copyright (c) 2022 Meta Platforms, Inc. and affiliates.
 +include ../../../build/Build.include
@@ -21173,6 +20966,7 @@ index 000000000..1fd1b99de
 +	enq_select_cpu_fails		\
 +	ddsp_bogus_dsq_fail		\
 +	ddsp_vtimelocal_fail		\
++	dsp_local_on			\
 +	exit				\
 +	hotplug				\
 +	init_enable_count		\
@@ -21582,6 +21376,141 @@ index 000000000..abafee587
 +	.cleanup = cleanup,
 +};
 +REGISTER_SCX_TEST(&ddsp_vtimelocal_fail)
+diff --git a/tools/testing/selftests/sched_ext/dsp_local_on.bpf.c b/tools/testing/selftests/sched_ext/dsp_local_on.bpf.c
+new file mode 100644
+index 000000000..efb4672de
+--- /dev/null
++++ b/tools/testing/selftests/sched_ext/dsp_local_on.bpf.c
+@@ -0,0 +1,65 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Copyright (c) 2024 Meta Platforms, Inc. and affiliates.
++ * Copyright (c) 2024 David Vernet <dvernet@meta.com>
++ */
++#include <scx/common.bpf.h>
++
++char _license[] SEC("license") = "GPL";
++const volatile s32 nr_cpus;
++
++UEI_DEFINE(uei);
++
++struct {
++	__uint(type, BPF_MAP_TYPE_QUEUE);
++	__uint(max_entries, 8192);
++	__type(value, s32);
++} queue SEC(".maps");
++
++s32 BPF_STRUCT_OPS(dsp_local_on_select_cpu, struct task_struct *p,
++		   s32 prev_cpu, u64 wake_flags)
++{
++	return prev_cpu;
++}
++
++void BPF_STRUCT_OPS(dsp_local_on_enqueue, struct task_struct *p,
++		    u64 enq_flags)
++{
++	s32 pid = p->pid;
++
++	if (bpf_map_push_elem(&queue, &pid, 0))
++		scx_bpf_error("Failed to enqueue %s[%d]", p->comm, p->pid);
++}
++
++void BPF_STRUCT_OPS(dsp_local_on_dispatch, s32 cpu, struct task_struct *prev)
++{
++	s32 pid, target;
++	struct task_struct *p;
++
++	if (bpf_map_pop_elem(&queue, &pid))
++		return;
++
++	p = bpf_task_from_pid(pid);
++	if (!p)
++		return;
++
++	target = bpf_get_prandom_u32() % nr_cpus;
++
++	scx_bpf_dispatch(p, SCX_DSQ_LOCAL_ON | target, SCX_SLICE_DFL, 0);
++	bpf_task_release(p);
++}
++
++void BPF_STRUCT_OPS(dsp_local_on_exit, struct scx_exit_info *ei)
++{
++	UEI_RECORD(uei, ei);
++}
++
++SEC(".struct_ops.link")
++struct sched_ext_ops dsp_local_on_ops = {
++	.select_cpu		= dsp_local_on_select_cpu,
++	.enqueue		= dsp_local_on_enqueue,
++	.dispatch		= dsp_local_on_dispatch,
++	.exit			= dsp_local_on_exit,
++	.name			= "dsp_local_on",
++	.timeout_ms		= 1000U,
++};
+diff --git a/tools/testing/selftests/sched_ext/dsp_local_on.c b/tools/testing/selftests/sched_ext/dsp_local_on.c
+new file mode 100644
+index 000000000..472851b56
+--- /dev/null
++++ b/tools/testing/selftests/sched_ext/dsp_local_on.c
+@@ -0,0 +1,58 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Copyright (c) 2024 Meta Platforms, Inc. and affiliates.
++ * Copyright (c) 2024 David Vernet <dvernet@meta.com>
++ */
++#include <bpf/bpf.h>
++#include <scx/common.h>
++#include <unistd.h>
++#include "dsp_local_on.bpf.skel.h"
++#include "scx_test.h"
++
++static enum scx_test_status setup(void **ctx)
++{
++	struct dsp_local_on *skel;
++
++	skel = dsp_local_on__open();
++	SCX_FAIL_IF(!skel, "Failed to open");
++
++	skel->rodata->nr_cpus = libbpf_num_possible_cpus();
++	SCX_FAIL_IF(dsp_local_on__load(skel), "Failed to load skel");
++	*ctx = skel;
++
++	return SCX_TEST_PASS;
++}
++
++static enum scx_test_status run(void *ctx)
++{
++	struct dsp_local_on *skel = ctx;
++	struct bpf_link *link;
++
++	link = bpf_map__attach_struct_ops(skel->maps.dsp_local_on_ops);
++	SCX_FAIL_IF(!link, "Failed to attach struct_ops");
++
++	/* Just sleeping is fine, plenty of scheduling events happening */
++	sleep(1);
++
++	SCX_EQ(skel->data->uei.kind, EXIT_KIND(SCX_EXIT_ERROR));
++	bpf_link__destroy(link);
++
++	return SCX_TEST_PASS;
++}
++
++static void cleanup(void *ctx)
++{
++	struct dsp_local_on *skel = ctx;
++
++	dsp_local_on__destroy(skel);
++}
++
++struct scx_test dsp_local_on = {
++	.name = "dsp_local_on",
++	.description = "Verify we can directly dispatch tasks to a local DSQs "
++		       "from osp.dispatch()",
++	.setup = setup,
++	.run = run,
++	.cleanup = cleanup,
++};
++REGISTER_SCX_TEST(&dsp_local_on)
 diff --git a/tools/testing/selftests/sched_ext/enq_last_no_enq_fails.bpf.c b/tools/testing/selftests/sched_ext/enq_last_no_enq_fails.bpf.c
 new file mode 100644
 index 000000000..b0b99531d
