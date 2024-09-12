@@ -1,8 +1,9 @@
-From f48d1aea88f39ccadb42a3eea49f4b5f3f265c0f Mon Sep 17 00:00:00 2001
+From 05d712301c8164b9a49174e610c4da4af68d1486 Mon Sep 17 00:00:00 2001
 From: Vasiliy Stelmachenok <ventureo@yandex.ru>
 Date: Sat, 10 Aug 2024 19:26:40 +0300
 Subject: [PATCH 1/2] Add realtime patchset (6.10.2-rt14)
 
+Signed-off-by: Vasiliy Stelmachenok <ventureo@cachyos.org>
 ---
  .../admin-guide/kernel-parameters.txt         |  12 +
  arch/arm/Kconfig                              |   6 +-
@@ -61,7 +62,7 @@ Subject: [PATCH 1/2] Add realtime patchset (6.10.2-rt14)
  include/linux/task_work.h                     |   1 +
  include/linux/thread_info.h                   |  24 +
  include/linux/trace_events.h                  |   8 +-
- include/net/inet_timewait_sock.h              |  11 +-
+ include/net/inet_timewait_sock.h              |   5 -
  include/net/seg6_local.h                      |   1 +
  include/net/sock.h                            |   5 +
  include/net/xdp_sock.h                        |  14 +-
@@ -103,17 +104,15 @@ Subject: [PATCH 1/2] Add realtime patchset (6.10.2-rt14)
  net/bridge/br_netfilter_hooks.c               |  20 +-
  net/core/dev.c                                |  69 +-
  net/core/dev.h                                |  18 +
- net/core/filter.c                             |  92 +-
+ net/core/filter.c                             |  91 +-
  net/core/lwt_bpf.c                            |   9 +-
  net/core/skbuff.c                             |  37 +-
- net/dccp/minisocks.c                          |   3 +-
- net/ipv4/inet_timewait_sock.c                 |  59 +-
+ net/ipv4/inet_timewait_sock.c                 |   7 +-
  net/ipv4/tcp_ipv4.c                           |  15 +-
- net/ipv4/tcp_minisocks.c                      |   3 +-
  net/ipv4/tcp_sigpool.c                        |  17 +-
  net/ipv6/seg6_local.c                         |  22 +-
  net/xdp/xsk.c                                 |  25 +-
- 109 files changed, 3405 insertions(+), 608 deletions(-)
+ 107 files changed, 3354 insertions(+), 594 deletions(-)
  create mode 100644 include/linux/netdevice_xmit.h
 
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
@@ -594,7 +593,7 @@ index b1e6d275cda9..9a8d3970da3c 100644
  }
  
 diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
-index 0525ee2d63c7..c72a3ded6e13 100644
+index 006232b67b46..65fea37b7f72 100644
 --- a/arch/riscv/Kconfig
 +++ b/arch/riscv/Kconfig
 @@ -58,6 +58,7 @@ config RISCV
@@ -2927,20 +2926,10 @@ index 9435185c10ef..4697f3ab3db9 100644
  #endif
  
 diff --git a/include/net/inet_timewait_sock.h b/include/net/inet_timewait_sock.h
-index 2a536eea9424..f88b68269012 100644
+index 5b43d220243d..f88b68269012 100644
 --- a/include/net/inet_timewait_sock.h
 +++ b/include/net/inet_timewait_sock.h
-@@ -93,17 +93,14 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk,
- 					   struct inet_timewait_death_row *dr,
- 					   const int state);
- 
--void inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
--			 struct inet_hashinfo *hashinfo);
-+void inet_twsk_hashdance_schedule(struct inet_timewait_sock *tw,
-+				  struct sock *sk,
-+				  struct inet_hashinfo *hashinfo,
-+				  int timeo);
- 
+@@ -101,11 +101,6 @@ void inet_twsk_hashdance_schedule(struct inet_timewait_sock *tw,
  void __inet_twsk_schedule(struct inet_timewait_sock *tw, int timeo,
  			  bool rearm);
  
@@ -3293,10 +3282,10 @@ index 1273be84392c..ad57944b6c40 100644
  static DEFINE_MUTEX(callchain_mutex);
  static struct callchain_cpus_entries *callchain_cpus_entries;
 diff --git a/kernel/events/core.c b/kernel/events/core.c
-index b2a6aec118f3..eeb585404e11 100644
+index 36191add55c3..3ddfa9d688f0 100644
 --- a/kernel/events/core.c
 +++ b/kernel/events/core.c
-@@ -2283,17 +2283,6 @@ event_sched_out(struct perf_event *event, struct perf_event_context *ctx)
+@@ -2284,17 +2284,6 @@ event_sched_out(struct perf_event *event, struct perf_event_context *ctx)
  		state = PERF_EVENT_STATE_OFF;
  	}
  
@@ -3314,7 +3303,7 @@ index b2a6aec118f3..eeb585404e11 100644
  	perf_event_set_state(event, state);
  
  	if (!is_software_event(event))
-@@ -2462,7 +2451,7 @@ static void __perf_event_disable(struct perf_event *event,
+@@ -2463,7 +2452,7 @@ static void __perf_event_disable(struct perf_event *event,
   * hold the top-level event's child_mutex, so any descendant that
   * goes to exit will block in perf_event_exit_event().
   *
@@ -3323,7 +3312,7 @@ index b2a6aec118f3..eeb585404e11 100644
   * is the current context on this CPU and preemption is disabled,
   * hence we can't get into perf_event_task_sched_out for this context.
   */
-@@ -2502,7 +2491,7 @@ EXPORT_SYMBOL_GPL(perf_event_disable);
+@@ -2503,7 +2492,7 @@ EXPORT_SYMBOL_GPL(perf_event_disable);
  void perf_event_disable_inatomic(struct perf_event *event)
  {
  	event->pending_disable = 1;
@@ -3332,7 +3321,7 @@ index b2a6aec118f3..eeb585404e11 100644
  }
  
  #define MAX_INTERRUPTS (~0ULL)
-@@ -5219,10 +5208,9 @@ static void perf_pending_task_sync(struct perf_event *event)
+@@ -5220,10 +5209,9 @@ static void perf_pending_task_sync(struct perf_event *event)
  	}
  
  	/*
@@ -3346,7 +3335,7 @@ index b2a6aec118f3..eeb585404e11 100644
  	 */
  	rcuwait_wait_event(&event->pending_work_wait, !event->pending_work, TASK_UNINTERRUPTIBLE);
  }
-@@ -5230,6 +5218,7 @@ static void perf_pending_task_sync(struct perf_event *event)
+@@ -5231,6 +5219,7 @@ static void perf_pending_task_sync(struct perf_event *event)
  static void _free_event(struct perf_event *event)
  {
  	irq_work_sync(&event->pending_irq);
@@ -3354,7 +3343,7 @@ index b2a6aec118f3..eeb585404e11 100644
  	perf_pending_task_sync(event);
  
  	unaccount_event(event);
-@@ -6774,7 +6763,7 @@ static void perf_sigtrap(struct perf_event *event)
+@@ -6780,7 +6769,7 @@ static void perf_sigtrap(struct perf_event *event)
  /*
   * Deliver the pending work in-event-context or follow the context.
   */
@@ -3363,7 +3352,7 @@ index b2a6aec118f3..eeb585404e11 100644
  {
  	int cpu = READ_ONCE(event->oncpu);
  
-@@ -6789,11 +6778,6 @@ static void __perf_pending_irq(struct perf_event *event)
+@@ -6795,11 +6784,6 @@ static void __perf_pending_irq(struct perf_event *event)
  	 * Yay, we hit home and are in the context of the event.
  	 */
  	if (cpu == smp_processor_id()) {
@@ -3375,7 +3364,7 @@ index b2a6aec118f3..eeb585404e11 100644
  		if (event->pending_disable) {
  			event->pending_disable = 0;
  			perf_event_disable_local(event);
-@@ -6817,11 +6801,26 @@ static void __perf_pending_irq(struct perf_event *event)
+@@ -6823,11 +6807,26 @@ static void __perf_pending_irq(struct perf_event *event)
  	 *				  irq_work_queue(); // FAILS
  	 *
  	 *  irq_work_run()
@@ -3404,7 +3393,7 @@ index b2a6aec118f3..eeb585404e11 100644
  }
  
  static void perf_pending_irq(struct irq_work *entry)
-@@ -6844,8 +6843,6 @@ static void perf_pending_irq(struct irq_work *entry)
+@@ -6850,8 +6849,6 @@ static void perf_pending_irq(struct irq_work *entry)
  		perf_event_wakeup(event);
  	}
  
@@ -3413,7 +3402,7 @@ index b2a6aec118f3..eeb585404e11 100644
  	if (rctx >= 0)
  		perf_swevent_put_recursion_context(rctx);
  }
-@@ -6860,7 +6857,7 @@ static void perf_pending_task(struct callback_head *head)
+@@ -6866,7 +6863,7 @@ static void perf_pending_task(struct callback_head *head)
  	 * critical section as the ->pending_work reset. See comment in
  	 * perf_pending_task_sync().
  	 */
@@ -3422,7 +3411,7 @@ index b2a6aec118f3..eeb585404e11 100644
  	/*
  	 * If we 'fail' here, that's OK, it means recursion is already disabled
  	 * and we won't recurse 'further'.
-@@ -6873,10 +6870,10 @@ static void perf_pending_task(struct callback_head *head)
+@@ -6879,10 +6876,10 @@ static void perf_pending_task(struct callback_head *head)
  		local_dec(&event->ctx->nr_pending);
  		rcuwait_wake_up(&event->pending_work_wait);
  	}
@@ -3434,7 +3423,7 @@ index b2a6aec118f3..eeb585404e11 100644
  }
  
  #ifdef CONFIG_GUEST_PERF_EVENTS
-@@ -9732,16 +9729,26 @@ static int __perf_event_overflow(struct perf_event *event,
+@@ -9739,16 +9736,26 @@ static int __perf_event_overflow(struct perf_event *event,
  		 */
  		bool valid_sample = sample_is_allowed(event, regs);
  		unsigned int pending_id = 1;
@@ -3464,7 +3453,7 @@ index b2a6aec118f3..eeb585404e11 100644
  			 *
  			 *  1. Where !exclude_kernel, events can overflow again
  			 *     in the kernel without returning to user space.
-@@ -9751,13 +9758,8 @@ static int __perf_event_overflow(struct perf_event *event,
+@@ -9758,13 +9765,8 @@ static int __perf_event_overflow(struct perf_event *event,
  			 *     To approximate progress (with false negatives),
  			 *     check 32-bit hash of the current IP.
  			 */
@@ -3479,7 +3468,7 @@ index b2a6aec118f3..eeb585404e11 100644
  	}
  
  	READ_ONCE(event->overflow_handler)(event, data, regs);
-@@ -9785,11 +9787,7 @@ struct swevent_htable {
+@@ -9792,11 +9794,7 @@ struct swevent_htable {
  	struct swevent_hlist		*swevent_hlist;
  	struct mutex			hlist_mutex;
  	int				hlist_refcount;
@@ -3491,7 +3480,7 @@ index b2a6aec118f3..eeb585404e11 100644
  static DEFINE_PER_CPU(struct swevent_htable, swevent_htable);
  
  /*
-@@ -9987,17 +9985,13 @@ DEFINE_PER_CPU(struct pt_regs, __perf_regs[4]);
+@@ -9994,17 +9992,13 @@ DEFINE_PER_CPU(struct pt_regs, __perf_regs[4]);
  
  int perf_swevent_get_recursion_context(void)
  {
@@ -3511,7 +3500,7 @@ index b2a6aec118f3..eeb585404e11 100644
  }
  
  void ___perf_sw_event(u32 event_id, u64 nr, struct pt_regs *regs, u64 addr)
-@@ -11987,6 +11981,7 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
+@@ -11994,6 +11988,7 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
  
  	init_waitqueue_head(&event->waitq);
  	init_irq_work(&event->pending_irq, perf_pending_irq);
@@ -3519,7 +3508,7 @@ index b2a6aec118f3..eeb585404e11 100644
  	init_task_work(&event->pending_task, perf_pending_task);
  	rcuwait_init(&event->pending_work_wait);
  
-@@ -13664,6 +13659,7 @@ int perf_event_init_task(struct task_struct *child, u64 clone_flags)
+@@ -13671,6 +13666,7 @@ int perf_event_init_task(struct task_struct *child, u64 clone_flags)
  {
  	int ret;
  
@@ -3528,10 +3517,10 @@ index b2a6aec118f3..eeb585404e11 100644
  	mutex_init(&child->perf_event_mutex);
  	INIT_LIST_HEAD(&child->perf_event_list);
 diff --git a/kernel/events/internal.h b/kernel/events/internal.h
-index 386d21c7edfa..451514442a1b 100644
+index f376b057320c..e072d995d670 100644
 --- a/kernel/events/internal.h
 +++ b/kernel/events/internal.h
-@@ -208,7 +208,7 @@ arch_perf_out_copy_user(void *dst, const void *src, unsigned long n)
+@@ -209,7 +209,7 @@ arch_perf_out_copy_user(void *dst, const void *src, unsigned long n)
  
  DEFINE_OUTPUT_COPY(__output_copy_user, arch_perf_out_copy_user)
  
@@ -3540,7 +3529,7 @@ index 386d21c7edfa..451514442a1b 100644
  {
  	unsigned char rctx = interrupt_context_level();
  
-@@ -221,7 +221,7 @@ static inline int get_recursion_context(int *recursion)
+@@ -222,7 +222,7 @@ static inline int get_recursion_context(int *recursion)
  	return rctx;
  }
  
@@ -4034,10 +4023,10 @@ index 8475a0794f8c..438c6086d540 100644
 +EXPORT_SYMBOL(lockdep_assert_in_softirq_func);
 +#endif
 diff --git a/kernel/panic.c b/kernel/panic.c
-index 8bff183d6180..7e207092576b 100644
+index 30342568e935..e08e223b3194 100644
 --- a/kernel/panic.c
 +++ b/kernel/panic.c
-@@ -367,6 +367,8 @@ void panic(const char *fmt, ...)
+@@ -373,6 +373,8 @@ void panic(const char *fmt, ...)
  
  	panic_other_cpus_shutdown(_crash_kexec_post_notifiers);
  
@@ -4046,7 +4035,7 @@ index 8bff183d6180..7e207092576b 100644
  	/*
  	 * Run any panic handlers, including those that might need to
  	 * add information to the kmsg dump output.
-@@ -456,6 +458,7 @@ void panic(const char *fmt, ...)
+@@ -462,6 +464,7 @@ void panic(const char *fmt, ...)
  	 * Explicitly flush the kernel log buffer one last time.
  	 */
  	console_flush_on_panic(CONSOLE_FLUSH_PENDING);
@@ -4054,7 +4043,7 @@ index 8bff183d6180..7e207092576b 100644
  
  	local_irq_enable();
  	for (i = 0; ; i += PANIC_TIMER_STEP) {
-@@ -634,6 +637,7 @@ bool oops_may_print(void)
+@@ -640,6 +643,7 @@ bool oops_may_print(void)
   */
  void oops_enter(void)
  {
@@ -4062,7 +4051,7 @@ index 8bff183d6180..7e207092576b 100644
  	tracing_off();
  	/* can't trust the integrity of the kernel anymore: */
  	debug_locks_off();
-@@ -656,6 +660,7 @@ void oops_exit(void)
+@@ -662,6 +666,7 @@ void oops_exit(void)
  {
  	do_oops_enter_exit();
  	print_oops_end_marker();
@@ -4070,7 +4059,7 @@ index 8bff183d6180..7e207092576b 100644
  	kmsg_dump(KMSG_DUMP_OOPS);
  }
  
-@@ -667,6 +672,8 @@ struct warn_args {
+@@ -673,6 +678,8 @@ struct warn_args {
  void __warn(const char *file, int line, void *caller, unsigned taint,
  	    struct pt_regs *regs, struct warn_args *args)
  {
@@ -4079,7 +4068,7 @@ index 8bff183d6180..7e207092576b 100644
  	disable_trace_on_warning();
  
  	if (file)
-@@ -702,6 +709,8 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
+@@ -708,6 +715,8 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
  
  	/* Just a warning, don't kill lockdep. */
  	add_taint(taint, LOCKDEP_STILL_OK);
@@ -5289,7 +5278,7 @@ index c8093bcc01fe..0813ce88a49c 100644
 +}
 +device_initcall(printk_init_ops);
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index dddb15f48d59..5e9778f69206 100644
+index c5d844f727f6..f670990854d1 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
 @@ -195,6 +195,17 @@ static int __init control_devkmsg(char *str)
@@ -7217,7 +7206,7 @@ index 48288dd4a102..d36c96247218 100644
  		}
  	}
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index 578a49ff5c32..55f934127d28 100644
+index c566ad068b40..de47dc957935 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
 @@ -2519,6 +2519,8 @@ unsigned int tracing_gen_ctx_irq_test(unsigned int irqs_status)
@@ -7322,7 +7311,7 @@ index 36ae54f57bf5..a6d7f790cdda 100644
  	} while (bpf_test_timer_continue(&t, 1, repeat, &ret, time));
  	bpf_reset_run_ctx(old_ctx);
 diff --git a/net/bridge/br_netfilter_hooks.c b/net/bridge/br_netfilter_hooks.c
-index bf30c50b5689..3c9f6538990e 100644
+index a9e1b56f854d..bff1d7e837de 100644
 --- a/net/bridge/br_netfilter_hooks.c
 +++ b/net/bridge/br_netfilter_hooks.c
 @@ -137,6 +137,7 @@ static inline bool is_pppoe_ipv6(const struct sk_buff *skb,
@@ -7344,7 +7333,7 @@ index bf30c50b5689..3c9f6538990e 100644
  
  static void nf_bridge_info_free(struct sk_buff *skb)
  {
-@@ -850,6 +853,7 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
+@@ -854,6 +857,7 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
  {
  	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
  	unsigned int mtu, mtu_reserved;
@@ -7352,7 +7341,7 @@ index bf30c50b5689..3c9f6538990e 100644
  
  	mtu_reserved = nf_bridge_mtu_reduction(skb);
  	mtu = skb->dev->mtu;
-@@ -882,6 +886,7 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
+@@ -886,6 +890,7 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
  
  		IPCB(skb)->frag_max_size = nf_bridge->frag_max_size;
  
@@ -7360,7 +7349,7 @@ index bf30c50b5689..3c9f6538990e 100644
  		data = this_cpu_ptr(&brnf_frag_data_storage);
  
  		if (skb_vlan_tag_present(skb)) {
-@@ -897,7 +902,9 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
+@@ -901,7 +906,9 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
  		skb_copy_from_linear_data_offset(skb, -data->size, data->mac,
  						 data->size);
  
@@ -7371,7 +7360,7 @@ index bf30c50b5689..3c9f6538990e 100644
  	}
  	if (IS_ENABLED(CONFIG_NF_DEFRAG_IPV6) &&
  	    skb->protocol == htons(ETH_P_IPV6)) {
-@@ -909,6 +916,7 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
+@@ -913,6 +920,7 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
  
  		IP6CB(skb)->frag_max_size = nf_bridge->frag_max_size;
  
@@ -7379,7 +7368,7 @@ index bf30c50b5689..3c9f6538990e 100644
  		data = this_cpu_ptr(&brnf_frag_data_storage);
  		data->encap_size = nf_bridge_encap_header_len(skb);
  		data->size = ETH_HLEN + data->encap_size;
-@@ -916,8 +924,12 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
+@@ -920,8 +928,12 @@ static int br_nf_dev_queue_xmit(struct net *net, struct sock *sk, struct sk_buff
  		skb_copy_from_linear_data_offset(skb, -data->size, data->mac,
  						 data->size);
  
@@ -7759,7 +7748,7 @@ index b7b518bc2be5..4984dd9b334b 100644
  
  #endif
 diff --git a/net/core/filter.c b/net/core/filter.c
-index ab0455c64e49..4d67fa357853 100644
+index 55b1d9de2334..4d67fa357853 100644
 --- a/net/core/filter.c
 +++ b/net/core/filter.c
 @@ -1658,9 +1658,12 @@ struct bpf_scratchpad {
@@ -8011,14 +8000,6 @@ index ab0455c64e49..4d67fa357853 100644
  	if (unlikely(srh == NULL))
  		return -EINVAL;
  
-@@ -11047,7 +11054,6 @@ const struct bpf_verifier_ops lwt_seg6local_verifier_ops = {
- };
- 
- const struct bpf_prog_ops lwt_seg6local_prog_ops = {
--	.test_run		= bpf_prog_test_run_skb,
- };
- 
- const struct bpf_verifier_ops cg_sock_verifier_ops = {
 diff --git a/net/core/lwt_bpf.c b/net/core/lwt_bpf.c
 index 4a0797f0a154..afb05f58b64c 100644
 --- a/net/core/lwt_bpf.c
@@ -8188,28 +8169,11 @@ index 466999a7515e..5000394a4f51 100644
  }
  
  void __napi_kfree_skb(struct sk_buff *skb, enum skb_drop_reason reason)
-diff --git a/net/dccp/minisocks.c b/net/dccp/minisocks.c
-index 251a57cf5822..deb52d7d31b4 100644
---- a/net/dccp/minisocks.c
-+++ b/net/dccp/minisocks.c
-@@ -59,11 +59,10 @@ void dccp_time_wait(struct sock *sk, int state, int timeo)
- 		 * we complete the initialization.
- 		 */
- 		local_bh_disable();
--		inet_twsk_schedule(tw, timeo);
- 		/* Linkage updates.
- 		 * Note that access to tw after this point is illegal.
- 		 */
--		inet_twsk_hashdance(tw, sk, &dccp_hashinfo);
-+		inet_twsk_hashdance_schedule(tw, sk, &dccp_hashinfo, timeo);
- 		local_bh_enable();
- 	} else {
- 		/* Sorry, if we're out of memory, just CLOSE this
 diff --git a/net/ipv4/inet_timewait_sock.c b/net/ipv4/inet_timewait_sock.c
-index e28075f0006e..a70a3a16eea0 100644
+index 628d33a41ce5..a70a3a16eea0 100644
 --- a/net/ipv4/inet_timewait_sock.c
 +++ b/net/ipv4/inet_timewait_sock.c
-@@ -92,13 +92,22 @@ static void inet_twsk_add_node_rcu(struct inet_timewait_sock *tw,
+@@ -92,6 +92,11 @@ static void inet_twsk_add_node_rcu(struct inet_timewait_sock *tw,
  	hlist_nulls_add_head_rcu(&tw->tw_node, list);
  }
  
@@ -8221,58 +8185,7 @@ index e28075f0006e..a70a3a16eea0 100644
  /*
   * Enter the time wait state. This is called with locally disabled BH.
   * Essentially we whip up a timewait bucket, copy the relevant info into it
-  * from the SK, and mess with hash chains and list linkage.
-+ *
-+ * The caller must not access @tw anymore after this function returns.
-  */
--void inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
--			   struct inet_hashinfo *hashinfo)
-+void inet_twsk_hashdance_schedule(struct inet_timewait_sock *tw,
-+				  struct sock *sk,
-+				  struct inet_hashinfo *hashinfo,
-+				  int timeo)
- {
- 	const struct inet_sock *inet = inet_sk(sk);
- 	const struct inet_connection_sock *icsk = inet_csk(sk);
-@@ -129,26 +138,33 @@ void inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
- 
- 	spin_lock(lock);
- 
-+	/* Step 2: Hash TW into tcp ehash chain */
- 	inet_twsk_add_node_rcu(tw, &ehead->chain);
- 
- 	/* Step 3: Remove SK from hash chain */
- 	if (__sk_nulls_del_node_init_rcu(sk))
- 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
- 
--	spin_unlock(lock);
- 
-+	/* Ensure above writes are committed into memory before updating the
-+	 * refcount.
-+	 * Provides ordering vs later refcount_inc().
-+	 */
-+	smp_wmb();
- 	/* tw_refcnt is set to 3 because we have :
- 	 * - one reference for bhash chain.
- 	 * - one reference for ehash chain.
- 	 * - one reference for timer.
--	 * We can use atomic_set() because prior spin_lock()/spin_unlock()
--	 * committed into memory all tw fields.
- 	 * Also note that after this point, we lost our implicit reference
- 	 * so we are not allowed to use tw anymore.
- 	 */
- 	refcount_set(&tw->tw_refcnt, 3);
-+
-+	inet_twsk_schedule(tw, timeo);
-+
-+	spin_unlock(lock);
- }
--EXPORT_SYMBOL_GPL(inet_twsk_hashdance);
-+EXPORT_SYMBOL_GPL(inet_twsk_hashdance_schedule);
- 
- static void tw_timer_handler(struct timer_list *t)
- {
-@@ -192,7 +208,7 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk,
+@@ -203,7 +208,7 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk,
  		tw->tw_prot	    = sk->sk_prot_creator;
  		atomic64_set(&tw->tw_cookie, atomic64_read(&sk->sk_cookie));
  		twsk_net_set(tw, sock_net(sk));
@@ -8281,44 +8194,8 @@ index e28075f0006e..a70a3a16eea0 100644
  		/*
  		 * Because we use RCU lookups, we should not set tw_refcnt
  		 * to a non null value before everything is setup for this
-@@ -217,7 +233,34 @@ EXPORT_SYMBOL_GPL(inet_twsk_alloc);
-  */
- void inet_twsk_deschedule_put(struct inet_timewait_sock *tw)
- {
--	if (del_timer_sync(&tw->tw_timer))
-+	struct inet_hashinfo *hashinfo = tw->tw_dr->hashinfo;
-+	spinlock_t *lock = inet_ehash_lockp(hashinfo, tw->tw_hash);
-+
-+	/* inet_twsk_purge() walks over all sockets, including tw ones,
-+	 * and removes them via inet_twsk_deschedule_put() after a
-+	 * refcount_inc_not_zero().
-+	 *
-+	 * inet_twsk_hashdance_schedule() must (re)init the refcount before
-+	 * arming the timer, i.e. inet_twsk_purge can obtain a reference to
-+	 * a twsk that did not yet schedule the timer.
-+	 *
-+	 * The ehash lock synchronizes these two:
-+	 * After acquiring the lock, the timer is always scheduled (else
-+	 * timer_shutdown returns false), because hashdance_schedule releases
-+	 * the ehash lock only after completing the timer initialization.
-+	 *
-+	 * Without grabbing the ehash lock, we get:
-+	 * 1) cpu x sets twsk refcount to 3
-+	 * 2) cpu y bumps refcount to 4
-+	 * 3) cpu y calls inet_twsk_deschedule_put() and shuts timer down
-+	 * 4) cpu x tries to start timer, but mod_timer is a noop post-shutdown
-+	 * -> timer refcount is never decremented.
-+	 */
-+	spin_lock(lock);
-+	/*  Makes sure hashdance_schedule() has completed */
-+	spin_unlock(lock);
-+
-+	if (timer_shutdown_sync(&tw->tw_timer))
- 		inet_twsk_kill(tw);
- 	inet_twsk_put(tw);
- }
 diff --git a/net/ipv4/tcp_ipv4.c b/net/ipv4/tcp_ipv4.c
-index a541659b6562..212a97f882ec 100644
+index da0f50255399..92a96ca4dd51 100644
 --- a/net/ipv4/tcp_ipv4.c
 +++ b/net/ipv4/tcp_ipv4.c
 @@ -93,7 +93,9 @@ static int tcp_v4_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
@@ -8330,9 +8207,9 @@ index a541659b6562..212a97f882ec 100644
 +	.bh_lock = INIT_LOCAL_LOCK(bh_lock),
 +};
  
- static u32 tcp_v4_init_seq(const struct sk_buff *skb)
- {
-@@ -880,7 +882,9 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb,
+ static DEFINE_MUTEX(tcp_exit_batch_mutex);
+ 
+@@ -884,7 +886,9 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb,
  	arg.tos = ip_hdr(skb)->tos;
  	arg.uid = sock_net_uid(net, sk && sk_fullsock(sk) ? sk : NULL);
  	local_bh_disable();
@@ -8343,7 +8220,7 @@ index a541659b6562..212a97f882ec 100644
  	sock_net_set(ctl_sk, net);
  	if (sk) {
  		ctl_sk->sk_mark = (sk->sk_state == TCP_TIME_WAIT) ?
-@@ -905,6 +909,7 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb,
+@@ -909,6 +913,7 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb,
  	sock_net_set(ctl_sk, &init_net);
  	__TCP_INC_STATS(net, TCP_MIB_OUTSEGS);
  	__TCP_INC_STATS(net, TCP_MIB_OUTRSTS);
@@ -8351,7 +8228,7 @@ index a541659b6562..212a97f882ec 100644
  	local_bh_enable();
  
  #ifdef CONFIG_TCP_MD5SIG
-@@ -1000,7 +1005,8 @@ static void tcp_v4_send_ack(const struct sock *sk,
+@@ -1004,7 +1009,8 @@ static void tcp_v4_send_ack(const struct sock *sk,
  	arg.tos = tos;
  	arg.uid = sock_net_uid(net, sk_fullsock(sk) ? sk : NULL);
  	local_bh_disable();
@@ -8361,7 +8238,7 @@ index a541659b6562..212a97f882ec 100644
  	sock_net_set(ctl_sk, net);
  	ctl_sk->sk_mark = (sk->sk_state == TCP_TIME_WAIT) ?
  			   inet_twsk(sk)->tw_mark : READ_ONCE(sk->sk_mark);
-@@ -1015,6 +1021,7 @@ static void tcp_v4_send_ack(const struct sock *sk,
+@@ -1019,6 +1025,7 @@ static void tcp_v4_send_ack(const struct sock *sk,
  
  	sock_net_set(ctl_sk, &init_net);
  	__TCP_INC_STATS(net, TCP_MIB_OUTSEGS);
@@ -8369,7 +8246,7 @@ index a541659b6562..212a97f882ec 100644
  	local_bh_enable();
  }
  
-@@ -3615,7 +3622,7 @@ void __init tcp_v4_init(void)
+@@ -3631,7 +3638,7 @@ void __init tcp_v4_init(void)
  		 */
  		inet_sk(sk)->pmtudisc = IP_PMTUDISC_DO;
  
@@ -8378,23 +8255,6 @@ index a541659b6562..212a97f882ec 100644
  	}
  	if (register_pernet_subsys(&tcp_sk_ops))
  		panic("Failed to create the TCP control socket.\n");
-diff --git a/net/ipv4/tcp_minisocks.c b/net/ipv4/tcp_minisocks.c
-index 6eb1d369c584..b69cff4f9260 100644
---- a/net/ipv4/tcp_minisocks.c
-+++ b/net/ipv4/tcp_minisocks.c
-@@ -344,11 +344,10 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
- 		 * we complete the initialization.
- 		 */
- 		local_bh_disable();
--		inet_twsk_schedule(tw, timeo);
- 		/* Linkage updates.
- 		 * Note that access to tw after this point is illegal.
- 		 */
--		inet_twsk_hashdance(tw, sk, net->ipv4.tcp_death_row.hashinfo);
-+		inet_twsk_hashdance_schedule(tw, sk, net->ipv4.tcp_death_row.hashinfo, timeo);
- 		local_bh_enable();
- 	} else {
- 		/* Sorry, if we're out of memory, just CLOSE this
 diff --git a/net/ipv4/tcp_sigpool.c b/net/ipv4/tcp_sigpool.c
 index 8512cb09ebc0..d8a4f192873a 100644
 --- a/net/ipv4/tcp_sigpool.c
@@ -8600,7 +8460,7 @@ index 7d1c0986f9bb..7e16336044b2 100644
 2.46.0
 
 
-From 2868ff4425eed05bc975b35861b32ebcfeaf2433 Mon Sep 17 00:00:00 2001
+From c55c680f63273ecb601be479abbfe639a1186b3d Mon Sep 17 00:00:00 2001
 From: Vasiliy Stelmachenok <ventureo@yandex.ru>
 Date: Tue, 31 Oct 2023 11:04:44 +0300
 Subject: [PATCH 2/2] Don't make realtime patchset dependent on CONFIG_EXPERT
@@ -8608,6 +8468,8 @@ Subject: [PATCH 2/2] Don't make realtime patchset dependent on CONFIG_EXPERT
 It's just a headache to have a bunch of garbage in your config for the
 sake of enabling one option. It makes it much easier to keep our config
 and maintain it relative to other cachy kernels.
+
+Signed-off-by: Vasiliy Stelmachenok <ventureo@cachyos.org>
 ---
  kernel/Kconfig.preempt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
