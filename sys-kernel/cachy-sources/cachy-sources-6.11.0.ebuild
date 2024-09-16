@@ -23,7 +23,7 @@ SRC_URI="
 src_unpack() {
 	UNIPATCH_LIST_DEFAULT=""
 	CACHY_PATCHES="${FILESDIR}/cachy-patches/6.11/all/0001-cachyos-base-all.patch
-			${FILESDIR}/cachy-patches/6.11/sched/0001-bore-cachy.patch"
+			${FILESDIR}/cachy-patches/6.11/sched-dev/0001-bore-cachy.patch"
 
 	kernel-2-src-prepare-overlay_src_unpack
 
