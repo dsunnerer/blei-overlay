@@ -50,7 +50,6 @@ BDEPEND="
 "
 
 PATCHES=(
-	"${FILESDIR}"/${P}-disable-seccomp-tests.patch
 )
 
 src_configure() {
