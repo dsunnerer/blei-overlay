@@ -1,7 +1,7 @@
-From 355418e0425514c300ff087ddf9e44c1621b9634 Mon Sep 17 00:00:00 2001
+From 19b05dde417fff2b00342570c8435d8bb885be07 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Mon, 30 Sep 2024 16:51:21 +0200
-Subject: [PATCH 01/10] address-masking
+Date: Fri, 4 Oct 2024 17:06:31 +0200
+Subject: [PATCH 01/11] address-masking
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -13,7 +13,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  5 files changed, 39 insertions(+), 1 deletion(-)
 
 diff --git a/arch/x86/include/asm/uaccess_64.h b/arch/x86/include/asm/uaccess_64.h
-index 04789f45ab2b2..afce8ee5d7b79 100644
+index 04789f45ab2b..afce8ee5d7b7 100644
 --- a/arch/x86/include/asm/uaccess_64.h
 +++ b/arch/x86/include/asm/uaccess_64.h
 @@ -53,6 +53,17 @@ static inline unsigned long __untagged_addr_remote(struct mm_struct *mm,
@@ -35,7 +35,7 @@ index 04789f45ab2b2..afce8ee5d7b79 100644
   * User pointers can have tag bits on x86-64.  This scheme tolerates
   * arbitrary values in those bits rather then masking them off.
 diff --git a/fs/select.c b/fs/select.c
-index 9515c3fa1a03e..bc185d111436c 100644
+index 9515c3fa1a03..bc185d111436 100644
 --- a/fs/select.c
 +++ b/fs/select.c
 @@ -780,7 +780,9 @@ static inline int get_sigset_argpack(struct sigset_argpack *to,
@@ -50,7 +50,7 @@ index 9515c3fa1a03e..bc185d111436c 100644
  		unsafe_get_user(to->p, &from->p, Efault);
  		unsafe_get_user(to->size, &from->size, Efault);
 diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
-index d8e4105a2f21b..39c7cf82b0c22 100644
+index d8e4105a2f21..39c7cf82b0c2 100644
 --- a/include/linux/uaccess.h
 +++ b/include/linux/uaccess.h
 @@ -33,6 +33,13 @@
@@ -68,7 +68,7 @@ index d8e4105a2f21b..39c7cf82b0c22 100644
   * Architectures should provide two primitives (raw_copy_{to,from}_user())
   * and get rid of their private instances of copy_{to,from}_user() and
 diff --git a/lib/strncpy_from_user.c b/lib/strncpy_from_user.c
-index 6432b8c3e431e..989a12a678721 100644
+index 6432b8c3e431..989a12a67872 100644
 --- a/lib/strncpy_from_user.c
 +++ b/lib/strncpy_from_user.c
 @@ -120,6 +120,15 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
@@ -88,7 +88,7 @@ index 6432b8c3e431e..989a12a678721 100644
  	src_addr = (unsigned long)untagged_addr(src);
  	if (likely(src_addr < max_addr)) {
 diff --git a/lib/strnlen_user.c b/lib/strnlen_user.c
-index feeb935a22991..6e489f9e90f15 100644
+index feeb935a2299..6e489f9e90f1 100644
 --- a/lib/strnlen_user.c
 +++ b/lib/strnlen_user.c
 @@ -96,6 +96,15 @@ long strnlen_user(const char __user *str, long count)
@@ -110,10 +110,10 @@ index feeb935a22991..6e489f9e90f15 100644
 -- 
 2.47.0.rc0
 
-From 02665aa9910f2066947a094a69b3cebf0f93bbdc Mon Sep 17 00:00:00 2001
+From 0486aba061d4321dcd6554e52f5af1415f684705 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Mon, 30 Sep 2024 16:52:12 +0200
-Subject: [PATCH 02/10] bbr3
+Date: Fri, 4 Oct 2024 17:06:44 +0200
+Subject: [PATCH 02/11] bbr3
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -136,7 +136,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  16 files changed, 1940 insertions(+), 553 deletions(-)
 
 diff --git a/include/linux/tcp.h b/include/linux/tcp.h
-index 6a5e08b937b31..27aab715490ea 100644
+index 6a5e08b937b3..27aab715490e 100644
 --- a/include/linux/tcp.h
 +++ b/include/linux/tcp.h
 @@ -369,7 +369,9 @@ struct tcp_sock {
@@ -151,7 +151,7 @@ index 6a5e08b937b31..27aab715490ea 100644
  		fastopen_connect:1, /* FASTOPEN_CONNECT sockopt */
  		fastopen_no_cookie:1, /* Allow send/recv SYN+data without a cookie */
 diff --git a/include/net/inet_connection_sock.h b/include/net/inet_connection_sock.h
-index c0deaafebfdc0..d53f042d936e8 100644
+index c0deaafebfdc..d53f042d936e 100644
 --- a/include/net/inet_connection_sock.h
 +++ b/include/net/inet_connection_sock.h
 @@ -137,8 +137,8 @@ struct inet_connection_sock {
@@ -166,7 +166,7 @@ index c0deaafebfdc0..d53f042d936e8 100644
  
  #define ICSK_TIME_RETRANS	1	/* Retransmit timer */
 diff --git a/include/net/tcp.h b/include/net/tcp.h
-index 2aac11e7e1cc5..482dcea8f5074 100644
+index 196c148fce8a..f37256b8abfd 100644
 --- a/include/net/tcp.h
 +++ b/include/net/tcp.h
 @@ -375,6 +375,8 @@ static inline void tcp_dec_quickack_mode(struct sock *sk)
@@ -338,7 +338,7 @@ index 2aac11e7e1cc5..482dcea8f5074 100644
  static inline void tcp_plb_init(const struct sock *sk,
  				struct tcp_plb_state *plb)
 diff --git a/include/uapi/linux/inet_diag.h b/include/uapi/linux/inet_diag.h
-index 50655de04c9b6..82f8bd8f0d161 100644
+index 50655de04c9b..82f8bd8f0d16 100644
 --- a/include/uapi/linux/inet_diag.h
 +++ b/include/uapi/linux/inet_diag.h
 @@ -229,6 +229,29 @@ struct tcp_bbr_info {
@@ -372,7 +372,7 @@ index 50655de04c9b6..82f8bd8f0d161 100644
  
  union tcp_cc_info {
 diff --git a/include/uapi/linux/rtnetlink.h b/include/uapi/linux/rtnetlink.h
-index 3b687d20c9ed3..a7c30c243b546 100644
+index 3b687d20c9ed..a7c30c243b54 100644
 --- a/include/uapi/linux/rtnetlink.h
 +++ b/include/uapi/linux/rtnetlink.h
 @@ -507,12 +507,14 @@ enum {
@@ -392,7 +392,7 @@ index 3b687d20c9ed3..a7c30c243b546 100644
  struct rta_session {
  	__u8	proto;
 diff --git a/include/uapi/linux/tcp.h b/include/uapi/linux/tcp.h
-index dbf896f3146c5..4702cd2f1ffcd 100644
+index dbf896f3146c..4702cd2f1ffc 100644
 --- a/include/uapi/linux/tcp.h
 +++ b/include/uapi/linux/tcp.h
 @@ -178,6 +178,7 @@ enum tcp_fastopen_client_fail {
@@ -404,7 +404,7 @@ index dbf896f3146c5..4702cd2f1ffcd 100644
  /*
   * Sender's congestion state indicating normal or abnormal situations
 diff --git a/net/ipv4/Kconfig b/net/ipv4/Kconfig
-index 8e94ed7c56a0e..50dc9970cad28 100644
+index 8e94ed7c56a0..50dc9970cad2 100644
 --- a/net/ipv4/Kconfig
 +++ b/net/ipv4/Kconfig
 @@ -668,15 +668,18 @@ config TCP_CONG_BBR
@@ -436,7 +436,7 @@ index 8e94ed7c56a0e..50dc9970cad28 100644
  choice
  	prompt "Default TCP congestion control"
 diff --git a/net/ipv4/bpf_tcp_ca.c b/net/ipv4/bpf_tcp_ca.c
-index 3f88d0961e5b2..4273cac333f66 100644
+index 3f88d0961e5b..4273cac333f6 100644
 --- a/net/ipv4/bpf_tcp_ca.c
 +++ b/net/ipv4/bpf_tcp_ca.c
 @@ -305,11 +305,15 @@ static void bpf_tcp_ca_pkts_acked(struct sock *sk, const struct ack_sample *samp
@@ -467,7 +467,7 @@ index 3f88d0961e5b2..4273cac333f66 100644
  	.undo_cwnd = bpf_tcp_ca_undo_cwnd,
  	.sndbuf_expand = bpf_tcp_ca_sndbuf_expand,
 diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
-index 831a18dc7aa6d..d9faa8fef55e9 100644
+index 831a18dc7aa6..d9faa8fef55e 100644
 --- a/net/ipv4/tcp.c
 +++ b/net/ipv4/tcp.c
 @@ -3123,6 +3123,7 @@ int tcp_disconnect(struct sock *sk, int flags)
@@ -488,7 +488,7 @@ index 831a18dc7aa6d..d9faa8fef55e9 100644
  		info->tcpi_options |= TCPI_OPT_SYN_DATA;
  	if (tp->tcp_usec_ts)
 diff --git a/net/ipv4/tcp_bbr.c b/net/ipv4/tcp_bbr.c
-index 760941e55153e..a180fa648d5e6 100644
+index 760941e55153..a180fa648d5e 100644
 --- a/net/ipv4/tcp_bbr.c
 +++ b/net/ipv4/tcp_bbr.c
 @@ -1,18 +1,19 @@
@@ -3132,7 +3132,7 @@ index 760941e55153e..a180fa648d5e6 100644
  MODULE_DESCRIPTION("TCP BBR (Bottleneck Bandwidth and RTT)");
 +MODULE_VERSION(__stringify(BBR_VERSION));
 diff --git a/net/ipv4/tcp_cong.c b/net/ipv4/tcp_cong.c
-index 0306d257fa646..28f581c0dab76 100644
+index 0306d257fa64..28f581c0dab7 100644
 --- a/net/ipv4/tcp_cong.c
 +++ b/net/ipv4/tcp_cong.c
 @@ -237,6 +237,7 @@ void tcp_init_congestion_control(struct sock *sk)
@@ -3144,7 +3144,7 @@ index 0306d257fa646..28f581c0dab76 100644
  		icsk->icsk_ca_ops->init(sk);
  	if (tcp_ca_needs_ecn(sk))
 diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
-index e37488d3453f0..62eef7d067c21 100644
+index e37488d3453f..62eef7d067c2 100644
 --- a/net/ipv4/tcp_input.c
 +++ b/net/ipv4/tcp_input.c
 @@ -370,7 +370,7 @@ static void __tcp_ecn_check_ce(struct sock *sk, const struct sk_buff *skb)
@@ -3278,7 +3278,7 @@ index e37488d3453f0..62eef7d067c21 100644
  	    tcp_in_quickack_mode(sk) ||
  	    /* Protocol state mandates a one-time immediate ACK */
 diff --git a/net/ipv4/tcp_minisocks.c b/net/ipv4/tcp_minisocks.c
-index a19a9dbd3409f..e0ef8406a3264 100644
+index a19a9dbd3409..e0ef8406a326 100644
 --- a/net/ipv4/tcp_minisocks.c
 +++ b/net/ipv4/tcp_minisocks.c
 @@ -459,6 +459,8 @@ void tcp_ca_openreq_child(struct sock *sk, const struct dst_entry *dst)
@@ -3291,7 +3291,7 @@ index a19a9dbd3409f..e0ef8406a3264 100644
  		const struct tcp_congestion_ops *ca;
  
 diff --git a/net/ipv4/tcp_output.c b/net/ipv4/tcp_output.c
-index 16c48df8df4cc..6c3a1895238eb 100644
+index 16c48df8df4c..6c3a1895238e 100644
 --- a/net/ipv4/tcp_output.c
 +++ b/net/ipv4/tcp_output.c
 @@ -336,10 +336,9 @@ static void tcp_ecn_send_syn(struct sock *sk, struct sk_buff *skb)
@@ -3402,7 +3402,7 @@ index 16c48df8df4cc..6c3a1895238eb 100644
  		goto rearm_timer;
  
 diff --git a/net/ipv4/tcp_rate.c b/net/ipv4/tcp_rate.c
-index a8f6d9d06f2eb..8737f21346481 100644
+index a8f6d9d06f2e..8737f2134648 100644
 --- a/net/ipv4/tcp_rate.c
 +++ b/net/ipv4/tcp_rate.c
 @@ -34,6 +34,24 @@
@@ -3482,7 +3482,7 @@ index a8f6d9d06f2eb..8737f21346481 100644
  	rs->interval_us = max(snd_us, ack_us);
  
 diff --git a/net/ipv4/tcp_timer.c b/net/ipv4/tcp_timer.c
-index 4d40615dc8fc2..f27941201ef20 100644
+index 4d40615dc8fc..f27941201ef2 100644
 --- a/net/ipv4/tcp_timer.c
 +++ b/net/ipv4/tcp_timer.c
 @@ -689,6 +689,7 @@ void tcp_write_timer_handler(struct sock *sk)
@@ -3496,17 +3496,17 @@ index 4d40615dc8fc2..f27941201ef20 100644
 -- 
 2.47.0.rc0
 
-From 34db38a99be8d8c28fc1aad79a5b1b0d8a9cd77d Mon Sep 17 00:00:00 2001
+From 2dcd5dca62e899718f585791ca0236bd1eec065c Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Mon, 30 Sep 2024 16:52:23 +0200
-Subject: [PATCH 03/10] cachy
+Date: Fri, 4 Oct 2024 17:06:55 +0200
+Subject: [PATCH 03/11] cachy
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
  .../admin-guide/kernel-parameters.txt         |   12 +
  Makefile                                      |    8 +
- arch/x86/Kconfig.cpu                          |  363 +-
- arch/x86/Makefile                             |   93 +-
+ arch/x86/Kconfig.cpu                          |  359 +-
+ arch/x86/Makefile                             |   91 +-
  arch/x86/include/asm/pci.h                    |    6 +
  arch/x86/include/asm/vermagic.h               |   70 +
  arch/x86/pci/common.c                         |    7 +-
@@ -3564,7 +3564,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  net/ipv4/inet_connection_sock.c               |    2 +-
  scripts/Makefile.package                      |    3 +-
  scripts/package/PKGBUILD                      |   52 +-
- 61 files changed, 5805 insertions(+), 112 deletions(-)
+ 61 files changed, 5798 insertions(+), 113 deletions(-)
  create mode 100644 drivers/i2c/busses/i2c-nct6775.c
  create mode 100644 drivers/media/v4l2-core/v4l2loopback.c
  create mode 100644 drivers/media/v4l2-core/v4l2loopback.h
@@ -3572,7 +3572,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  create mode 100644 drivers/pci/controller/intel-nvme-remap.c
 
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index 09126bb8cc9ff..43305af6b3643 100644
+index 09126bb8cc9f..43305af6b364 100644
 --- a/Documentation/admin-guide/kernel-parameters.txt
 +++ b/Documentation/admin-guide/kernel-parameters.txt
 @@ -2231,6 +2231,9 @@
@@ -3602,7 +3602,7 @@ index 09126bb8cc9ff..43305af6b3643 100644
  				Safety option to keep boot IRQs enabled. This
  				should never be necessary.
 diff --git a/Makefile b/Makefile
-index df9c90cdd1c57..058667a0c3f49 100644
+index 7bcf0c32ea5e..12f0adb96c93 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -803,11 +803,19 @@ KBUILD_CFLAGS	+= -fno-delete-null-pointer-checks
@@ -3626,7 +3626,7 @@ index df9c90cdd1c57..058667a0c3f49 100644
  # depends on `opt-level` and `debug-assertions`, respectively.
  KBUILD_RUSTFLAGS += -Cdebug-assertions=$(if $(CONFIG_RUST_DEBUG_ASSERTIONS),y,n)
 diff --git a/arch/x86/Kconfig.cpu b/arch/x86/Kconfig.cpu
-index 2a7279d80460a..eee3c57d02a67 100644
+index 2a7279d80460..f5849153b385 100644
 --- a/arch/x86/Kconfig.cpu
 +++ b/arch/x86/Kconfig.cpu
 @@ -155,9 +155,8 @@ config MPENTIUM4
@@ -3982,7 +3982,7 @@ index 2a7279d80460a..eee3c57d02a67 100644
  
  config GENERIC_CPU
  	bool "Generic-x86-64"
-@@ -294,8 +581,32 @@ config GENERIC_CPU
+@@ -294,6 +581,26 @@ config GENERIC_CPU
  	  Generic x86-64 CPU.
  	  Run equally well on all x86-64 CPUs.
  
@@ -4008,14 +4008,8 @@ index 2a7279d80460a..eee3c57d02a67 100644
 +
  endchoice
  
-+config SUPPORT_MARCH_CODEVERS
-+	bool
-+	default y if (CC_IS_GCC && GCC_VERSION > 110000) || (CC_IS_CLANG && CLANG_VERSION >= 120000)
-+
  config X86_GENERIC
- 	bool "Generic x86 support"
- 	depends on X86_32
-@@ -308,6 +619,30 @@ config X86_GENERIC
+@@ -308,6 +615,30 @@ config X86_GENERIC
  	  This is really intended for distributors who need more
  	  generic optimizations.
  
@@ -4046,7 +4040,7 @@ index 2a7279d80460a..eee3c57d02a67 100644
  #
  # Define implied options from the CPU selection here
  config X86_INTERNODE_CACHE_SHIFT
-@@ -318,7 +653,7 @@ config X86_INTERNODE_CACHE_SHIFT
+@@ -318,7 +649,7 @@ config X86_INTERNODE_CACHE_SHIFT
  config X86_L1_CACHE_SHIFT
  	int
  	default "7" if MPENTIUM4 || MPSC
@@ -4055,7 +4049,7 @@ index 2a7279d80460a..eee3c57d02a67 100644
  	default "4" if MELAN || M486SX || M486 || MGEODEGX1
  	default "5" if MWINCHIP3D || MWINCHIPC6 || MCRUSOE || MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODE_LX
  
-@@ -336,11 +671,11 @@ config X86_ALIGNMENT_16
+@@ -336,11 +667,11 @@ config X86_ALIGNMENT_16
  
  config X86_INTEL_USERCOPY
  	def_bool y
@@ -4070,7 +4064,7 @@ index 2a7279d80460a..eee3c57d02a67 100644
  #
  # P6_NOPs are a relatively minor optimization that require a family >=
 diff --git a/arch/x86/Makefile b/arch/x86/Makefile
-index 801fd85c3ef69..26249f0f62c47 100644
+index 801fd85c3ef6..85d962aa68fe 100644
 --- a/arch/x86/Makefile
 +++ b/arch/x86/Makefile
 @@ -70,9 +70,9 @@ export BITS
@@ -4085,11 +4079,13 @@ index 801fd85c3ef69..26249f0f62c47 100644
  
  #
  # CFLAGS for compiling floating point code inside the kernel.
-@@ -178,14 +178,99 @@ else
+@@ -177,15 +177,96 @@ else
+         cflags-$(CONFIG_MK8)		+= -march=k8
          cflags-$(CONFIG_MPSC)		+= -march=nocona
          cflags-$(CONFIG_MCORE2)		+= -march=core2
-         cflags-$(CONFIG_MATOM)		+= -march=atom
+-        cflags-$(CONFIG_MATOM)		+= -march=atom
 -        cflags-$(CONFIG_GENERIC_CPU)	+= -mtune=generic
++        cflags-$(CONFIG_MATOM)		+= -march=bonnell
 +        ifeq ($(CONFIG_X86_64_VERSION),1)
 +          cflags-$(CONFIG_GENERIC_CPU)		+= -mtune=generic
 +          rustflags-$(CONFIG_GENERIC_CPU)	+= -Ztune-cpu=generic
@@ -4113,8 +4109,6 @@ index 801fd85c3ef69..26249f0f62c47 100644
 +        cflags-$(CONFIG_MZEN5) 	+= -march=znver5
 +        cflags-$(CONFIG_MNATIVE_INTEL) += -march=native
 +        cflags-$(CONFIG_MNATIVE_AMD) 	+= -march=native -mno-tbm
-+        cflags-$(CONFIG_MATOM) 	+= -march=bonnell
-+        cflags-$(CONFIG_MCORE2) 	+= -march=core2
 +        cflags-$(CONFIG_MNEHALEM) 	+= -march=nehalem
 +        cflags-$(CONFIG_MWESTMERE) 	+= -march=westmere
 +        cflags-$(CONFIG_MSILVERMONT) 	+= -march=silvermont
@@ -4160,8 +4154,6 @@ index 801fd85c3ef69..26249f0f62c47 100644
 +        rustflags-$(CONFIG_MZEN5) 	+= -Ctarget-cpu=znver5
 +        rustflags-$(CONFIG_MNATIVE_INTEL) += -Ctarget-cpu=native
 +        rustflags-$(CONFIG_MNATIVE_AMD) 	+= -Ctarget-cpu=native
-+        rustflags-$(CONFIG_MATOM) 	+= -Ctarget-cpu=bonnell
-+        rustflags-$(CONFIG_MCORE2) 	+= -Ctarget-cpu=core2
 +        rustflags-$(CONFIG_MNEHALEM) 	+= -Ctarget-cpu=nehalem
 +        rustflags-$(CONFIG_MWESTMERE) 	+= -Ctarget-cpu=westmere
 +        rustflags-$(CONFIG_MSILVERMONT) 	+= -Ctarget-cpu=silvermont
@@ -4188,7 +4180,7 @@ index 801fd85c3ef69..26249f0f62c47 100644
  
          KBUILD_CFLAGS += -mno-red-zone
 diff --git a/arch/x86/include/asm/pci.h b/arch/x86/include/asm/pci.h
-index b3ab80a03365c..5e883b397ff3f 100644
+index b3ab80a03365..5e883b397ff3 100644
 --- a/arch/x86/include/asm/pci.h
 +++ b/arch/x86/include/asm/pci.h
 @@ -26,6 +26,7 @@ struct pci_sysdata {
@@ -4212,7 +4204,7 @@ index b3ab80a03365c..5e883b397ff3f 100644
     already-configured bus numbers - to be used for buggy BIOSes
     or architectures with incomplete PCI setup by the loader */
 diff --git a/arch/x86/include/asm/vermagic.h b/arch/x86/include/asm/vermagic.h
-index 75884d2cdec37..f4e29563473df 100644
+index 75884d2cdec3..f4e29563473d 100644
 --- a/arch/x86/include/asm/vermagic.h
 +++ b/arch/x86/include/asm/vermagic.h
 @@ -17,6 +17,54 @@
@@ -4300,7 +4292,7 @@ index 75884d2cdec37..f4e29563473df 100644
  #define MODULE_PROC_FAMILY "ELAN "
  #elif defined CONFIG_MCRUSOE
 diff --git a/arch/x86/pci/common.c b/arch/x86/pci/common.c
-index ddb798603201e..7c20387d82029 100644
+index ddb798603201..7c20387d8202 100644
 --- a/arch/x86/pci/common.c
 +++ b/arch/x86/pci/common.c
 @@ -723,12 +723,15 @@ int pci_ext_cfg_avail(void)
@@ -4322,10 +4314,10 @@ index ddb798603201e..7c20387d82029 100644
  }
 -#endif
 diff --git a/block/bfq-iosched.c b/block/bfq-iosched.c
-index 36a4998c4b378..dc6afd534494d 100644
+index 1cc40a857fb8..c446fa6a6ad1 100644
 --- a/block/bfq-iosched.c
 +++ b/block/bfq-iosched.c
-@@ -7629,6 +7629,7 @@ MODULE_ALIAS("bfq-iosched");
+@@ -7656,6 +7656,7 @@ MODULE_ALIAS("bfq-iosched");
  static int __init bfq_init(void)
  {
  	int ret;
@@ -4333,7 +4325,7 @@ index 36a4998c4b378..dc6afd534494d 100644
  
  #ifdef CONFIG_BFQ_GROUP_IOSCHED
  	ret = blkcg_policy_register(&blkcg_policy_bfq);
-@@ -7660,6 +7661,11 @@ static int __init bfq_init(void)
+@@ -7687,6 +7688,11 @@ static int __init bfq_init(void)
  	if (ret)
  		goto slab_kill;
  
@@ -4346,7 +4338,7 @@ index 36a4998c4b378..dc6afd534494d 100644
  
  slab_kill:
 diff --git a/block/elevator.c b/block/elevator.c
-index c355b55d01078..41cf94c3671ec 100644
+index 4122026b11f1..cd630e991eae 100644
 --- a/block/elevator.c
 +++ b/block/elevator.c
 @@ -567,9 +567,19 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
@@ -4370,7 +4362,7 @@ index c355b55d01078..41cf94c3671ec 100644
  
  /*
 diff --git a/drivers/Makefile b/drivers/Makefile
-index fe9ceb0d2288a..b58955caf19bf 100644
+index fe9ceb0d2288..b58955caf19b 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
 @@ -61,14 +61,8 @@ obj-y				+= char/
@@ -4403,7 +4395,7 @@ index fe9ceb0d2288a..b58955caf19bf 100644
  obj-$(CONFIG_MTD)		+= mtd/
  obj-$(CONFIG_SPI)		+= spi/
 diff --git a/drivers/ata/ahci.c b/drivers/ata/ahci.c
-index a05c172494481..be4b54ff7e893 100644
+index a05c17249448..be4b54ff7e89 100644
 --- a/drivers/ata/ahci.c
 +++ b/drivers/ata/ahci.c
 @@ -1618,7 +1618,7 @@ static irqreturn_t ahci_thunderx_irq_handler(int irq, void *dev_instance)
@@ -4459,7 +4451,7 @@ index a05c172494481..be4b54ff7e893 100644
  	sysfs_add_file_to_group(&pdev->dev.kobj,
  				&dev_attr_remapped_nvme.attr,
 diff --git a/drivers/cpufreq/Kconfig.x86 b/drivers/cpufreq/Kconfig.x86
-index 97c2d4f15d76e..5a3af44d785a1 100644
+index 97c2d4f15d76..5a3af44d785a 100644
 --- a/drivers/cpufreq/Kconfig.x86
 +++ b/drivers/cpufreq/Kconfig.x86
 @@ -9,7 +9,6 @@ config X86_INTEL_PSTATE
@@ -4479,7 +4471,7 @@ index 97c2d4f15d76e..5a3af44d785a1 100644
  	  This driver adds a CPUFreq driver which utilizes a fine grain
  	  processor performance frequency control range instead of legacy
 diff --git a/drivers/cpufreq/cpufreq.c b/drivers/cpufreq/cpufreq.c
-index 04fc786dd2c09..f98c9438760c9 100644
+index 04fc786dd2c0..f98c9438760c 100644
 --- a/drivers/cpufreq/cpufreq.c
 +++ b/drivers/cpufreq/cpufreq.c
 @@ -575,30 +575,11 @@ unsigned int cpufreq_policy_transition_delay_us(struct cpufreq_policy *policy)
@@ -4518,7 +4510,7 @@ index 04fc786dd2c09..f98c9438760c9 100644
  EXPORT_SYMBOL_GPL(cpufreq_policy_transition_delay_us);
  
 diff --git a/drivers/cpufreq/intel_pstate.c b/drivers/cpufreq/intel_pstate.c
-index c0278d023cfce..7d92f16a430a8 100644
+index c0278d023cfc..7d92f16a430a 100644
 --- a/drivers/cpufreq/intel_pstate.c
 +++ b/drivers/cpufreq/intel_pstate.c
 @@ -3568,6 +3568,8 @@ static int __init intel_pstate_setup(char *str)
@@ -4531,7 +4523,7 @@ index c0278d023cfce..7d92f16a430a8 100644
  		default_driver = &intel_pstate;
  	else if (!strcmp(str, "passive"))
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu.h b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
-index 137a88b8de453..233c175374928 100644
+index 137a88b8de45..233c17537492 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu.h
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
 @@ -162,6 +162,7 @@ struct amdgpu_watchdog_timer {
@@ -4543,10 +4535,10 @@ index 137a88b8de453..233c175374928 100644
  extern int amdgpu_gart_size;
  extern int amdgpu_gtt_size;
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-index 094498a0964b5..cddc33970d750 100644
+index e2382566af44..9c3b7b027485 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-@@ -134,6 +134,7 @@ enum AMDGPU_DEBUG_MASK {
+@@ -135,6 +135,7 @@ enum AMDGPU_DEBUG_MASK {
  };
  
  unsigned int amdgpu_vram_limit = UINT_MAX;
@@ -4554,7 +4546,7 @@ index 094498a0964b5..cddc33970d750 100644
  int amdgpu_vis_vram_limit;
  int amdgpu_gart_size = -1; /* auto */
  int amdgpu_gtt_size = -1; /* auto */
-@@ -247,6 +248,15 @@ struct amdgpu_watchdog_timer amdgpu_watchdog_timer = {
+@@ -248,6 +249,15 @@ struct amdgpu_watchdog_timer amdgpu_watchdog_timer = {
  	.period = 0x0, /* default to 0x0 (timeout disable) */
  };
  
@@ -4571,7 +4563,7 @@ index 094498a0964b5..cddc33970d750 100644
   * DOC: vramlimit (int)
   * Restrict the total amount of VRAM in MiB for testing.  The default is 0 (Use full VRAM).
 diff --git a/drivers/gpu/drm/amd/display/Kconfig b/drivers/gpu/drm/amd/display/Kconfig
-index df17e79c45c76..e454488c1a312 100644
+index df17e79c45c7..e454488c1a31 100644
 --- a/drivers/gpu/drm/amd/display/Kconfig
 +++ b/drivers/gpu/drm/amd/display/Kconfig
 @@ -53,4 +53,10 @@ config DRM_AMD_SECURE_DISPLAY
@@ -4586,10 +4578,10 @@ index df17e79c45c76..e454488c1a312 100644
 +
  endmenu
 diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-index 1e069fa5211ee..f16a43106eb0e 100644
+index 74bb1e0e9134..1f7f4670ef55 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
-@@ -4408,7 +4408,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+@@ -4437,7 +4437,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
  		return r;
  	}
  
@@ -4599,7 +4591,7 @@ index 1e069fa5211ee..f16a43106eb0e 100644
  		dc_state_release(state->context);
  		kfree(state);
 diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_color.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_color.c
-index ebabfe3a512f4..4d3ebcaacca1b 100644
+index ebabfe3a512f..4d3ebcaacca1 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_color.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_color.c
 @@ -97,7 +97,7 @@ static inline struct fixed31_32 amdgpu_dm_fixpt_from_s3132(__u64 x)
@@ -4612,7 +4604,7 @@ index ebabfe3a512f4..4d3ebcaacca1b 100644
   *
   * AMD driver supports pre-defined mathematical functions for transferring
 diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
-index 99014339aaa39..222f72b4c44fc 100644
+index 99014339aaa3..222f72b4c44f 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_crtc.c
 @@ -426,7 +426,7 @@ static int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc)
@@ -4643,7 +4635,7 @@ index 99014339aaa39..222f72b4c44fc 100644
  #endif
  	return 0;
 diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c
-index 5cb11cc2d0636..7e2020b0c0e8a 100644
+index 5cb11cc2d063..7e2020b0c0e8 100644
 --- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c
 +++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm_plane.c
 @@ -1568,7 +1568,7 @@ static void amdgpu_dm_plane_drm_plane_destroy_state(struct drm_plane *plane,
@@ -4674,7 +4666,7 @@ index 5cb11cc2d0636..7e2020b0c0e8a 100644
  #endif
  	/* Create (reset) the plane state */
 diff --git a/drivers/gpu/drm/amd/pm/amdgpu_pm.c b/drivers/gpu/drm/amd/pm/amdgpu_pm.c
-index d5d6ab484e5ad..dccba7bcdf97c 100644
+index d5d6ab484e5a..dccba7bcdf97 100644
 --- a/drivers/gpu/drm/amd/pm/amdgpu_pm.c
 +++ b/drivers/gpu/drm/amd/pm/amdgpu_pm.c
 @@ -3272,6 +3272,9 @@ static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
@@ -4688,7 +4680,7 @@ index d5d6ab484e5ad..dccba7bcdf97c 100644
  }
  
 diff --git a/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c b/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
-index 2cf9511845618..1a53bf05f8fc4 100644
+index 2cf951184561..1a53bf05f8fc 100644
 --- a/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
 +++ b/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
 @@ -2762,7 +2762,10 @@ int smu_get_power_limit(void *handle,
@@ -4720,7 +4712,7 @@ index 2cf9511845618..1a53bf05f8fc4 100644
  			"New power limit (%d) is out of range [%d,%d]\n",
  			limit, smu->min_power_limit, smu->max_power_limit);
 diff --git a/drivers/i2c/busses/Kconfig b/drivers/i2c/busses/Kconfig
-index a22f9125322a7..44d863e0175e9 100644
+index a22f9125322a..44d863e0175e 100644
 --- a/drivers/i2c/busses/Kconfig
 +++ b/drivers/i2c/busses/Kconfig
 @@ -240,6 +240,15 @@ config I2C_CHT_WC
@@ -4740,7 +4732,7 @@ index a22f9125322a7..44d863e0175e9 100644
  	tristate "Nvidia nForce2, nForce3 and nForce4"
  	depends on PCI && HAS_IOPORT
 diff --git a/drivers/i2c/busses/Makefile b/drivers/i2c/busses/Makefile
-index 78d0561339e5b..9ea3a294f9f02 100644
+index 78d0561339e5..9ea3a294f9f0 100644
 --- a/drivers/i2c/busses/Makefile
 +++ b/drivers/i2c/busses/Makefile
 @@ -20,6 +20,7 @@ obj-$(CONFIG_I2C_CHT_WC)	+= i2c-cht-wc.o
@@ -4753,7 +4745,7 @@ index 78d0561339e5b..9ea3a294f9f02 100644
  obj-$(CONFIG_I2C_NVIDIA_GPU)	+= i2c-nvidia-gpu.o
 diff --git a/drivers/i2c/busses/i2c-nct6775.c b/drivers/i2c/busses/i2c-nct6775.c
 new file mode 100644
-index 0000000000000..fdbd9a1c8d7ae
+index 000000000000..fdbd9a1c8d7a
 --- /dev/null
 +++ b/drivers/i2c/busses/i2c-nct6775.c
 @@ -0,0 +1,648 @@
@@ -5406,7 +5398,7 @@ index 0000000000000..fdbd9a1c8d7ae
 +module_init(i2c_nct6775_init);
 +module_exit(i2c_nct6775_exit);
 diff --git a/drivers/i2c/busses/i2c-piix4.c b/drivers/i2c/busses/i2c-piix4.c
-index 4e32d57ae0bf3..a2deb73799047 100644
+index 4e32d57ae0bf..a2deb7379904 100644
 --- a/drivers/i2c/busses/i2c-piix4.c
 +++ b/drivers/i2c/busses/i2c-piix4.c
 @@ -569,11 +569,11 @@ static int piix4_transaction(struct i2c_adapter *piix4_adapter)
@@ -5424,7 +5416,7 @@ index 4e32d57ae0bf3..a2deb73799047 100644
  	/* If the SMBus is still busy, we give up */
  	if (timeout == MAX_TIMEOUT) {
 diff --git a/drivers/input/evdev.c b/drivers/input/evdev.c
-index a8ce3d1407223..49729cf8c12f8 100644
+index a8ce3d140722..49729cf8c12f 100644
 --- a/drivers/input/evdev.c
 +++ b/drivers/input/evdev.c
 @@ -46,6 +46,7 @@ struct evdev_client {
@@ -5488,7 +5480,7 @@ index a8ce3d1407223..49729cf8c12f8 100644
  }
  
 diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
-index 348b4b26c2723..708405b166873 100644
+index 348b4b26c272..708405b16687 100644
 --- a/drivers/md/dm-crypt.c
 +++ b/drivers/md/dm-crypt.c
 @@ -3310,6 +3310,11 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
@@ -5504,7 +5496,7 @@ index 348b4b26c2723..708405b166873 100644
  	if (ret < 0)
  		goto bad;
 diff --git a/drivers/media/v4l2-core/Kconfig b/drivers/media/v4l2-core/Kconfig
-index 331b8e535e5bb..80dabeebf5804 100644
+index 331b8e535e5b..80dabeebf580 100644
 --- a/drivers/media/v4l2-core/Kconfig
 +++ b/drivers/media/v4l2-core/Kconfig
 @@ -40,6 +40,11 @@ config VIDEO_TUNER
@@ -5520,7 +5512,7 @@ index 331b8e535e5bb..80dabeebf5804 100644
  config V4L2_H264
  	tristate
 diff --git a/drivers/media/v4l2-core/Makefile b/drivers/media/v4l2-core/Makefile
-index 2177b9d63a8ff..c179507cedc49 100644
+index 2177b9d63a8f..c179507cedc4 100644
 --- a/drivers/media/v4l2-core/Makefile
 +++ b/drivers/media/v4l2-core/Makefile
 @@ -33,5 +33,7 @@ obj-$(CONFIG_V4L2_JPEG_HELPER) += v4l2-jpeg.o
@@ -5533,7 +5525,7 @@ index 2177b9d63a8ff..c179507cedc49 100644
  obj-$(CONFIG_VIDEO_DEV) += v4l2-dv-timings.o videodev.o
 diff --git a/drivers/media/v4l2-core/v4l2loopback.c b/drivers/media/v4l2-core/v4l2loopback.c
 new file mode 100644
-index 0000000000000..25cb1beb26e50
+index 000000000000..25cb1beb26e5
 --- /dev/null
 +++ b/drivers/media/v4l2-core/v4l2loopback.c
 @@ -0,0 +1,3184 @@
@@ -8723,7 +8715,7 @@ index 0000000000000..25cb1beb26e50
 +module_exit(v4l2loopback_cleanup_module);
 diff --git a/drivers/media/v4l2-core/v4l2loopback.h b/drivers/media/v4l2-core/v4l2loopback.h
 new file mode 100644
-index 0000000000000..1bc7e6b747a40
+index 000000000000..1bc7e6b747a4
 --- /dev/null
 +++ b/drivers/media/v4l2-core/v4l2loopback.h
 @@ -0,0 +1,98 @@
@@ -8827,7 +8819,7 @@ index 0000000000000..1bc7e6b747a40
 +#endif /* _V4L2LOOPBACK_H */
 diff --git a/drivers/media/v4l2-core/v4l2loopback_formats.h b/drivers/media/v4l2-core/v4l2loopback_formats.h
 new file mode 100644
-index 0000000000000..d855a37965541
+index 000000000000..d855a3796554
 --- /dev/null
 +++ b/drivers/media/v4l2-core/v4l2loopback_formats.h
 @@ -0,0 +1,445 @@
@@ -9277,7 +9269,7 @@ index 0000000000000..d855a37965541
 +#endif /* V4L2_PIX_FMT_HEVC */
 +};
 diff --git a/drivers/pci/controller/Makefile b/drivers/pci/controller/Makefile
-index 038ccbd9e3ba2..de5e4f5145af8 100644
+index 038ccbd9e3ba..de5e4f5145af 100644
 --- a/drivers/pci/controller/Makefile
 +++ b/drivers/pci/controller/Makefile
 @@ -1,4 +1,10 @@
@@ -9293,7 +9285,7 @@ index 038ccbd9e3ba2..de5e4f5145af8 100644
  obj-$(CONFIG_PCI_IXP4XX) += pci-ixp4xx.o
 diff --git a/drivers/pci/controller/intel-nvme-remap.c b/drivers/pci/controller/intel-nvme-remap.c
 new file mode 100644
-index 0000000000000..e105e6f5cc91d
+index 000000000000..e105e6f5cc91
 --- /dev/null
 +++ b/drivers/pci/controller/intel-nvme-remap.c
 @@ -0,0 +1,462 @@
@@ -9760,10 +9752,10 @@ index 0000000000000..e105e6f5cc91d
 +MODULE_AUTHOR("Daniel Drake <drake@endlessm.com>");
 +MODULE_LICENSE("GPL v2");
 diff --git a/drivers/pci/quirks.c b/drivers/pci/quirks.c
-index a2ce4e08edf5a..7db97a14b34a3 100644
+index 5d57ea27dbc4..0f7f8c737ae3 100644
 --- a/drivers/pci/quirks.c
 +++ b/drivers/pci/quirks.c
-@@ -3732,6 +3732,106 @@ static void quirk_no_bus_reset(struct pci_dev *dev)
+@@ -3745,6 +3745,106 @@ static void quirk_no_bus_reset(struct pci_dev *dev)
  	dev->dev_flags |= PCI_DEV_FLAGS_NO_BUS_RESET;
  }
  
@@ -9870,7 +9862,7 @@ index a2ce4e08edf5a..7db97a14b34a3 100644
  /*
   * Some NVIDIA GPU devices do not work with bus reset, SBR needs to be
   * prevented for those affected devices.
-@@ -5147,6 +5247,7 @@ static const struct pci_dev_acs_enabled {
+@@ -5160,6 +5260,7 @@ static const struct pci_dev_acs_enabled {
  	{ PCI_VENDOR_ID_ZHAOXIN, PCI_ANY_ID, pci_quirk_zhaoxin_pcie_ports_acs },
  	/* Wangxun nics */
  	{ PCI_VENDOR_ID_WANGXUN, PCI_ANY_ID, pci_quirk_wangxun_nic_acs },
@@ -9879,7 +9871,7 @@ index a2ce4e08edf5a..7db97a14b34a3 100644
  };
  
 diff --git a/include/linux/cpufreq.h b/include/linux/cpufreq.h
-index d4d2f4d1d7cbd..e0e19d9c13231 100644
+index d4d2f4d1d7cb..e0e19d9c1323 100644
 --- a/include/linux/cpufreq.h
 +++ b/include/linux/cpufreq.h
 @@ -577,12 +577,6 @@ static inline unsigned long cpufreq_scale(unsigned long old, u_int div,
@@ -9896,7 +9888,7 @@ index d4d2f4d1d7cbd..e0e19d9c13231 100644
  	char	name[CPUFREQ_NAME_LEN];
  	int	(*init)(struct cpufreq_policy *policy);
 diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index d9c7edb6422bd..b57c72793580b 100644
+index d9c7edb6422b..b57c72793580 100644
 --- a/include/linux/pagemap.h
 +++ b/include/linux/pagemap.h
 @@ -1264,7 +1264,7 @@ struct readahead_control {
@@ -9909,7 +9901,7 @@ index d9c7edb6422bd..b57c72793580b 100644
  void page_cache_ra_unbounded(struct readahead_control *,
  		unsigned long nr_to_read, unsigned long lookahead_count);
 diff --git a/include/linux/user_namespace.h b/include/linux/user_namespace.h
-index 6030a82356173..60b7fe5fa74ad 100644
+index 6030a8235617..60b7fe5fa74a 100644
 --- a/include/linux/user_namespace.h
 +++ b/include/linux/user_namespace.h
 @@ -156,6 +156,8 @@ static inline void set_userns_rlimit_max(struct user_namespace *ns,
@@ -9931,7 +9923,7 @@ index 6030a82356173..60b7fe5fa74ad 100644
  {
  	return &init_user_ns;
 diff --git a/include/linux/wait.h b/include/linux/wait.h
-index 8aa3372f21a08..924778a426ce0 100644
+index 8aa3372f21a0..924778a426ce 100644
 --- a/include/linux/wait.h
 +++ b/include/linux/wait.h
 @@ -163,6 +163,7 @@ static inline bool wq_has_sleeper(struct wait_queue_head *wq_head)
@@ -9951,7 +9943,7 @@ index 8aa3372f21a08..924778a426ce0 100644
  void finish_wait(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry);
  long wait_woken(struct wait_queue_entry *wq_entry, unsigned mode, long timeout);
 diff --git a/init/Kconfig b/init/Kconfig
-index 5783a0b875172..08a0d51afaae4 100644
+index 5783a0b87517..08a0d51afaae 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
 @@ -134,6 +134,10 @@ config THREAD_INFO_IN_TASK
@@ -10002,7 +9994,7 @@ index 5783a0b875172..08a0d51afaae4 100644
  	bool "Optimize for size (-Os)"
  	help
 diff --git a/kernel/Kconfig.hz b/kernel/Kconfig.hz
-index 38ef6d06888ef..0f78364efd4f2 100644
+index 38ef6d06888e..0f78364efd4f 100644
 --- a/kernel/Kconfig.hz
 +++ b/kernel/Kconfig.hz
 @@ -40,6 +40,27 @@ choice
@@ -10044,7 +10036,7 @@ index 38ef6d06888ef..0f78364efd4f2 100644
  
  config SCHED_HRTICK
 diff --git a/kernel/fork.c b/kernel/fork.c
-index cc760491f2012..238695afc6304 100644
+index cc760491f201..238695afc630 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
 @@ -105,6 +105,10 @@
@@ -10083,7 +10075,7 @@ index cc760491f2012..238695afc6304 100644
  	if (err)
  		goto bad_unshare_out;
 diff --git a/kernel/locking/rwsem.c b/kernel/locking/rwsem.c
-index 33cac79e39946..3277df47ab3ca 100644
+index 33cac79e3994..3277df47ab3c 100644
 --- a/kernel/locking/rwsem.c
 +++ b/kernel/locking/rwsem.c
 @@ -749,6 +749,7 @@ rwsem_spin_on_owner(struct rw_semaphore *sem)
@@ -10105,7 +10097,7 @@ index 33cac79e39946..3277df47ab3ca 100644
  
  	return state;
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 9057584ec06de..5dc714fd8a226 100644
+index 1d2cbdb162a6..91b242e47db7 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
 @@ -73,10 +73,19 @@ unsigned int sysctl_sched_tunable_scaling = SCHED_TUNABLESCALING_LOG;
@@ -10142,7 +10134,7 @@ index 9057584ec06de..5dc714fd8a226 100644
  #ifdef CONFIG_NUMA_BALANCING
  /* Restrict the NUMA promotion throughput (MB/s) for each target node. */
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 4c36cc6803617..432b43aa091cd 100644
+index 4c36cc680361..432b43aa091c 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
 @@ -2591,7 +2591,7 @@ extern void deactivate_task(struct rq *rq, struct task_struct *p, int flags);
@@ -10155,7 +10147,7 @@ index 4c36cc6803617..432b43aa091cd 100644
  #else
  # define SCHED_NR_MIGRATE_BREAK 32
 diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
-index 51e38f5f47018..c5cc616484bad 100644
+index 51e38f5f4701..c5cc616484ba 100644
 --- a/kernel/sched/wait.c
 +++ b/kernel/sched/wait.c
 @@ -47,6 +47,17 @@ void add_wait_queue_priority(struct wait_queue_head *wq_head, struct wait_queue_
@@ -10197,7 +10189,7 @@ index 51e38f5f47018..c5cc616484bad 100644
  {
  	wq_entry->flags = flags;
 diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 79e6cb1d5c48f..676e89dc38c33 100644
+index 79e6cb1d5c48..676e89dc38c3 100644
 --- a/kernel/sysctl.c
 +++ b/kernel/sysctl.c
 @@ -80,6 +80,9 @@
@@ -10227,7 +10219,7 @@ index 79e6cb1d5c48f..676e89dc38c33 100644
  	{
  		.procname	= "tainted",
 diff --git a/kernel/user_namespace.c b/kernel/user_namespace.c
-index 0b0b95418b16a..c4b835b91fc00 100644
+index 0b0b95418b16..c4b835b91fc0 100644
 --- a/kernel/user_namespace.c
 +++ b/kernel/user_namespace.c
 @@ -22,6 +22,13 @@
@@ -10245,7 +10237,7 @@ index 0b0b95418b16a..c4b835b91fc00 100644
  static DEFINE_MUTEX(userns_state_mutex);
  
 diff --git a/mm/Kconfig b/mm/Kconfig
-index b72e7d040f789..8feaa692ec87c 100644
+index b72e7d040f78..8feaa692ec87 100644
 --- a/mm/Kconfig
 +++ b/mm/Kconfig
 @@ -636,7 +636,7 @@ config COMPACTION
@@ -10258,7 +10250,7 @@ index b72e7d040f789..8feaa692ec87c 100644
  
  #
 diff --git a/mm/compaction.c b/mm/compaction.c
-index eb95e9b435d0f..ae03cdc3e76e4 100644
+index eb95e9b435d0..ae03cdc3e76e 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
 @@ -1950,7 +1950,11 @@ static int sysctl_compact_unevictable_allowed __read_mostly = CONFIG_COMPACT_UNE
@@ -10274,7 +10266,7 @@ index eb95e9b435d0f..ae03cdc3e76e4 100644
  static int __read_mostly sysctl_compact_memory;
  
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 67c86a5d64a6a..90bc49d1ca922 100644
+index 99b146d16a18..4d2839fcf688 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
 @@ -64,7 +64,11 @@ unsigned long transparent_hugepage_flags __read_mostly =
@@ -10290,7 +10282,7 @@ index 67c86a5d64a6a..90bc49d1ca922 100644
  	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
  
 diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 4430ac68e4c41..3bd08b60a9b37 100644
+index 4430ac68e4c4..3bd08b60a9b3 100644
 --- a/mm/page-writeback.c
 +++ b/mm/page-writeback.c
 @@ -71,7 +71,11 @@ static long ratelimit_pages = 32;
@@ -10318,7 +10310,7 @@ index 4430ac68e4c41..3bd08b60a9b37 100644
  EXPORT_SYMBOL_GPL(dirty_writeback_interval);
  
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 91ace8ca97e21..f8b4dae35fc38 100644
+index 91ace8ca97e2..f8b4dae35fc3 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -271,7 +271,11 @@ const char * const migratetype_names[MIGRATE_TYPES] = {
@@ -10334,7 +10326,7 @@ index 91ace8ca97e21..f8b4dae35fc38 100644
  
  /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
 diff --git a/mm/swap.c b/mm/swap.c
-index 9caf6b017cf0a..00c1307f3874a 100644
+index 9caf6b017cf0..00c1307f3874 100644
 --- a/mm/swap.c
 +++ b/mm/swap.c
 @@ -1126,6 +1126,10 @@ void folio_batch_remove_exceptionals(struct folio_batch *fbatch)
@@ -10355,7 +10347,7 @@ index 9caf6b017cf0a..00c1307f3874a 100644
 +#endif
  }
 diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-index bd5183dfd8791..3a410f53a07ca 100644
+index bd5183dfd879..3a410f53a07c 100644
 --- a/mm/vmpressure.c
 +++ b/mm/vmpressure.c
 @@ -43,7 +43,11 @@ static const unsigned long vmpressure_win = SWAP_CLUSTER_MAX * 16;
@@ -10371,7 +10363,7 @@ index bd5183dfd8791..3a410f53a07ca 100644
  
  /*
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bd489c1af2289..47065ea3c47b3 100644
+index bd489c1af228..47065ea3c47b 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -199,7 +199,11 @@ struct scan_control {
@@ -10399,7 +10391,7 @@ index bd489c1af2289..47065ea3c47b3 100644
  static void lru_gen_age_node(struct pglist_data *pgdat, struct scan_control *sc)
  {
 diff --git a/net/ipv4/inet_connection_sock.c b/net/ipv4/inet_connection_sock.c
-index 64d07b842e736..a0ac138e7bf88 100644
+index 64d07b842e73..a0ac138e7bf8 100644
 --- a/net/ipv4/inet_connection_sock.c
 +++ b/net/ipv4/inet_connection_sock.c
 @@ -634,7 +634,7 @@ static int inet_csk_wait_for_connect(struct sock *sk, long timeo)
@@ -10412,7 +10404,7 @@ index 64d07b842e736..a0ac138e7bf88 100644
  		release_sock(sk);
  		if (reqsk_queue_empty(&icsk->icsk_accept_queue))
 diff --git a/scripts/Makefile.package b/scripts/Makefile.package
-index 4a80584ec7712..11d53f240a2bc 100644
+index 4a80584ec771..11d53f240a2b 100644
 --- a/scripts/Makefile.package
 +++ b/scripts/Makefile.package
 @@ -147,8 +147,7 @@ snap-pkg:
@@ -10426,7 +10418,7 @@ index 4a80584ec7712..11d53f240a2bc 100644
  		KBUILD_MAKEFLAGS="$(MAKEFLAGS)" \
  		KBUILD_REVISION="$(shell $(srctree)/scripts/build-version)" \
 diff --git a/scripts/package/PKGBUILD b/scripts/package/PKGBUILD
-index 663ce300dd06d..f83493838cf96 100644
+index 663ce300dd06..f83493838cf9 100644
 --- a/scripts/package/PKGBUILD
 +++ b/scripts/package/PKGBUILD
 @@ -3,10 +3,13 @@
@@ -10532,25 +10524,29 @@ index 663ce300dd06d..f83493838cf96 100644
 -- 
 2.47.0.rc0
 
-From e11c05750027d05a3d091f065afb695876963546 Mon Sep 17 00:00:00 2001
+From 924e857f43615adb5a1280d2a3e5ba07fb6e7172 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Mon, 30 Sep 2024 16:55:12 +0200
-Subject: [PATCH 04/10] fixes
+Date: Fri, 4 Oct 2024 17:08:03 +0200
+Subject: [PATCH 04/11] fixes
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
- arch/Kconfig                            |   4 +-
- arch/x86/include/asm/apic.h             |   8 --
- arch/x86/kernel/amd_nb.c                |   4 +
- arch/x86/kernel/apic/apic_flat_64.c     | 119 ++----------------------
- arch/x86/kernel/cpu/amd.c               |   3 +-
- block/elevator.c                        |   4 +-
- drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c |   5 +
- fs/btrfs/send.c                         |   8 +-
- 8 files changed, 28 insertions(+), 127 deletions(-)
+ arch/Kconfig                                  |   4 +-
+ arch/x86/include/asm/apic.h                   |   8 --
+ arch/x86/kernel/amd_nb.c                      |   4 +
+ arch/x86/kernel/apic/apic_flat_64.c           | 119 ++----------------
+ arch/x86/kernel/cpu/amd.c                     |   3 +-
+ drivers/bluetooth/btusb.c                     |   4 +
+ drivers/firmware/sysfb.c                      |   4 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c       |   5 +
+ drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c     |  12 +-
+ .../drm/amd/pm/swsmu/smu13/smu_v13_0_0_ppt.c  |   3 +-
+ drivers/net/wireless/realtek/rtw89/pci.c      |  48 +++++--
+ fs/btrfs/send.c                               |   8 +-
+ 12 files changed, 83 insertions(+), 139 deletions(-)
 
 diff --git a/arch/Kconfig b/arch/Kconfig
-index 975dd22a2dbd2..de69b8f5b5be8 100644
+index 975dd22a2dbd..de69b8f5b5be 100644
 --- a/arch/Kconfig
 +++ b/arch/Kconfig
 @@ -1050,7 +1050,7 @@ config ARCH_MMAP_RND_BITS
@@ -10572,7 +10568,7 @@ index 975dd22a2dbd2..de69b8f5b5be8 100644
  	help
  	  This value can be used to select the number of bits to use to
 diff --git a/arch/x86/include/asm/apic.h b/arch/x86/include/asm/apic.h
-index 9327eb00e96d0..be2045a18e69b 100644
+index 9327eb00e96d..be2045a18e69 100644
 --- a/arch/x86/include/asm/apic.h
 +++ b/arch/x86/include/asm/apic.h
 @@ -345,20 +345,12 @@ extern struct apic *apic;
@@ -10597,7 +10593,7 @@ index 9327eb00e96d0..be2045a18e69b 100644
  
  /*
 diff --git a/arch/x86/kernel/amd_nb.c b/arch/x86/kernel/amd_nb.c
-index 059e5c16af054..e8c3d65aee60b 100644
+index 059e5c16af05..e8c3d65aee60 100644
 --- a/arch/x86/kernel/amd_nb.c
 +++ b/arch/x86/kernel/amd_nb.c
 @@ -43,6 +43,8 @@
@@ -10619,7 +10615,7 @@ index 059e5c16af054..e8c3d65aee60b 100644
  	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_MI300_DF_F4) },
  	{}
 diff --git a/arch/x86/kernel/apic/apic_flat_64.c b/arch/x86/kernel/apic/apic_flat_64.c
-index f37ad3392fec9..e0308d8c4e6c2 100644
+index f37ad3392fec..e0308d8c4e6c 100644
 --- a/arch/x86/kernel/apic/apic_flat_64.c
 +++ b/arch/x86/kernel/apic/apic_flat_64.c
 @@ -8,129 +8,25 @@
@@ -10777,7 +10773,7 @@ index f37ad3392fec9..e0308d8c4e6c2 100644
 +struct apic *apic __ro_after_init = &apic_physflat;
 +EXPORT_SYMBOL_GPL(apic);
 diff --git a/arch/x86/kernel/cpu/amd.c b/arch/x86/kernel/cpu/amd.c
-index 1e0fe5f8ab84e..65b2f0c5ec2d5 100644
+index 1e0fe5f8ab84..65b2f0c5ec2d 100644
 --- a/arch/x86/kernel/cpu/amd.c
 +++ b/arch/x86/kernel/cpu/amd.c
 @@ -1218,5 +1218,6 @@ void amd_check_microcode(void)
@@ -10788,26 +10784,43 @@ index 1e0fe5f8ab84e..65b2f0c5ec2d5 100644
 +	if (boot_cpu_has(X86_FEATURE_ZEN2))
 +		on_each_cpu(zenbleed_check_cpu, NULL, 1);
  }
-diff --git a/block/elevator.c b/block/elevator.c
-index 41cf94c3671ec..cd630e991eaea 100644
---- a/block/elevator.c
-+++ b/block/elevator.c
-@@ -725,7 +725,9 @@ int elv_iosched_load_module(struct gendisk *disk, const char *buf,
+diff --git a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
+index 1ec71a2fb63e..8ddd6ed219b4 100644
+--- a/drivers/bluetooth/btusb.c
++++ b/drivers/bluetooth/btusb.c
+@@ -690,6 +690,10 @@ static const struct usb_device_id quirks_table[] = {
+ 	{ USB_DEVICE(0x0489, 0xe113), .driver_info = BTUSB_MEDIATEK |
+ 						     BTUSB_WIDEBAND_SPEECH |
+ 						     BTUSB_VALID_LE_STATES },
++	{ USB_DEVICE(0x0489, 0xe118), .driver_info = BTUSB_MEDIATEK |
++						     BTUSB_WIDEBAND_SPEECH },
++	{ USB_DEVICE(0x0489, 0xe11e), .driver_info = BTUSB_MEDIATEK |
++						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x13d3, 0x3602), .driver_info = BTUSB_MEDIATEK |
+ 						     BTUSB_WIDEBAND_SPEECH |
+ 						     BTUSB_VALID_LE_STATES },
+diff --git a/drivers/firmware/sysfb.c b/drivers/firmware/sysfb.c
+index 02a07d3d0d40..a3df782fa687 100644
+--- a/drivers/firmware/sysfb.c
++++ b/drivers/firmware/sysfb.c
+@@ -67,9 +67,11 @@ static bool sysfb_unregister(void)
+ void sysfb_disable(struct device *dev)
+ {
+ 	struct screen_info *si = &screen_info;
++	struct device *parent;
  
- 	strscpy(elevator_name, buf, sizeof(elevator_name));
- 
--	return request_module("%s-iosched", strstrip(elevator_name));
-+	request_module("%s-iosched", strstrip(elevator_name));
-+
-+	return 0;
- }
- 
- ssize_t elv_iosched_store(struct gendisk *disk, const char *buf,
+ 	mutex_lock(&disable_lock);
+-	if (!dev || dev == sysfb_parent_dev(si)) {
++	parent = sysfb_parent_dev(si);
++	if (!dev || !parent || dev == parent) {
+ 		sysfb_unregister();
+ 		disabled = true;
+ 	}
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-index cddc33970d750..8bf31cbde0cdb 100644
+index 9c3b7b027485..ad5c05ee92f3 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-@@ -3055,6 +3055,11 @@ static int __init amdgpu_init(void)
+@@ -3056,6 +3056,11 @@ static int __init amdgpu_init(void)
  	/* Ignore KFD init failures. Normal when CONFIG_HSA_AMD is not set. */
  	amdgpu_amdkfd_init();
  
@@ -10819,8 +10832,157 @@ index cddc33970d750..8bf31cbde0cdb 100644
  	/* let modprobe override vga console setting */
  	return pci_register_driver(&amdgpu_kms_pci_driver);
  
+diff --git a/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c b/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
+index 1a53bf05f8fc..850688f4f233 100644
+--- a/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
++++ b/drivers/gpu/drm/amd/pm/swsmu/amdgpu_smu.c
+@@ -1257,7 +1257,6 @@ static int smu_sw_init(void *handle)
+ 	atomic_set(&smu->smu_power.power_gate.vpe_gated, 1);
+ 	atomic_set(&smu->smu_power.power_gate.umsch_mm_gated, 1);
+ 
+-	smu->workload_mask = 1 << smu->workload_prority[PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT];
+ 	smu->workload_prority[PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT] = 0;
+ 	smu->workload_prority[PP_SMC_POWER_PROFILE_FULLSCREEN3D] = 1;
+ 	smu->workload_prority[PP_SMC_POWER_PROFILE_POWERSAVING] = 2;
+@@ -1266,6 +1265,11 @@ static int smu_sw_init(void *handle)
+ 	smu->workload_prority[PP_SMC_POWER_PROFILE_COMPUTE] = 5;
+ 	smu->workload_prority[PP_SMC_POWER_PROFILE_CUSTOM] = 6;
+ 
++       if (smu->is_apu)
++               smu->workload_mask = 1 << smu->workload_prority[PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT];
++       else
++               smu->workload_mask = 1 << smu->workload_prority[PP_SMC_POWER_PROFILE_FULLSCREEN3D];
++
+ 	smu->workload_setting[0] = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
+ 	smu->workload_setting[1] = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
+ 	smu->workload_setting[2] = PP_SMC_POWER_PROFILE_POWERSAVING;
+@@ -2226,7 +2230,7 @@ static int smu_bump_power_profile_mode(struct smu_context *smu,
+ static int smu_adjust_power_state_dynamic(struct smu_context *smu,
+ 					  enum amd_dpm_forced_level level,
+ 					  bool skip_display_settings,
+-					  bool force_update)
++					  bool init)
+ {
+ 	int ret = 0;
+ 	int index = 0;
+@@ -2255,7 +2259,7 @@ static int smu_adjust_power_state_dynamic(struct smu_context *smu,
+ 		}
+ 	}
+ 
+-	if (force_update || smu_dpm_ctx->dpm_level != level) {
++	if (smu_dpm_ctx->dpm_level != level) {
+ 		ret = smu_asic_set_performance_level(smu, level);
+ 		if (ret) {
+ 			dev_err(smu->adev->dev, "Failed to set performance level!");
+@@ -2272,7 +2276,7 @@ static int smu_adjust_power_state_dynamic(struct smu_context *smu,
+ 		index = index > 0 && index <= WORKLOAD_POLICY_MAX ? index - 1 : 0;
+ 		workload[0] = smu->workload_setting[index];
+ 
+-		if (force_update || smu->power_profile_mode != workload[0])
++		if (init || smu->power_profile_mode != workload[0])
+ 			smu_bump_power_profile_mode(smu, workload, 0);
+ 	}
+ 
+diff --git a/drivers/gpu/drm/amd/pm/swsmu/smu13/smu_v13_0_0_ppt.c b/drivers/gpu/drm/amd/pm/swsmu/smu13/smu_v13_0_0_ppt.c
+index 1d024b122b0c..fea1ae7424cf 100644
+--- a/drivers/gpu/drm/amd/pm/swsmu/smu13/smu_v13_0_0_ppt.c
++++ b/drivers/gpu/drm/amd/pm/swsmu/smu13/smu_v13_0_0_ppt.c
+@@ -2555,7 +2555,8 @@ static int smu_v13_0_0_set_power_profile_mode(struct smu_context *smu,
+ 	workload_mask = 1 << workload_type;
+ 
+ 	/* Add optimizations for SMU13.0.0/10.  Reuse the power saving profile */
+-	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_COMPUTE) {
++	if ((smu->power_profile_mode == PP_SMC_POWER_PROFILE_COMPUTE) ||
++	    (smu->power_profile_mode == PP_SMC_POWER_PROFILE_FULLSCREEN3D)) {
+ 		if ((amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 0) &&
+ 			((smu->adev->pm.fw_version == 0x004e6601) ||
+ 			(smu->adev->pm.fw_version >= 0x004e7300))) ||
+diff --git a/drivers/net/wireless/realtek/rtw89/pci.c b/drivers/net/wireless/realtek/rtw89/pci.c
+index 02afeb3acce4..5aef7fa37878 100644
+--- a/drivers/net/wireless/realtek/rtw89/pci.c
++++ b/drivers/net/wireless/realtek/rtw89/pci.c
+@@ -3026,24 +3026,54 @@ static void rtw89_pci_declaim_device(struct rtw89_dev *rtwdev,
+ 	pci_disable_device(pdev);
+ }
+ 
+-static void rtw89_pci_cfg_dac(struct rtw89_dev *rtwdev)
++static bool rtw89_pci_chip_is_manual_dac(struct rtw89_dev *rtwdev)
+ {
+-	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+ 	const struct rtw89_chip_info *chip = rtwdev->chip;
+ 
+-	if (!rtwpci->enable_dac)
+-		return;
+-
+ 	switch (chip->chip_id) {
+ 	case RTL8852A:
+ 	case RTL8852B:
+ 	case RTL8851B:
+ 	case RTL8852BT:
+-		break;
++		return true;
+ 	default:
+-		return;
++		return false;
++	}
++}
++
++static bool rtw89_pci_is_dac_compatible_bridge(struct rtw89_dev *rtwdev)
++{
++	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
++	struct pci_dev *bridge = pci_upstream_bridge(rtwpci->pdev);
++
++	if (!rtw89_pci_chip_is_manual_dac(rtwdev))
++		return true;
++
++	if (!bridge)
++		return false;
++
++	switch (bridge->vendor) {
++	case PCI_VENDOR_ID_INTEL:
++		return true;
++	case PCI_VENDOR_ID_ASMEDIA:
++		if (bridge->device == 0x2806)
++			return true;
++		break;
+ 	}
+ 
++	return false;
++}
++
++static void rtw89_pci_cfg_dac(struct rtw89_dev *rtwdev)
++{
++	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
++
++	if (!rtwpci->enable_dac)
++		return;
++
++	if (!rtw89_pci_chip_is_manual_dac(rtwdev))
++		return;
++
+ 	rtw89_pci_config_byte_set(rtwdev, RTW89_PCIE_L1_CTRL, RTW89_PCIE_BIT_EN_64BITS);
+ }
+ 
+@@ -3061,6 +3091,9 @@ static int rtw89_pci_setup_mapping(struct rtw89_dev *rtwdev,
+ 		goto err;
+ 	}
+ 
++	if (!rtw89_pci_is_dac_compatible_bridge(rtwdev))
++		goto no_dac;
++
+ 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(36));
+ 	if (!ret) {
+ 		rtwpci->enable_dac = true;
+@@ -3073,6 +3106,7 @@ static int rtw89_pci_setup_mapping(struct rtw89_dev *rtwdev,
+ 			goto err_release_regions;
+ 		}
+ 	}
++no_dac:
+ 
+ 	resource_len = pci_resource_len(pdev, bar_id);
+ 	rtwpci->mmap = pci_iomap(pdev, bar_id, resource_len);
 diff --git a/fs/btrfs/send.c b/fs/btrfs/send.c
-index 619fa0b8b3f6f..f3de12a31c380 100644
+index 619fa0b8b3f6..f3de12a31c38 100644
 --- a/fs/btrfs/send.c
 +++ b/fs/btrfs/send.c
 @@ -346,8 +346,10 @@ struct name_cache_entry {
@@ -10856,64 +11018,10 @@ index 619fa0b8b3f6f..f3de12a31c380 100644
 -- 
 2.47.0.rc0
 
-From ad604f0a4c040dcb8faf44dc72db25e457c28076 Mon Sep 17 00:00:00 2001
-From: Thomas Zimmermann <tzimmermann@suse.de>
-Date: Tue, 24 Sep 2024 10:41:03 +0200
-Subject: [PATCH] firmware/sysfb: Disable sysfb for firmware buffers with
- unknown parent
-
-The sysfb framebuffer handling only operates on graphics devices
-that provide the system's firmware framebuffer. If that device is
-not known, assume that any graphics device has been initialized by
-firmware.
-
-Fixes a problem on i915 where sysfb does not release the firmware
-framebuffer after the native graphics driver loaded.
-
-Reported-by: Borah, Chaitanya Kumar <chaitanya.kumar.borah@intel.com>
-Closes: https://lore.kernel.org/dri-devel/SJ1PR11MB6129EFB8CE63D1EF6D932F94B96F2@SJ1PR11MB6129.namprd11.prod.outlook.com/
-Closes: https://gitlab.freedesktop.org/drm/i915/kernel/-/issues/12160
-Signed-off-by: Thomas Zimmermann <tzimmermann@suse.de>
-Fixes: b49420d6a1ae ("video/aperture: optionally match the device in sysfb_disable()")
-Cc: Javier Martinez Canillas <javierm@redhat.com>
-Cc: Thomas Zimmermann <tzimmermann@suse.de>
-Cc: Helge Deller <deller@gmx.de>
-Cc: Sam Ravnborg <sam@ravnborg.org>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: Alex Deucher <alexander.deucher@amd.com>
-Cc: dri-devel@lists.freedesktop.org
-Cc: Linux regression tracking (Thorsten Leemhuis) <regressions@leemhuis.info>
-Cc: <stable@vger.kernel.org> # v6.11+
-Acked-by: Alex Deucher <alexander.deucher@amd.com>
-Reviewed-by: Javier Martinez Canillas <javierm@redhat.com>
-Link: https://patchwork.freedesktop.org/patch/msgid/20240924084227.262271-1-tzimmermann@suse.de
----
- drivers/firmware/sysfb.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-diff --git a/drivers/firmware/sysfb.c b/drivers/firmware/sysfb.c
-index 02a07d3d0d40a..a3df782fa687b 100644
---- a/drivers/firmware/sysfb.c
-+++ b/drivers/firmware/sysfb.c
-@@ -67,9 +67,11 @@ static bool sysfb_unregister(void)
- void sysfb_disable(struct device *dev)
- {
- 	struct screen_info *si = &screen_info;
-+	struct device *parent;
- 
- 	mutex_lock(&disable_lock);
--	if (!dev || dev == sysfb_parent_dev(si)) {
-+	parent = sysfb_parent_dev(si);
-+	if (!dev || !parent || dev == parent) {
- 		sysfb_unregister();
- 		disabled = true;
- 	}
--- 
-GitLab
-From fdfdeaa0dbceb2960e0233037887a1464eb91262 Mon Sep 17 00:00:00 2001
+From 1428d4f8b63259956d3b1f369dbc5bdba684b3e5 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Mon, 30 Sep 2024 16:55:24 +0200
-Subject: [PATCH 05/10] intel-pstate
+Date: Fri, 4 Oct 2024 17:07:08 +0200
+Subject: [PATCH 05/11] intel-pstate
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -10923,7 +11031,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  3 files changed, 328 insertions(+), 6 deletions(-)
 
 diff --git a/arch/x86/include/asm/topology.h b/arch/x86/include/asm/topology.h
-index abe3a8f22cbd9..aef70336d6247 100644
+index abe3a8f22cbd..aef70336d624 100644
 --- a/arch/x86/include/asm/topology.h
 +++ b/arch/x86/include/asm/topology.h
 @@ -282,9 +282,22 @@ static inline long arch_scale_freq_capacity(int cpu)
@@ -10950,7 +11058,7 @@ index abe3a8f22cbd9..aef70336d6247 100644
  static inline void freq_invariance_set_perf_ratio(u64 ratio, bool turbo_disabled) { }
  #endif
 diff --git a/arch/x86/kernel/cpu/aperfmperf.c b/arch/x86/kernel/cpu/aperfmperf.c
-index 0b69bfbf345d0..ec07678c641b7 100644
+index 0b69bfbf345d..ec07678c641b 100644
 --- a/arch/x86/kernel/cpu/aperfmperf.c
 +++ b/arch/x86/kernel/cpu/aperfmperf.c
 @@ -349,9 +349,89 @@ static DECLARE_WORK(disable_freq_invariance_work,
@@ -11059,7 +11167,7 @@ index 0b69bfbf345d0..ec07678c641b7 100644
  
  	freq_scale = div64_u64(acnt, mcnt);
 diff --git a/drivers/cpufreq/intel_pstate.c b/drivers/cpufreq/intel_pstate.c
-index 7d92f16a430a8..86ad1fed71f1a 100644
+index 7d92f16a430a..86ad1fed71f1 100644
 --- a/drivers/cpufreq/intel_pstate.c
 +++ b/drivers/cpufreq/intel_pstate.c
 @@ -16,6 +16,7 @@
@@ -11394,10 +11502,10 @@ index 7d92f16a430a8..86ad1fed71f1a 100644
 -- 
 2.47.0.rc0
 
-From e47c2bad2a96e99ad1a3f85cbc283adf394c0524 Mon Sep 17 00:00:00 2001
+From 1592694ac2fb67306ca39d831c44997536b7cda2 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Mon, 30 Sep 2024 16:55:34 +0200
-Subject: [PATCH 06/10] ksm
+Date: Fri, 4 Oct 2024 17:07:18 +0200
+Subject: [PATCH 06/11] ksm
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -11426,7 +11534,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  22 files changed, 206 insertions(+), 1 deletion(-)
 
 diff --git a/arch/alpha/kernel/syscalls/syscall.tbl b/arch/alpha/kernel/syscalls/syscall.tbl
-index 74720667fe091..e6a11f3c0a2e3 100644
+index 74720667fe09..e6a11f3c0a2e 100644
 --- a/arch/alpha/kernel/syscalls/syscall.tbl
 +++ b/arch/alpha/kernel/syscalls/syscall.tbl
 @@ -502,3 +502,6 @@
@@ -11437,7 +11545,7 @@ index 74720667fe091..e6a11f3c0a2e3 100644
 +574	common	process_ksm_disable		sys_process_ksm_disable
 +575	common	process_ksm_status		sys_process_ksm_status
 diff --git a/arch/arm/tools/syscall.tbl b/arch/arm/tools/syscall.tbl
-index 23c98203c40fe..10a3099decbe3 100644
+index 23c98203c40f..10a3099decbe 100644
 --- a/arch/arm/tools/syscall.tbl
 +++ b/arch/arm/tools/syscall.tbl
 @@ -477,3 +477,6 @@
@@ -11448,7 +11556,7 @@ index 23c98203c40fe..10a3099decbe3 100644
 +464	common	process_ksm_disable		sys_process_ksm_disable
 +465	common	process_ksm_status		sys_process_ksm_status
 diff --git a/arch/m68k/kernel/syscalls/syscall.tbl b/arch/m68k/kernel/syscalls/syscall.tbl
-index 22a3cbd4c6029..12d2c7594bf0b 100644
+index 22a3cbd4c602..12d2c7594bf0 100644
 --- a/arch/m68k/kernel/syscalls/syscall.tbl
 +++ b/arch/m68k/kernel/syscalls/syscall.tbl
 @@ -462,3 +462,6 @@
@@ -11459,7 +11567,7 @@ index 22a3cbd4c6029..12d2c7594bf0b 100644
 +464	common	process_ksm_disable		sys_process_ksm_disable
 +465	common	process_ksm_status		sys_process_ksm_status
 diff --git a/arch/microblaze/kernel/syscalls/syscall.tbl b/arch/microblaze/kernel/syscalls/syscall.tbl
-index 2b81a6bd78b29..e2a93c856eede 100644
+index 2b81a6bd78b2..e2a93c856eed 100644
 --- a/arch/microblaze/kernel/syscalls/syscall.tbl
 +++ b/arch/microblaze/kernel/syscalls/syscall.tbl
 @@ -468,3 +468,6 @@
@@ -11470,7 +11578,7 @@ index 2b81a6bd78b29..e2a93c856eede 100644
 +464	common	process_ksm_disable		sys_process_ksm_disable
 +465	common	process_ksm_status		sys_process_ksm_status
 diff --git a/arch/mips/kernel/syscalls/syscall_n32.tbl b/arch/mips/kernel/syscalls/syscall_n32.tbl
-index 953f5b7dc723f..b921fbf56fa6d 100644
+index 953f5b7dc723..b921fbf56fa6 100644
 --- a/arch/mips/kernel/syscalls/syscall_n32.tbl
 +++ b/arch/mips/kernel/syscalls/syscall_n32.tbl
 @@ -401,3 +401,6 @@
@@ -11481,7 +11589,7 @@ index 953f5b7dc723f..b921fbf56fa6d 100644
 +464	n32	process_ksm_disable		sys_process_ksm_disable
 +465	n32	process_ksm_status		sys_process_ksm_status
 diff --git a/arch/mips/kernel/syscalls/syscall_n64.tbl b/arch/mips/kernel/syscalls/syscall_n64.tbl
-index 1464c6be6eb3c..8d7f9ddd66f4b 100644
+index 1464c6be6eb3..8d7f9ddd66f4 100644
 --- a/arch/mips/kernel/syscalls/syscall_n64.tbl
 +++ b/arch/mips/kernel/syscalls/syscall_n64.tbl
 @@ -377,3 +377,6 @@
@@ -11492,7 +11600,7 @@ index 1464c6be6eb3c..8d7f9ddd66f4b 100644
 +464	n64	process_ksm_disable		sys_process_ksm_disable
 +465	n64	process_ksm_status		sys_process_ksm_status
 diff --git a/arch/mips/kernel/syscalls/syscall_o32.tbl b/arch/mips/kernel/syscalls/syscall_o32.tbl
-index 2439a2491cffe..9d6142739954d 100644
+index 2439a2491cff..9d6142739954 100644
 --- a/arch/mips/kernel/syscalls/syscall_o32.tbl
 +++ b/arch/mips/kernel/syscalls/syscall_o32.tbl
 @@ -450,3 +450,6 @@
@@ -11503,7 +11611,7 @@ index 2439a2491cffe..9d6142739954d 100644
 +464	o32	process_ksm_disable		sys_process_ksm_disable
 +465	o32	process_ksm_status		sys_process_ksm_status
 diff --git a/arch/parisc/kernel/syscalls/syscall.tbl b/arch/parisc/kernel/syscalls/syscall.tbl
-index 66dc406b12e44..9d46476fd9083 100644
+index 66dc406b12e4..9d46476fd908 100644
 --- a/arch/parisc/kernel/syscalls/syscall.tbl
 +++ b/arch/parisc/kernel/syscalls/syscall.tbl
 @@ -461,3 +461,6 @@
@@ -11514,7 +11622,7 @@ index 66dc406b12e44..9d46476fd9083 100644
 +464	common	process_ksm_disable		sys_process_ksm_disable
 +465	common	process_ksm_status		sys_process_ksm_status
 diff --git a/arch/powerpc/kernel/syscalls/syscall.tbl b/arch/powerpc/kernel/syscalls/syscall.tbl
-index ebae8415dfbba..16f71bc2f6f01 100644
+index ebae8415dfbb..16f71bc2f6f0 100644
 --- a/arch/powerpc/kernel/syscalls/syscall.tbl
 +++ b/arch/powerpc/kernel/syscalls/syscall.tbl
 @@ -553,3 +553,6 @@
@@ -11525,7 +11633,7 @@ index ebae8415dfbba..16f71bc2f6f01 100644
 +464	common	process_ksm_disable		sys_process_ksm_disable
 +465	common	process_ksm_status		sys_process_ksm_status
 diff --git a/arch/s390/kernel/syscalls/syscall.tbl b/arch/s390/kernel/syscalls/syscall.tbl
-index 01071182763e9..7394bad8178e6 100644
+index 01071182763e..7394bad8178e 100644
 --- a/arch/s390/kernel/syscalls/syscall.tbl
 +++ b/arch/s390/kernel/syscalls/syscall.tbl
 @@ -465,3 +465,6 @@
@@ -11536,7 +11644,7 @@ index 01071182763e9..7394bad8178e6 100644
 +464  common	process_ksm_disable	sys_process_ksm_disable		sys_process_ksm_disable
 +465  common	process_ksm_status	sys_process_ksm_status		sys_process_ksm_status
 diff --git a/arch/sh/kernel/syscalls/syscall.tbl b/arch/sh/kernel/syscalls/syscall.tbl
-index c55fd7696d40f..b9fc31221b874 100644
+index c55fd7696d40..b9fc31221b87 100644
 --- a/arch/sh/kernel/syscalls/syscall.tbl
 +++ b/arch/sh/kernel/syscalls/syscall.tbl
 @@ -466,3 +466,6 @@
@@ -11547,7 +11655,7 @@ index c55fd7696d40f..b9fc31221b874 100644
 +464	common	process_ksm_disable		sys_process_ksm_disable
 +465	common	process_ksm_status		sys_process_ksm_status
 diff --git a/arch/sparc/kernel/syscalls/syscall.tbl b/arch/sparc/kernel/syscalls/syscall.tbl
-index cfdfb3707c167..0d79fd7728540 100644
+index cfdfb3707c16..0d79fd772854 100644
 --- a/arch/sparc/kernel/syscalls/syscall.tbl
 +++ b/arch/sparc/kernel/syscalls/syscall.tbl
 @@ -508,3 +508,6 @@
@@ -11558,7 +11666,7 @@ index cfdfb3707c167..0d79fd7728540 100644
 +464	common	process_ksm_disable		sys_process_ksm_disable
 +465	common	process_ksm_status		sys_process_ksm_status
 diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
-index 534c74b14fab5..c546a30575f1c 100644
+index 534c74b14fab..c546a30575f1 100644
 --- a/arch/x86/entry/syscalls/syscall_32.tbl
 +++ b/arch/x86/entry/syscalls/syscall_32.tbl
 @@ -468,3 +468,6 @@
@@ -11569,7 +11677,7 @@ index 534c74b14fab5..c546a30575f1c 100644
 +464	i386	process_ksm_disable		sys_process_ksm_disable
 +465	i386	process_ksm_status		sys_process_ksm_status
 diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
-index 7093ee21c0d1c..0fcd10ba8dfeb 100644
+index 7093ee21c0d1..0fcd10ba8dfe 100644
 --- a/arch/x86/entry/syscalls/syscall_64.tbl
 +++ b/arch/x86/entry/syscalls/syscall_64.tbl
 @@ -386,6 +386,9 @@
@@ -11583,7 +11691,7 @@ index 7093ee21c0d1c..0fcd10ba8dfeb 100644
  #
  # Due to a historical design error, certain syscalls are numbered differently
 diff --git a/arch/xtensa/kernel/syscalls/syscall.tbl b/arch/xtensa/kernel/syscalls/syscall.tbl
-index 67083fc1b2f56..c1aecee4ad9b6 100644
+index 67083fc1b2f5..c1aecee4ad9b 100644
 --- a/arch/xtensa/kernel/syscalls/syscall.tbl
 +++ b/arch/xtensa/kernel/syscalls/syscall.tbl
 @@ -433,3 +433,6 @@
@@ -11594,7 +11702,7 @@ index 67083fc1b2f56..c1aecee4ad9b6 100644
 +464	common	process_ksm_disable		sys_process_ksm_disable
 +465	common	process_ksm_status		sys_process_ksm_status
 diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-index 4bcf6754738d4..b3ea08e920f70 100644
+index 4bcf6754738d..b3ea08e920f7 100644
 --- a/include/linux/syscalls.h
 +++ b/include/linux/syscalls.h
 @@ -818,6 +818,9 @@ asmlinkage long sys_madvise(unsigned long start, size_t len, int behavior);
@@ -11608,7 +11716,7 @@ index 4bcf6754738d4..b3ea08e920f70 100644
  			unsigned long prot, unsigned long pgoff,
  			unsigned long flags);
 diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
-index 5bf6148cac2b9..613e559ad6e0a 100644
+index 5bf6148cac2b..613e559ad6e0 100644
 --- a/include/uapi/asm-generic/unistd.h
 +++ b/include/uapi/asm-generic/unistd.h
 @@ -841,8 +841,15 @@ __SYSCALL(__NR_lsm_list_modules, sys_lsm_list_modules)
@@ -11629,7 +11737,7 @@ index 5bf6148cac2b9..613e559ad6e0a 100644
  /*
   * 32 bit systems traditionally used different
 diff --git a/kernel/sys.c b/kernel/sys.c
-index 3a2df1bd9f640..bc77dc7845270 100644
+index 3a2df1bd9f64..bc77dc784527 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
 @@ -2789,6 +2789,144 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
@@ -11778,7 +11886,7 @@ index 3a2df1bd9f640..bc77dc7845270 100644
  		struct getcpu_cache __user *, unused)
  {
 diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
-index c00a86931f8c6..d82213d68522c 100644
+index c00a86931f8c..d82213d68522 100644
 --- a/kernel/sys_ni.c
 +++ b/kernel/sys_ni.c
 @@ -186,6 +186,9 @@ COND_SYSCALL(mincore);
@@ -11792,7 +11900,7 @@ index c00a86931f8c6..d82213d68522c 100644
  COND_SYSCALL(mbind);
  COND_SYSCALL(get_mempolicy);
 diff --git a/scripts/syscall.tbl b/scripts/syscall.tbl
-index 845e24eb372e7..227d9cc123651 100644
+index 845e24eb372e..227d9cc12365 100644
 --- a/scripts/syscall.tbl
 +++ b/scripts/syscall.tbl
 @@ -403,3 +403,6 @@
@@ -11803,7 +11911,7 @@ index 845e24eb372e7..227d9cc123651 100644
 +464	common	process_ksm_disable			sys_process_ksm_disable
 +465	common	process_ksm_status			sys_process_ksm_status
 diff --git a/tools/perf/arch/powerpc/entry/syscalls/syscall.tbl b/tools/perf/arch/powerpc/entry/syscalls/syscall.tbl
-index ebae8415dfbba..16f71bc2f6f01 100644
+index ebae8415dfbb..16f71bc2f6f0 100644
 --- a/tools/perf/arch/powerpc/entry/syscalls/syscall.tbl
 +++ b/tools/perf/arch/powerpc/entry/syscalls/syscall.tbl
 @@ -553,3 +553,6 @@
@@ -11814,7 +11922,7 @@ index ebae8415dfbba..16f71bc2f6f01 100644
 +464	common	process_ksm_disable		sys_process_ksm_disable
 +465	common	process_ksm_status		sys_process_ksm_status
 diff --git a/tools/perf/arch/s390/entry/syscalls/syscall.tbl b/tools/perf/arch/s390/entry/syscalls/syscall.tbl
-index 01071182763e9..7394bad8178e6 100644
+index 01071182763e..7394bad8178e 100644
 --- a/tools/perf/arch/s390/entry/syscalls/syscall.tbl
 +++ b/tools/perf/arch/s390/entry/syscalls/syscall.tbl
 @@ -465,3 +465,6 @@
@@ -11827,10 +11935,10 @@ index 01071182763e9..7394bad8178e6 100644
 -- 
 2.47.0.rc0
 
-From 572791832138e7cdc58cdaabb1e62cf773d42a44 Mon Sep 17 00:00:00 2001
+From 9327b37ceb06b33807c167a8fcbbfd3e811b22a3 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Mon, 30 Sep 2024 16:55:43 +0200
-Subject: [PATCH 07/10] ntsync
+Date: Fri, 4 Oct 2024 17:08:21 +0200
+Subject: [PATCH 07/11] ntsync
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -11853,7 +11961,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  create mode 100644 tools/testing/selftests/drivers/ntsync/ntsync.c
 
 diff --git a/Documentation/userspace-api/index.rst b/Documentation/userspace-api/index.rst
-index 274cc7546efc2..9c1b15cd89ab0 100644
+index 274cc7546efc..9c1b15cd89ab 100644
 --- a/Documentation/userspace-api/index.rst
 +++ b/Documentation/userspace-api/index.rst
 @@ -63,6 +63,7 @@ Everything else
@@ -11866,7 +11974,7 @@ index 274cc7546efc2..9c1b15cd89ab0 100644
  
 diff --git a/Documentation/userspace-api/ntsync.rst b/Documentation/userspace-api/ntsync.rst
 new file mode 100644
-index 0000000000000..767844637a7df
+index 000000000000..767844637a7d
 --- /dev/null
 +++ b/Documentation/userspace-api/ntsync.rst
 @@ -0,0 +1,398 @@
@@ -12269,7 +12377,7 @@ index 0000000000000..767844637a7df
 +  ``objs`` and in ``alert``. If this is attempted, the function fails
 +  with ``EINVAL``.
 diff --git a/MAINTAINERS b/MAINTAINERS
-index cc40a9d9b8cd1..2cd7168dc401d 100644
+index cc40a9d9b8cd..2cd7168dc401 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
 @@ -16319,6 +16319,15 @@ T:	git https://github.com/Paragon-Software-Group/linux-ntfs3.git
@@ -12289,7 +12397,7 @@ index cc40a9d9b8cd1..2cd7168dc401d 100644
  M:	Finn Thain <fthain@linux-m68k.org>
  L:	linux-m68k@lists.linux-m68k.org
 diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
-index 41c54051347ab..bde398e12696e 100644
+index 41c54051347a..bde398e12696 100644
 --- a/drivers/misc/Kconfig
 +++ b/drivers/misc/Kconfig
 @@ -507,7 +507,6 @@ config OPEN_DICE
@@ -12301,7 +12409,7 @@ index 41c54051347ab..bde398e12696e 100644
  	  This module provides kernel support for emulation of Windows NT
  	  synchronization primitives. It is not a hardware driver.
 diff --git a/drivers/misc/ntsync.c b/drivers/misc/ntsync.c
-index 3c2f743c58b00..87a24798a5c7b 100644
+index 3c2f743c58b0..87a24798a5c7 100644
 --- a/drivers/misc/ntsync.c
 +++ b/drivers/misc/ntsync.c
 @@ -6,11 +6,17 @@
@@ -13410,7 +13518,7 @@ index 3c2f743c58b00..87a24798a5c7b 100644
  		return -ENOIOCTLCMD;
  	}
 diff --git a/include/uapi/linux/ntsync.h b/include/uapi/linux/ntsync.h
-index dcfa38fdc93c6..4a8095a3fc34c 100644
+index dcfa38fdc93c..4a8095a3fc34 100644
 --- a/include/uapi/linux/ntsync.h
 +++ b/include/uapi/linux/ntsync.h
 @@ -16,8 +16,47 @@ struct ntsync_sem_args {
@@ -13462,7 +13570,7 @@ index dcfa38fdc93c6..4a8095a3fc34c 100644
  
  #endif
 diff --git a/tools/testing/selftests/Makefile b/tools/testing/selftests/Makefile
-index bc8fe9e8f7f20..b1296bd8eb3f7 100644
+index bc8fe9e8f7f2..b1296bd8eb3f 100644
 --- a/tools/testing/selftests/Makefile
 +++ b/tools/testing/selftests/Makefile
 @@ -17,6 +17,7 @@ TARGETS += devices/error_logs
@@ -13475,14 +13583,14 @@ index bc8fe9e8f7f20..b1296bd8eb3f7 100644
  TARGETS += drivers/net/bonding
 diff --git a/tools/testing/selftests/drivers/ntsync/.gitignore b/tools/testing/selftests/drivers/ntsync/.gitignore
 new file mode 100644
-index 0000000000000..848573a3d3eaf
+index 000000000000..848573a3d3ea
 --- /dev/null
 +++ b/tools/testing/selftests/drivers/ntsync/.gitignore
 @@ -0,0 +1 @@
 +ntsync
 diff --git a/tools/testing/selftests/drivers/ntsync/Makefile b/tools/testing/selftests/drivers/ntsync/Makefile
 new file mode 100644
-index 0000000000000..dbf2b055c0b28
+index 000000000000..dbf2b055c0b2
 --- /dev/null
 +++ b/tools/testing/selftests/drivers/ntsync/Makefile
 @@ -0,0 +1,7 @@
@@ -13495,14 +13603,14 @@ index 0000000000000..dbf2b055c0b28
 +include ../../lib.mk
 diff --git a/tools/testing/selftests/drivers/ntsync/config b/tools/testing/selftests/drivers/ntsync/config
 new file mode 100644
-index 0000000000000..60539c826d062
+index 000000000000..60539c826d06
 --- /dev/null
 +++ b/tools/testing/selftests/drivers/ntsync/config
 @@ -0,0 +1 @@
 +CONFIG_WINESYNC=y
 diff --git a/tools/testing/selftests/drivers/ntsync/ntsync.c b/tools/testing/selftests/drivers/ntsync/ntsync.c
 new file mode 100644
-index 0000000000000..5fa2c9a0768c0
+index 000000000000..5fa2c9a0768c
 --- /dev/null
 +++ b/tools/testing/selftests/drivers/ntsync/ntsync.c
 @@ -0,0 +1,1407 @@
@@ -14916,10 +15024,10 @@ index 0000000000000..5fa2c9a0768c0
 -- 
 2.47.0.rc0
 
-From f1d1da8874c086f233e059f95c7143871f9c6fdb Mon Sep 17 00:00:00 2001
+From 5ca9626e4dd7d38f2a774c62dc3dffdf4dd507ca Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Mon, 30 Sep 2024 16:55:53 +0200
-Subject: [PATCH 08/10] perf-per-core
+Date: Fri, 4 Oct 2024 17:08:44 +0200
+Subject: [PATCH 09/11] perf-per-core
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -14932,7 +15040,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  6 files changed, 305 insertions(+), 121 deletions(-)
 
 diff --git a/Documentation/arch/x86/topology.rst b/Documentation/arch/x86/topology.rst
-index 7352ab89a55ae..c12837e61bda5 100644
+index 7352ab89a55a..c12837e61bda 100644
 --- a/Documentation/arch/x86/topology.rst
 +++ b/Documentation/arch/x86/topology.rst
 @@ -135,6 +135,10 @@ Thread-related topology information in the kernel:
@@ -14947,7 +15055,7 @@ index 7352ab89a55ae..c12837e61bda5 100644
  
  System topology examples
 diff --git a/arch/x86/events/rapl.c b/arch/x86/events/rapl.c
-index b985ca79cf97b..8206038a01ac2 100644
+index b985ca79cf97..8206038a01ac 100644
 --- a/arch/x86/events/rapl.c
 +++ b/arch/x86/events/rapl.c
 @@ -39,6 +39,10 @@
@@ -15774,7 +15882,7 @@ index b985ca79cf97b..8206038a01ac2 100644
  }
  module_exit(intel_rapl_exit);
 diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
-index a75a07f4931fd..5a59713ec62b1 100644
+index a75a07f4931f..5a59713ec62b 100644
 --- a/arch/x86/include/asm/processor.h
 +++ b/arch/x86/include/asm/processor.h
 @@ -98,6 +98,7 @@ struct cpuinfo_topology {
@@ -15786,7 +15894,7 @@ index a75a07f4931fd..5a59713ec62b1 100644
  	// AMD Node ID and Nodes per Package info
  	u32			amd_node_id;
 diff --git a/arch/x86/include/asm/topology.h b/arch/x86/include/asm/topology.h
-index aef70336d6247..672fccf9f8459 100644
+index aef70336d624..672fccf9f845 100644
 --- a/arch/x86/include/asm/topology.h
 +++ b/arch/x86/include/asm/topology.h
 @@ -137,6 +137,7 @@ extern const struct cpumask *cpu_clustergroup_mask(int cpu);
@@ -15798,7 +15906,7 @@ index aef70336d6247..672fccf9f8459 100644
  #define topology_core_id(cpu)			(cpu_data(cpu).topo.core_id)
  #define topology_ppin(cpu)			(cpu_data(cpu).ppin)
 diff --git a/arch/x86/kernel/cpu/debugfs.c b/arch/x86/kernel/cpu/debugfs.c
-index 3baf3e4358347..b1eb6d7828dbd 100644
+index 3baf3e435834..b1eb6d7828db 100644
 --- a/arch/x86/kernel/cpu/debugfs.c
 +++ b/arch/x86/kernel/cpu/debugfs.c
 @@ -24,6 +24,7 @@ static int cpu_debug_show(struct seq_file *m, void *p)
@@ -15810,7 +15918,7 @@ index 3baf3e4358347..b1eb6d7828dbd 100644
  	seq_printf(m, "l2c_id:              %u\n", c->topo.l2c_id);
  	seq_printf(m, "amd_node_id:         %u\n", c->topo.amd_node_id);
 diff --git a/arch/x86/kernel/cpu/topology_common.c b/arch/x86/kernel/cpu/topology_common.c
-index 9a6069e7133c9..23722aa21e2f6 100644
+index 9a6069e7133c..23722aa21e2f 100644
 --- a/arch/x86/kernel/cpu/topology_common.c
 +++ b/arch/x86/kernel/cpu/topology_common.c
 @@ -151,6 +151,7 @@ static void topo_set_ids(struct topo_scan *tscan, bool early)
@@ -15824,10 +15932,10 @@ index 9a6069e7133c9..23722aa21e2f6 100644
 -- 
 2.47.0.rc0
 
-From 6b89faaddb4b30770af655bc54f219304adbe7e6 Mon Sep 17 00:00:00 2001
+From a478a87f3e89760a3b2a2eb0f47e8b4b775c1c74 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Mon, 30 Sep 2024 16:56:20 +0200
-Subject: [PATCH 09/10] t2
+Date: Fri, 4 Oct 2024 17:09:09 +0200
+Subject: [PATCH 10/11] t2
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -15924,7 +16032,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
 
 diff --git a/Documentation/ABI/testing/sysfs-driver-hid-appletb-kbd b/Documentation/ABI/testing/sysfs-driver-hid-appletb-kbd
 new file mode 100644
-index 0000000000000..2a19584d091e4
+index 000000000000..2a19584d091e
 --- /dev/null
 +++ b/Documentation/ABI/testing/sysfs-driver-hid-appletb-kbd
 @@ -0,0 +1,13 @@
@@ -15942,7 +16050,7 @@ index 0000000000000..2a19584d091e4
 +		3  None
 +		== =================
 diff --git a/Documentation/core-api/printk-formats.rst b/Documentation/core-api/printk-formats.rst
-index 4451ef5019361..c726a846f752e 100644
+index 4451ef501936..c726a846f752 100644
 --- a/Documentation/core-api/printk-formats.rst
 +++ b/Documentation/core-api/printk-formats.rst
 @@ -632,6 +632,38 @@ Examples::
@@ -15985,7 +16093,7 @@ index 4451ef5019361..c726a846f752e 100644
  ----
  
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 2cd7168dc401d..16df466c205dc 100644
+index 1f3c67df3c4c..c2a7363e86fe 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
 @@ -6895,6 +6895,12 @@ S:	Supported
@@ -16002,10 +16110,10 @@ index 2cd7168dc401d..16df466c205dc 100644
  S:	Orphan
  T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-index 8bf31cbde0cdb..bc6592169e43f 100644
+index ad5c05ee92f3..09c82a3e83f2 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-@@ -2236,6 +2236,9 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
+@@ -2237,6 +2237,9 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
  	int ret, retry = 0, i;
  	bool supports_atomic = false;
  
@@ -16016,7 +16124,7 @@ index 8bf31cbde0cdb..bc6592169e43f 100644
  	for (i = 0; i < ARRAY_SIZE(amdgpu_unsupported_pciidlist); i++) {
  		if (amdgpu_unsupported_pciidlist[i] == pdev->device)
 diff --git a/drivers/gpu/drm/drm_format_helper.c b/drivers/gpu/drm/drm_format_helper.c
-index b1be458ed4dda..28c0e76a1e889 100644
+index b1be458ed4dd..28c0e76a1e88 100644
 --- a/drivers/gpu/drm/drm_format_helper.c
 +++ b/drivers/gpu/drm/drm_format_helper.c
 @@ -702,6 +702,57 @@ void drm_fb_xrgb8888_to_rgb888(struct iosys_map *dst, const unsigned int *dst_pi
@@ -16088,7 +16196,7 @@ index b1be458ed4dda..28c0e76a1e889 100644
  			drm_fb_xrgb8888_to_argb8888(dst, dst_pitch, src, fb, clip, state);
  			return 0;
 diff --git a/drivers/gpu/drm/i915/display/intel_ddi.c b/drivers/gpu/drm/i915/display/intel_ddi.c
-index a07aca96e5517..210e20b03aabe 100644
+index a07aca96e551..210e20b03aab 100644
 --- a/drivers/gpu/drm/i915/display/intel_ddi.c
 +++ b/drivers/gpu/drm/i915/display/intel_ddi.c
 @@ -4640,6 +4640,7 @@ intel_ddi_init_hdmi_connector(struct intel_digital_port *dig_port)
@@ -16110,7 +16218,7 @@ index a07aca96e5517..210e20b03aabe 100644
  	 *                     supported configuration
  	 */
 diff --git a/drivers/gpu/drm/i915/display/intel_fbdev.c b/drivers/gpu/drm/i915/display/intel_fbdev.c
-index 49a1ac4f54919..c8c10a6104c4e 100644
+index 49a1ac4f5491..c8c10a6104c4 100644
 --- a/drivers/gpu/drm/i915/display/intel_fbdev.c
 +++ b/drivers/gpu/drm/i915/display/intel_fbdev.c
 @@ -199,10 +199,10 @@ static int intelfb_create(struct drm_fb_helper *helper,
@@ -16128,7 +16236,7 @@ index 49a1ac4f54919..c8c10a6104c4e 100644
  			    fb->base.width, fb->base.height,
  			    sizes->fb_width, sizes->fb_height);
 diff --git a/drivers/gpu/drm/i915/display/intel_quirks.c b/drivers/gpu/drm/i915/display/intel_quirks.c
-index dfd8b4960e6d6..7232f9acd0a01 100644
+index dfd8b4960e6d..7232f9acd0a0 100644
 --- a/drivers/gpu/drm/i915/display/intel_quirks.c
 +++ b/drivers/gpu/drm/i915/display/intel_quirks.c
 @@ -64,6 +64,18 @@ static void quirk_increase_ddi_disabled_time(struct intel_display *display)
@@ -16161,7 +16269,7 @@ index dfd8b4960e6d6..7232f9acd0a01 100644
  
  static struct intel_dpcd_quirk intel_dpcd_quirks[] = {
 diff --git a/drivers/gpu/drm/i915/display/intel_quirks.h b/drivers/gpu/drm/i915/display/intel_quirks.h
-index cafdebda75354..a5296f82776e4 100644
+index cafdebda7535..a5296f82776e 100644
 --- a/drivers/gpu/drm/i915/display/intel_quirks.h
 +++ b/drivers/gpu/drm/i915/display/intel_quirks.h
 @@ -20,6 +20,7 @@ enum intel_quirk_id {
@@ -16173,7 +16281,7 @@ index cafdebda75354..a5296f82776e4 100644
  
  void intel_init_quirks(struct intel_display *display);
 diff --git a/drivers/gpu/drm/tests/drm_format_helper_test.c b/drivers/gpu/drm/tests/drm_format_helper_test.c
-index 08992636ec05f..35cd3405d0450 100644
+index 08992636ec05..35cd3405d045 100644
 --- a/drivers/gpu/drm/tests/drm_format_helper_test.c
 +++ b/drivers/gpu/drm/tests/drm_format_helper_test.c
 @@ -60,6 +60,11 @@ struct convert_to_rgb888_result {
@@ -16314,7 +16422,7 @@ index 08992636ec05f..35cd3405d0450 100644
  	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_xrgb2101010, convert_xrgb8888_gen_params),
  	KUNIT_CASE_PARAM(drm_test_fb_xrgb8888_to_argb2101010, convert_xrgb8888_gen_params),
 diff --git a/drivers/gpu/drm/tiny/Kconfig b/drivers/gpu/drm/tiny/Kconfig
-index f6889f649bc18..559a97bce12c6 100644
+index f6889f649bc1..559a97bce12c 100644
 --- a/drivers/gpu/drm/tiny/Kconfig
 +++ b/drivers/gpu/drm/tiny/Kconfig
 @@ -1,5 +1,17 @@
@@ -16336,7 +16444,7 @@ index f6889f649bc18..559a97bce12c6 100644
  	tristate "ARC PGU"
  	depends on DRM && OF
 diff --git a/drivers/gpu/drm/tiny/Makefile b/drivers/gpu/drm/tiny/Makefile
-index 76dde89a044b7..9a1b412e764ae 100644
+index 76dde89a044b..9a1b412e764a 100644
 --- a/drivers/gpu/drm/tiny/Makefile
 +++ b/drivers/gpu/drm/tiny/Makefile
 @@ -1,5 +1,6 @@
@@ -16348,7 +16456,7 @@ index 76dde89a044b7..9a1b412e764ae 100644
  obj-$(CONFIG_DRM_CIRRUS_QEMU)		+= cirrus.o
 diff --git a/drivers/gpu/drm/tiny/appletbdrm.c b/drivers/gpu/drm/tiny/appletbdrm.c
 new file mode 100644
-index 0000000000000..b9440ce0064e0
+index 000000000000..b9440ce0064e
 --- /dev/null
 +++ b/drivers/gpu/drm/tiny/appletbdrm.c
 @@ -0,0 +1,624 @@
@@ -16977,7 +17085,7 @@ index 0000000000000..b9440ce0064e0
 +MODULE_DESCRIPTION("Apple Touch Bar DRM Driver");
 +MODULE_LICENSE("GPL");
 diff --git a/drivers/gpu/vga/vga_switcheroo.c b/drivers/gpu/vga/vga_switcheroo.c
-index 365e6ddbe90fe..cf357cd3389db 100644
+index 365e6ddbe90f..cf357cd3389d 100644
 --- a/drivers/gpu/vga/vga_switcheroo.c
 +++ b/drivers/gpu/vga/vga_switcheroo.c
 @@ -438,12 +438,7 @@ find_active_client(struct list_head *head)
@@ -16995,7 +17103,7 @@ index 365e6ddbe90fe..cf357cd3389db 100644
  	}
  
 diff --git a/drivers/hid/Kconfig b/drivers/hid/Kconfig
-index 08446c89eff6e..35ef5d4ef068e 100644
+index 08446c89eff6..35ef5d4ef068 100644
 --- a/drivers/hid/Kconfig
 +++ b/drivers/hid/Kconfig
 @@ -148,6 +148,27 @@ config HID_APPLEIR
@@ -17035,7 +17143,7 @@ index 08446c89eff6e..35ef5d4ef068e 100644
  	  - Cando dual touch panels
  	  - Chunghwa panels
 diff --git a/drivers/hid/Makefile b/drivers/hid/Makefile
-index e40f1ddebbb71..d903c9a2629d9 100644
+index e40f1ddebbb7..d903c9a2629d 100644
 --- a/drivers/hid/Makefile
 +++ b/drivers/hid/Makefile
 @@ -29,6 +29,8 @@ obj-$(CONFIG_HID_ALPS)		+= hid-alps.o
@@ -17049,7 +17157,7 @@ index e40f1ddebbb71..d903c9a2629d9 100644
  obj-$(CONFIG_HID_AUREAL)	+= hid-aureal.o
 diff --git a/drivers/hid/hid-appletb-bl.c b/drivers/hid/hid-appletb-bl.c
 new file mode 100644
-index 0000000000000..819157686e59d
+index 000000000000..819157686e59
 --- /dev/null
 +++ b/drivers/hid/hid-appletb-bl.c
 @@ -0,0 +1,207 @@
@@ -17262,7 +17370,7 @@ index 0000000000000..819157686e59d
 +MODULE_LICENSE("GPL");
 diff --git a/drivers/hid/hid-appletb-kbd.c b/drivers/hid/hid-appletb-kbd.c
 new file mode 100644
-index 0000000000000..c26b7a19a5e4a
+index 000000000000..c26b7a19a5e4
 --- /dev/null
 +++ b/drivers/hid/hid-appletb-kbd.c
 @@ -0,0 +1,501 @@
@@ -17768,7 +17876,7 @@ index 0000000000000..c26b7a19a5e4a
 +MODULE_DESCRIPTION("MacBookPro Touch Bar Keyboard Mode Driver");
 +MODULE_LICENSE("GPL");
 diff --git a/drivers/hid/hid-core.c b/drivers/hid/hid-core.c
-index 988d0acbdf04d..caeba5487b69b 100644
+index 988d0acbdf04..caeba5487b69 100644
 --- a/drivers/hid/hid-core.c
 +++ b/drivers/hid/hid-core.c
 @@ -1912,6 +1912,31 @@ int hid_set_field(struct hid_field *field, unsigned offset, __s32 value)
@@ -17804,7 +17912,7 @@ index 988d0acbdf04d..caeba5487b69b 100644
  		const u8 *data)
  {
 diff --git a/drivers/hid/hid-google-hammer.c b/drivers/hid/hid-google-hammer.c
-index 6e4ebc349e452..4e79fafeeafa8 100644
+index 6e4ebc349e45..4e79fafeeafa 100644
 --- a/drivers/hid/hid-google-hammer.c
 +++ b/drivers/hid/hid-google-hammer.c
 @@ -418,38 +418,15 @@ static int hammer_event(struct hid_device *hid, struct hid_field *field,
@@ -17849,7 +17957,7 @@ index 6e4ebc349e452..4e79fafeeafa8 100644
  }
  
 diff --git a/drivers/hid/hid-multitouch.c b/drivers/hid/hid-multitouch.c
-index 99812c0f830b5..bb845947585f4 100644
+index 99812c0f830b..bb845947585f 100644
 --- a/drivers/hid/hid-multitouch.c
 +++ b/drivers/hid/hid-multitouch.c
 @@ -72,6 +72,7 @@ MODULE_LICENSE("GPL");
@@ -18023,7 +18131,7 @@ index 99812c0f830b5..bb845947585f4 100644
  	{ .driver_data = MT_CLS_GOOGLE,
  		HID_DEVICE(HID_BUS_ANY, HID_GROUP_ANY, USB_VENDOR_ID_GOOGLE,
 diff --git a/drivers/hid/hid-quirks.c b/drivers/hid/hid-quirks.c
-index e0bbf0c6345d6..7c576d6540fed 100644
+index e0bbf0c6345d..7c576d6540fe 100644
 --- a/drivers/hid/hid-quirks.c
 +++ b/drivers/hid/hid-quirks.c
 @@ -328,8 +328,6 @@ static const struct hid_device_id hid_have_special_driver[] = {
@@ -18049,7 +18157,7 @@ index e0bbf0c6345d6..7c576d6540fed 100644
  	{ HID_I2C_DEVICE(USB_VENDOR_ID_ASUSTEK, USB_DEVICE_ID_ASUSTEK_I2C_KEYBOARD) },
  	{ HID_I2C_DEVICE(USB_VENDOR_ID_ASUSTEK, USB_DEVICE_ID_ASUSTEK_I2C_TOUCHPAD) },
 diff --git a/drivers/hwmon/applesmc.c b/drivers/hwmon/applesmc.c
-index fc6d6a9053cee..698f44794453f 100644
+index fc6d6a9053ce..698f44794453 100644
 --- a/drivers/hwmon/applesmc.c
 +++ b/drivers/hwmon/applesmc.c
 @@ -6,6 +6,7 @@
@@ -20035,7 +20143,7 @@ index fc6d6a9053cee..698f44794453f 100644
  MODULE_LICENSE("GPL v2");
  MODULE_DEVICE_TABLE(dmi, applesmc_whitelist);
 diff --git a/drivers/input/mouse/bcm5974.c b/drivers/input/mouse/bcm5974.c
-index 10a03a5669058..8c3ccd98ba937 100644
+index 10a03a566905..8c3ccd98ba93 100644
 --- a/drivers/input/mouse/bcm5974.c
 +++ b/drivers/input/mouse/bcm5974.c
 @@ -83,6 +83,24 @@
@@ -20198,7 +20306,7 @@ index 10a03a5669058..8c3ccd98ba937 100644
  };
  
 diff --git a/drivers/pci/vgaarb.c b/drivers/pci/vgaarb.c
-index 78748e8d2dbae..2b2b558cebe68 100644
+index 78748e8d2dba..2b2b558cebe6 100644
 --- a/drivers/pci/vgaarb.c
 +++ b/drivers/pci/vgaarb.c
 @@ -143,6 +143,7 @@ void vga_set_default_device(struct pci_dev *pdev)
@@ -20210,7 +20318,7 @@ index 78748e8d2dbae..2b2b558cebe68 100644
  /**
   * vga_remove_vgacon - deactivate VGA console
 diff --git a/drivers/platform/x86/apple-gmux.c b/drivers/platform/x86/apple-gmux.c
-index 1417e230edbd8..e69785af8e1d7 100644
+index 1417e230edbd..e69785af8e1d 100644
 --- a/drivers/platform/x86/apple-gmux.c
 +++ b/drivers/platform/x86/apple-gmux.c
 @@ -21,6 +21,7 @@
@@ -20253,7 +20361,7 @@ index 1417e230edbd8..e69785af8e1d7 100644
  	 * Retina MacBook Pros cannot switch the panel's AUX separately
  	 * and need eDP pre-calibration. They are distinguishable from
 diff --git a/drivers/staging/Kconfig b/drivers/staging/Kconfig
-index db4a392841b16..580df4ce4f9fa 100644
+index db4a392841b1..580df4ce4f9f 100644
 --- a/drivers/staging/Kconfig
 +++ b/drivers/staging/Kconfig
 @@ -66,4 +66,6 @@ source "drivers/staging/fieldbus/Kconfig"
@@ -20264,7 +20372,7 @@ index db4a392841b16..580df4ce4f9fa 100644
 +
  endif # STAGING
 diff --git a/drivers/staging/Makefile b/drivers/staging/Makefile
-index 5390879b5d1b7..528be2d3b5462 100644
+index 5390879b5d1b..528be2d3b546 100644
 --- a/drivers/staging/Makefile
 +++ b/drivers/staging/Makefile
 @@ -22,3 +22,4 @@ obj-$(CONFIG_GREYBUS)		+= greybus/
@@ -20274,7 +20382,7 @@ index 5390879b5d1b7..528be2d3b5462 100644
 +obj-$(CONFIG_APPLE_BCE)		+= apple-bce/
 diff --git a/drivers/staging/apple-bce/Kconfig b/drivers/staging/apple-bce/Kconfig
 new file mode 100644
-index 0000000000000..fe92bc441e89a
+index 000000000000..fe92bc441e89
 --- /dev/null
 +++ b/drivers/staging/apple-bce/Kconfig
 @@ -0,0 +1,18 @@
@@ -20298,7 +20406,7 @@ index 0000000000000..fe92bc441e89a
 +	  If "M" is selected, the module will be called apple-bce.'
 diff --git a/drivers/staging/apple-bce/Makefile b/drivers/staging/apple-bce/Makefile
 new file mode 100644
-index 0000000000000..8cfbd3f64af69
+index 000000000000..8cfbd3f64af6
 --- /dev/null
 +++ b/drivers/staging/apple-bce/Makefile
 @@ -0,0 +1,28 @@
@@ -20332,7 +20440,7 @@ index 0000000000000..8cfbd3f64af69
 +	$(MAKE) -C $(KDIR) M=$(PWD) modules_install
 diff --git a/drivers/staging/apple-bce/apple_bce.c b/drivers/staging/apple-bce/apple_bce.c
 new file mode 100644
-index 0000000000000..4fd2415d70288
+index 000000000000..4fd2415d7028
 --- /dev/null
 +++ b/drivers/staging/apple-bce/apple_bce.c
 @@ -0,0 +1,445 @@
@@ -20783,7 +20891,7 @@ index 0000000000000..4fd2415d70288
 +module_exit(apple_bce_module_exit);
 diff --git a/drivers/staging/apple-bce/apple_bce.h b/drivers/staging/apple-bce/apple_bce.h
 new file mode 100644
-index 0000000000000..f13ab8d5742e3
+index 000000000000..f13ab8d5742e
 --- /dev/null
 +++ b/drivers/staging/apple-bce/apple_bce.h
 @@ -0,0 +1,38 @@
@@ -20828,7 +20936,7 @@ index 0000000000000..f13ab8d5742e3
 \ No newline at end of file
 diff --git a/drivers/staging/apple-bce/audio/audio.c b/drivers/staging/apple-bce/audio/audio.c
 new file mode 100644
-index 0000000000000..bd16ddd16c1da
+index 000000000000..bd16ddd16c1d
 --- /dev/null
 +++ b/drivers/staging/apple-bce/audio/audio.c
 @@ -0,0 +1,711 @@
@@ -21545,7 +21653,7 @@ index 0000000000000..bd16ddd16c1da
 +MODULE_PARM_DESC(id, "ID string for Apple Internal Audio soundcard.");
 diff --git a/drivers/staging/apple-bce/audio/audio.h b/drivers/staging/apple-bce/audio/audio.h
 new file mode 100644
-index 0000000000000..004bc1e22ea4a
+index 000000000000..004bc1e22ea4
 --- /dev/null
 +++ b/drivers/staging/apple-bce/audio/audio.h
 @@ -0,0 +1,125 @@
@@ -21676,7 +21784,7 @@ index 0000000000000..004bc1e22ea4a
 +#endif //AAUDIO_H
 diff --git a/drivers/staging/apple-bce/audio/description.h b/drivers/staging/apple-bce/audio/description.h
 new file mode 100644
-index 0000000000000..dfef3ab68f279
+index 000000000000..dfef3ab68f27
 --- /dev/null
 +++ b/drivers/staging/apple-bce/audio/description.h
 @@ -0,0 +1,42 @@
@@ -21724,7 +21832,7 @@ index 0000000000000..dfef3ab68f279
 +#endif //AAUDIO_DESCRIPTION_H
 diff --git a/drivers/staging/apple-bce/audio/pcm.c b/drivers/staging/apple-bce/audio/pcm.c
 new file mode 100644
-index 0000000000000..1026e10a9ac58
+index 000000000000..1026e10a9ac5
 --- /dev/null
 +++ b/drivers/staging/apple-bce/audio/pcm.c
 @@ -0,0 +1,308 @@
@@ -22038,7 +22146,7 @@ index 0000000000000..1026e10a9ac58
 +}
 diff --git a/drivers/staging/apple-bce/audio/pcm.h b/drivers/staging/apple-bce/audio/pcm.h
 new file mode 100644
-index 0000000000000..ea5f35fbe4085
+index 000000000000..ea5f35fbe408
 --- /dev/null
 +++ b/drivers/staging/apple-bce/audio/pcm.h
 @@ -0,0 +1,16 @@
@@ -22060,7 +22168,7 @@ index 0000000000000..ea5f35fbe4085
 +#endif //AAUDIO_PCM_H
 diff --git a/drivers/staging/apple-bce/audio/protocol.c b/drivers/staging/apple-bce/audio/protocol.c
 new file mode 100644
-index 0000000000000..2314813aeeadc
+index 000000000000..2314813aeead
 --- /dev/null
 +++ b/drivers/staging/apple-bce/audio/protocol.c
 @@ -0,0 +1,347 @@
@@ -22414,7 +22522,7 @@ index 0000000000000..2314813aeeadc
 \ No newline at end of file
 diff --git a/drivers/staging/apple-bce/audio/protocol.h b/drivers/staging/apple-bce/audio/protocol.h
 new file mode 100644
-index 0000000000000..3427486f3f570
+index 000000000000..3427486f3f57
 --- /dev/null
 +++ b/drivers/staging/apple-bce/audio/protocol.h
 @@ -0,0 +1,147 @@
@@ -22567,7 +22675,7 @@ index 0000000000000..3427486f3f570
 +#endif //AAUDIO_PROTOCOL_H
 diff --git a/drivers/staging/apple-bce/audio/protocol_bce.c b/drivers/staging/apple-bce/audio/protocol_bce.c
 new file mode 100644
-index 0000000000000..28f2dfd44d676
+index 000000000000..28f2dfd44d67
 --- /dev/null
 +++ b/drivers/staging/apple-bce/audio/protocol_bce.c
 @@ -0,0 +1,226 @@
@@ -22799,7 +22907,7 @@ index 0000000000000..28f2dfd44d676
 +}
 diff --git a/drivers/staging/apple-bce/audio/protocol_bce.h b/drivers/staging/apple-bce/audio/protocol_bce.h
 new file mode 100644
-index 0000000000000..14d26c05ddf9d
+index 000000000000..14d26c05ddf9
 --- /dev/null
 +++ b/drivers/staging/apple-bce/audio/protocol_bce.h
 @@ -0,0 +1,72 @@
@@ -22877,7 +22985,7 @@ index 0000000000000..14d26c05ddf9d
 +#endif //AAUDIO_PROTOCOL_BCE_H
 diff --git a/drivers/staging/apple-bce/mailbox.c b/drivers/staging/apple-bce/mailbox.c
 new file mode 100644
-index 0000000000000..e24bd35215c00
+index 000000000000..e24bd35215c0
 --- /dev/null
 +++ b/drivers/staging/apple-bce/mailbox.c
 @@ -0,0 +1,151 @@
@@ -23035,7 +23143,7 @@ index 0000000000000..e24bd35215c00
 \ No newline at end of file
 diff --git a/drivers/staging/apple-bce/mailbox.h b/drivers/staging/apple-bce/mailbox.h
 new file mode 100644
-index 0000000000000..f3323f95ba51d
+index 000000000000..f3323f95ba51
 --- /dev/null
 +++ b/drivers/staging/apple-bce/mailbox.h
 @@ -0,0 +1,53 @@
@@ -23094,7 +23202,7 @@ index 0000000000000..f3323f95ba51d
 +#endif //BCEDRIVER_MAILBOX_H
 diff --git a/drivers/staging/apple-bce/queue.c b/drivers/staging/apple-bce/queue.c
 new file mode 100644
-index 0000000000000..bc9cd3bc6f0ca
+index 000000000000..bc9cd3bc6f0c
 --- /dev/null
 +++ b/drivers/staging/apple-bce/queue.c
 @@ -0,0 +1,390 @@
@@ -23491,7 +23599,7 @@ index 0000000000000..bc9cd3bc6f0ca
 \ No newline at end of file
 diff --git a/drivers/staging/apple-bce/queue.h b/drivers/staging/apple-bce/queue.h
 new file mode 100644
-index 0000000000000..8368ac5dfca82
+index 000000000000..8368ac5dfca8
 --- /dev/null
 +++ b/drivers/staging/apple-bce/queue.h
 @@ -0,0 +1,177 @@
@@ -23674,7 +23782,7 @@ index 0000000000000..8368ac5dfca82
 +#endif //BCEDRIVER_MAILBOX_H
 diff --git a/drivers/staging/apple-bce/queue_dma.c b/drivers/staging/apple-bce/queue_dma.c
 new file mode 100644
-index 0000000000000..b236613285c0f
+index 000000000000..b236613285c0
 --- /dev/null
 +++ b/drivers/staging/apple-bce/queue_dma.c
 @@ -0,0 +1,220 @@
@@ -23901,7 +24009,7 @@ index 0000000000000..b236613285c0f
 \ No newline at end of file
 diff --git a/drivers/staging/apple-bce/queue_dma.h b/drivers/staging/apple-bce/queue_dma.h
 new file mode 100644
-index 0000000000000..f8a57e50e7a30
+index 000000000000..f8a57e50e7a3
 --- /dev/null
 +++ b/drivers/staging/apple-bce/queue_dma.h
 @@ -0,0 +1,50 @@
@@ -23957,7 +24065,7 @@ index 0000000000000..f8a57e50e7a30
 +#endif //BCE_QUEUE_DMA_H
 diff --git a/drivers/staging/apple-bce/vhci/command.h b/drivers/staging/apple-bce/vhci/command.h
 new file mode 100644
-index 0000000000000..26619e0bccfa1
+index 000000000000..26619e0bccfa
 --- /dev/null
 +++ b/drivers/staging/apple-bce/vhci/command.h
 @@ -0,0 +1,204 @@
@@ -24167,7 +24275,7 @@ index 0000000000000..26619e0bccfa1
 +#endif //BCE_VHCI_COMMAND_H
 diff --git a/drivers/staging/apple-bce/vhci/queue.c b/drivers/staging/apple-bce/vhci/queue.c
 new file mode 100644
-index 0000000000000..7b0b5027157ba
+index 000000000000..7b0b5027157b
 --- /dev/null
 +++ b/drivers/staging/apple-bce/vhci/queue.c
 @@ -0,0 +1,268 @@
@@ -24441,7 +24549,7 @@ index 0000000000000..7b0b5027157ba
 +}
 diff --git a/drivers/staging/apple-bce/vhci/queue.h b/drivers/staging/apple-bce/vhci/queue.h
 new file mode 100644
-index 0000000000000..adb705b6ba1d2
+index 000000000000..adb705b6ba1d
 --- /dev/null
 +++ b/drivers/staging/apple-bce/vhci/queue.h
 @@ -0,0 +1,76 @@
@@ -24523,7 +24631,7 @@ index 0000000000000..adb705b6ba1d2
 +#endif //BCE_VHCI_QUEUE_H
 diff --git a/drivers/staging/apple-bce/vhci/transfer.c b/drivers/staging/apple-bce/vhci/transfer.c
 new file mode 100644
-index 0000000000000..8226363d69c81
+index 000000000000..8226363d69c8
 --- /dev/null
 +++ b/drivers/staging/apple-bce/vhci/transfer.c
 @@ -0,0 +1,661 @@
@@ -25190,7 +25298,7 @@ index 0000000000000..8226363d69c81
 +}
 diff --git a/drivers/staging/apple-bce/vhci/transfer.h b/drivers/staging/apple-bce/vhci/transfer.h
 new file mode 100644
-index 0000000000000..89ecad6bcf8f6
+index 000000000000..89ecad6bcf8f
 --- /dev/null
 +++ b/drivers/staging/apple-bce/vhci/transfer.h
 @@ -0,0 +1,73 @@
@@ -25269,7 +25377,7 @@ index 0000000000000..89ecad6bcf8f6
 +#endif //BCEDRIVER_TRANSFER_H
 diff --git a/drivers/staging/apple-bce/vhci/vhci.c b/drivers/staging/apple-bce/vhci/vhci.c
 new file mode 100644
-index 0000000000000..eb26f55000d84
+index 000000000000..eb26f55000d8
 --- /dev/null
 +++ b/drivers/staging/apple-bce/vhci/vhci.c
 @@ -0,0 +1,759 @@
@@ -26034,7 +26142,7 @@ index 0000000000000..eb26f55000d84
 +MODULE_PARM_DESC(vhci_port_mask, "Specifies which VHCI ports are enabled");
 diff --git a/drivers/staging/apple-bce/vhci/vhci.h b/drivers/staging/apple-bce/vhci/vhci.h
 new file mode 100644
-index 0000000000000..6c2e22622f4c1
+index 000000000000..6c2e22622f4c
 --- /dev/null
 +++ b/drivers/staging/apple-bce/vhci/vhci.h
 @@ -0,0 +1,52 @@
@@ -26091,7 +26199,7 @@ index 0000000000000..6c2e22622f4c1
 +
 +#endif //BCE_VHCI_H
 diff --git a/include/drm/drm_format_helper.h b/include/drm/drm_format_helper.h
-index 428d81afe2151..aa1604d92c1a7 100644
+index 428d81afe215..aa1604d92c1a 100644
 --- a/include/drm/drm_format_helper.h
 +++ b/include/drm/drm_format_helper.h
 @@ -96,6 +96,9 @@ void drm_fb_xrgb8888_to_rgba5551(struct iosys_map *dst, const unsigned int *dst_
@@ -26105,7 +26213,7 @@ index 428d81afe2151..aa1604d92c1a7 100644
  				 const struct iosys_map *src, const struct drm_framebuffer *fb,
  				 const struct drm_rect *clip, struct drm_format_conv_state *state);
 diff --git a/include/linux/hid.h b/include/linux/hid.h
-index 1533c9dcd3a67..2deff79f39a15 100644
+index 1533c9dcd3a6..2deff79f39a1 100644
 --- a/include/linux/hid.h
 +++ b/include/linux/hid.h
 @@ -940,6 +940,8 @@ extern void hidinput_report_event(struct hid_device *hid, struct hid_report *rep
@@ -26118,7 +26226,7 @@ index 1533c9dcd3a67..2deff79f39a15 100644
  int hid_input_report(struct hid_device *hid, enum hid_report_type type, u8 *data, u32 size,
  		     int interrupt);
 diff --git a/lib/test_printf.c b/lib/test_printf.c
-index 965cb6f285272..db99014b8c135 100644
+index 965cb6f28527..db99014b8c13 100644
 --- a/lib/test_printf.c
 +++ b/lib/test_printf.c
 @@ -745,18 +745,26 @@ static void __init fwnode_pointer(void)
@@ -26155,7 +26263,7 @@ index 965cb6f285272..db99014b8c135 100644
  
  static void __init
 diff --git a/lib/vsprintf.c b/lib/vsprintf.c
-index 2d71b11159161..5274e3c881de8 100644
+index 2d71b1115916..5274e3c881de 100644
 --- a/lib/vsprintf.c
 +++ b/lib/vsprintf.c
 @@ -1760,27 +1760,50 @@ char *fourcc_string(char *buf, char *end, const u32 *fourcc,
@@ -26224,7 +26332,7 @@ index 2d71b11159161..5274e3c881de8 100644
   *            a certain separator (' ' by default):
   *              C colon
 diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
-index 4427572b24771..b60c99d618829 100755
+index 4427572b2477..b60c99d61882 100755
 --- a/scripts/checkpatch.pl
 +++ b/scripts/checkpatch.pl
 @@ -6917,7 +6917,7 @@ sub process {
@@ -26239,10 +26347,10 @@ index 4427572b24771..b60c99d618829 100755
 -- 
 2.47.0.rc0
 
-From 0bf4affd05af4f7b24c07097720a340a1caa406d Mon Sep 17 00:00:00 2001
+From 007a15a86c5c98db04a52ab714723a68c7bb09ae Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Mon, 30 Sep 2024 16:56:28 +0200
-Subject: [PATCH 10/10] zstd
+Date: Fri, 4 Oct 2024 17:09:19 +0200
+Subject: [PATCH 11/11] zstd
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -26309,7 +26417,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  create mode 100644 lib/zstd/common/bits.h
 
 diff --git a/include/linux/zstd.h b/include/linux/zstd.h
-index 113408eef6ece..f109d49f43f80 100644
+index 113408eef6ec..f109d49f43f8 100644
 --- a/include/linux/zstd.h
 +++ b/include/linux/zstd.h
 @@ -1,6 +1,6 @@
@@ -26321,7 +26429,7 @@ index 113408eef6ece..f109d49f43f80 100644
   *
   * This source code is licensed under both the BSD-style license (found in the
 diff --git a/include/linux/zstd_errors.h b/include/linux/zstd_errors.h
-index 58b6dd45a969f..6d5cf55f0bf3e 100644
+index 58b6dd45a969..6d5cf55f0bf3 100644
 --- a/include/linux/zstd_errors.h
 +++ b/include/linux/zstd_errors.h
 @@ -1,5 +1,6 @@
@@ -26387,7 +26495,7 @@ index 58b6dd45a969f..6d5cf55f0bf3e 100644
  } ZSTD_ErrorCode;
  
 diff --git a/include/linux/zstd_lib.h b/include/linux/zstd_lib.h
-index 79d55465d5c1d..6320fedcf8a43 100644
+index 79d55465d5c1..6320fedcf8a4 100644
 --- a/include/linux/zstd_lib.h
 +++ b/include/linux/zstd_lib.h
 @@ -1,5 +1,6 @@
@@ -27868,7 +27976,7 @@ index 79d55465d5c1d..6320fedcf8a43 100644
  #endif   /* ZSTD_H_ZSTD_STATIC_LINKING_ONLY */
  
 diff --git a/lib/zstd/Makefile b/lib/zstd/Makefile
-index 20f08c644b71a..464c410b2768c 100644
+index 20f08c644b71..464c410b2768 100644
 --- a/lib/zstd/Makefile
 +++ b/lib/zstd/Makefile
 @@ -1,6 +1,6 @@
@@ -27881,7 +27989,7 @@ index 20f08c644b71a..464c410b2768c 100644
  # This source code is licensed under both the BSD-style license (found in the
 diff --git a/lib/zstd/common/allocations.h b/lib/zstd/common/allocations.h
 new file mode 100644
-index 0000000000000..16c3d08e8d1a6
+index 000000000000..16c3d08e8d1a
 --- /dev/null
 +++ b/lib/zstd/common/allocations.h
 @@ -0,0 +1,56 @@
@@ -27943,7 +28051,7 @@ index 0000000000000..16c3d08e8d1a6
 +#endif /* ZSTD_ALLOCATIONS_H */
 diff --git a/lib/zstd/common/bits.h b/lib/zstd/common/bits.h
 new file mode 100644
-index 0000000000000..aa3487ec4b6a7
+index 000000000000..aa3487ec4b6a
 --- /dev/null
 +++ b/lib/zstd/common/bits.h
 @@ -0,0 +1,149 @@
@@ -28097,7 +28205,7 @@ index 0000000000000..aa3487ec4b6a7
 +
 +#endif /* ZSTD_BITS_H */
 diff --git a/lib/zstd/common/bitstream.h b/lib/zstd/common/bitstream.h
-index feef3a1b1d600..6a13f1f0f1e84 100644
+index feef3a1b1d60..6a13f1f0f1e8 100644
 --- a/lib/zstd/common/bitstream.h
 +++ b/lib/zstd/common/bitstream.h
 @@ -1,7 +1,8 @@
@@ -28386,7 +28494,7 @@ index feef3a1b1d600..6a13f1f0f1e84 100644
          BIT_DStream_status result = BIT_DStream_unfinished;
          if (bitD->ptr - nbBytes < bitD->start) {
 diff --git a/lib/zstd/common/compiler.h b/lib/zstd/common/compiler.h
-index c42d39faf9bd8..508ee25537bb8 100644
+index c42d39faf9bd..508ee25537bb 100644
 --- a/lib/zstd/common/compiler.h
 +++ b/lib/zstd/common/compiler.h
 @@ -1,5 +1,6 @@
@@ -28584,7 +28692,7 @@ index c42d39faf9bd8..508ee25537bb8 100644
  
  #endif /* ZSTD_COMPILER_H */
 diff --git a/lib/zstd/common/cpu.h b/lib/zstd/common/cpu.h
-index 0db7b42407eea..d8319a2bef4ce 100644
+index 0db7b42407ee..d8319a2bef4c 100644
 --- a/lib/zstd/common/cpu.h
 +++ b/lib/zstd/common/cpu.h
 @@ -1,5 +1,6 @@
@@ -28596,7 +28704,7 @@ index 0db7b42407eea..d8319a2bef4ce 100644
   *
   * This source code is licensed under both the BSD-style license (found in the
 diff --git a/lib/zstd/common/debug.c b/lib/zstd/common/debug.c
-index bb863c9ea6164..8eb6aa9a3b205 100644
+index bb863c9ea616..8eb6aa9a3b20 100644
 --- a/lib/zstd/common/debug.c
 +++ b/lib/zstd/common/debug.c
 @@ -1,7 +1,8 @@
@@ -28621,7 +28729,7 @@ index bb863c9ea6164..8eb6aa9a3b205 100644
  int g_debuglevel = DEBUGLEVEL;
 +#endif
 diff --git a/lib/zstd/common/debug.h b/lib/zstd/common/debug.h
-index 6dd88d1fbd02c..226ba3c57ec34 100644
+index 6dd88d1fbd02..226ba3c57ec3 100644
 --- a/lib/zstd/common/debug.h
 +++ b/lib/zstd/common/debug.h
 @@ -1,7 +1,8 @@
@@ -28674,7 +28782,7 @@ index 6dd88d1fbd02c..226ba3c57ec34 100644
  
  
 diff --git a/lib/zstd/common/entropy_common.c b/lib/zstd/common/entropy_common.c
-index fef67056f0524..6cdd82233fb59 100644
+index fef67056f052..6cdd82233fb5 100644
 --- a/lib/zstd/common/entropy_common.c
 +++ b/lib/zstd/common/entropy_common.c
 @@ -1,6 +1,7 @@
@@ -28792,7 +28900,7 @@ index fef67056f0524..6cdd82233fb59 100644
      return HUF_readStats_body_default(huffWeight, hwSize, rankStats, nbSymbolsPtr, tableLogPtr, src, srcSize, workSpace, wkspSize);
  }
 diff --git a/lib/zstd/common/error_private.c b/lib/zstd/common/error_private.c
-index 6d1135f8c3733..a4062d30d1703 100644
+index 6d1135f8c373..a4062d30d170 100644
 --- a/lib/zstd/common/error_private.c
 +++ b/lib/zstd/common/error_private.c
 @@ -1,5 +1,6 @@
@@ -28840,7 +28948,7 @@ index 6d1135f8c3733..a4062d30d1703 100644
      default: return notErrorCode;
      }
 diff --git a/lib/zstd/common/error_private.h b/lib/zstd/common/error_private.h
-index ca5101e542faa..0410ca415b547 100644
+index ca5101e542fa..0410ca415b54 100644
 --- a/lib/zstd/common/error_private.h
 +++ b/lib/zstd/common/error_private.h
 @@ -1,5 +1,6 @@
@@ -28966,7 +29074,7 @@ index ca5101e542faa..0410ca415b547 100644
  
  #endif /* ERROR_H_MODULE */
 diff --git a/lib/zstd/common/fse.h b/lib/zstd/common/fse.h
-index 4507043b2287c..2185a578617de 100644
+index 4507043b2287..2185a578617d 100644
 --- a/lib/zstd/common/fse.h
 +++ b/lib/zstd/common/fse.h
 @@ -1,7 +1,8 @@
@@ -29141,7 +29249,7 @@ index 4507043b2287c..2185a578617de 100644
   * note 2 : if freq[symbolValue]==0, @return a fake cost of tableLog+1 bits */
  MEM_STATIC U32 FSE_getMaxNbBits(const void* symbolTTPtr, U32 symbolValue)
 diff --git a/lib/zstd/common/fse_decompress.c b/lib/zstd/common/fse_decompress.c
-index 8dcb8ca39767c..3a17e84f27bfc 100644
+index 8dcb8ca39767..3a17e84f27bf 100644
 --- a/lib/zstd/common/fse_decompress.c
 +++ b/lib/zstd/common/fse_decompress.c
 @@ -1,6 +1,7 @@
@@ -29375,7 +29483,7 @@ index 8dcb8ca39767c..3a17e84f27bfc 100644
 -
  #endif   /* FSE_COMMONDEFS_ONLY */
 diff --git a/lib/zstd/common/huf.h b/lib/zstd/common/huf.h
-index 5042ff8703087..57462466e188c 100644
+index 5042ff870308..57462466e188 100644
 --- a/lib/zstd/common/huf.h
 +++ b/lib/zstd/common/huf.h
 @@ -1,7 +1,8 @@
@@ -29726,7 +29834,7 @@ index 5042ff8703087..57462466e188c 100644
 +#endif   /* HUF_H_298734234 */
  
 diff --git a/lib/zstd/common/mem.h b/lib/zstd/common/mem.h
-index 1d9cc03924ca9..2e91e7780c1fd 100644
+index 1d9cc03924ca..2e91e7780c1f 100644
 --- a/lib/zstd/common/mem.h
 +++ b/lib/zstd/common/mem.h
 @@ -1,6 +1,6 @@
@@ -29746,7 +29854,7 @@ index 1d9cc03924ca9..2e91e7780c1fd 100644
  
  /*-**************************************************************
 diff --git a/lib/zstd/common/portability_macros.h b/lib/zstd/common/portability_macros.h
-index 0e3b2c0a527db..f08638cced6c3 100644
+index 0e3b2c0a527d..f08638cced6c 100644
 --- a/lib/zstd/common/portability_macros.h
 +++ b/lib/zstd/common/portability_macros.h
 @@ -1,5 +1,6 @@
@@ -29809,7 +29917,7 @@ index 0e3b2c0a527db..f08638cced6c3 100644
 +
  #endif /* ZSTD_PORTABILITY_MACROS_H */
 diff --git a/lib/zstd/common/zstd_common.c b/lib/zstd/common/zstd_common.c
-index 3d7e35b309b5d..44b95b25344a1 100644
+index 3d7e35b309b5..44b95b25344a 100644
 --- a/lib/zstd/common/zstd_common.c
 +++ b/lib/zstd/common/zstd_common.c
 @@ -1,5 +1,6 @@
@@ -29867,7 +29975,7 @@ index 3d7e35b309b5d..44b95b25344a1 100644
 -    }
 -}
 diff --git a/lib/zstd/common/zstd_deps.h b/lib/zstd/common/zstd_deps.h
-index 2c34e8a33a1c1..f931f7d0e2947 100644
+index 2c34e8a33a1c..f931f7d0e294 100644
 --- a/lib/zstd/common/zstd_deps.h
 +++ b/lib/zstd/common/zstd_deps.h
 @@ -1,6 +1,6 @@
@@ -29897,7 +30005,7 @@ index 2c34e8a33a1c1..f931f7d0e2947 100644
 +#endif /* ZSTD_DEPS_STDINT */
 +#endif /* ZSTD_DEPS_NEED_STDINT */
 diff --git a/lib/zstd/common/zstd_internal.h b/lib/zstd/common/zstd_internal.h
-index 93305d9b41bba..11da1233e8909 100644
+index 93305d9b41bb..11da1233e890 100644
 --- a/lib/zstd/common/zstd_internal.h
 +++ b/lib/zstd/common/zstd_internal.h
 @@ -1,5 +1,6 @@
@@ -30126,7 +30234,7 @@ index 93305d9b41bba..11da1233e8909 100644
                         const void* src, size_t srcSize);
  
 diff --git a/lib/zstd/compress/clevels.h b/lib/zstd/compress/clevels.h
-index d9a76112ec3af..6ab8be6532efc 100644
+index d9a76112ec3a..6ab8be6532ef 100644
 --- a/lib/zstd/compress/clevels.h
 +++ b/lib/zstd/compress/clevels.h
 @@ -1,5 +1,6 @@
@@ -30138,7 +30246,7 @@ index d9a76112ec3af..6ab8be6532efc 100644
   *
   * This source code is licensed under both the BSD-style license (found in the
 diff --git a/lib/zstd/compress/fse_compress.c b/lib/zstd/compress/fse_compress.c
-index ec5b1ca6d71af..44a3c10becf26 100644
+index ec5b1ca6d71a..44a3c10becf2 100644
 --- a/lib/zstd/compress/fse_compress.c
 +++ b/lib/zstd/compress/fse_compress.c
 @@ -1,6 +1,7 @@
@@ -30307,7 +30415,7 @@ index ec5b1ca6d71af..44a3c10becf26 100644
 -
  #endif   /* FSE_COMMONDEFS_ONLY */
 diff --git a/lib/zstd/compress/hist.c b/lib/zstd/compress/hist.c
-index 3ddc6dfb68948..0b12587cc14b1 100644
+index 3ddc6dfb6894..0b12587cc14b 100644
 --- a/lib/zstd/compress/hist.c
 +++ b/lib/zstd/compress/hist.c
 @@ -1,7 +1,8 @@
@@ -30321,7 +30429,7 @@ index 3ddc6dfb68948..0b12587cc14b1 100644
   *  You can contact the author at :
   *  - FSE source repository : https://github.com/Cyan4973/FiniteStateEntropy
 diff --git a/lib/zstd/compress/hist.h b/lib/zstd/compress/hist.h
-index fc1830abc9c63..f7687b0fc20a0 100644
+index fc1830abc9c6..f7687b0fc20a 100644
 --- a/lib/zstd/compress/hist.h
 +++ b/lib/zstd/compress/hist.h
 @@ -1,7 +1,8 @@
@@ -30335,7 +30443,7 @@ index fc1830abc9c63..f7687b0fc20a0 100644
   *  You can contact the author at :
   *  - FSE source repository : https://github.com/Cyan4973/FiniteStateEntropy
 diff --git a/lib/zstd/compress/huf_compress.c b/lib/zstd/compress/huf_compress.c
-index 74ef0db476210..0b229f5d2ae22 100644
+index 74ef0db47621..0b229f5d2ae2 100644
 --- a/lib/zstd/compress/huf_compress.c
 +++ b/lib/zstd/compress/huf_compress.c
 @@ -1,6 +1,7 @@
@@ -31206,7 +31314,7 @@ index 74ef0db476210..0b229f5d2ae22 100644
  }
 -
 diff --git a/lib/zstd/compress/zstd_compress.c b/lib/zstd/compress/zstd_compress.c
-index f620cafca633b..0d139727cd392 100644
+index f620cafca633..0d139727cd39 100644
 --- a/lib/zstd/compress/zstd_compress.c
 +++ b/lib/zstd/compress/zstd_compress.c
 @@ -1,5 +1,6 @@
@@ -35114,7 +35222,7 @@ index f620cafca633b..0d139727cd392 100644
 +    }
 +}
 diff --git a/lib/zstd/compress/zstd_compress_internal.h b/lib/zstd/compress/zstd_compress_internal.h
-index 71697a11ae305..53cb582a8d2b5 100644
+index 71697a11ae30..53cb582a8d2b 100644
 --- a/lib/zstd/compress/zstd_compress_internal.h
 +++ b/lib/zstd/compress/zstd_compress_internal.h
 @@ -1,5 +1,6 @@
@@ -35731,7 +35839,7 @@ index 71697a11ae305..53cb582a8d2b5 100644
 +
  #endif /* ZSTD_COMPRESS_H */
 diff --git a/lib/zstd/compress/zstd_compress_literals.c b/lib/zstd/compress/zstd_compress_literals.c
-index 52b0a8059aba9..3e9ea46a670a6 100644
+index 52b0a8059aba..3e9ea46a670a 100644
 --- a/lib/zstd/compress/zstd_compress_literals.c
 +++ b/lib/zstd/compress/zstd_compress_literals.c
 @@ -1,5 +1,6 @@
@@ -35973,7 +36081,7 @@ index 52b0a8059aba9..3e9ea46a670a6 100644
              MEM_writeLE32(ostart, lhc);
              ostart[4] = (BYTE)(cLitSize >> 10);
 diff --git a/lib/zstd/compress/zstd_compress_literals.h b/lib/zstd/compress/zstd_compress_literals.h
-index 9775fb97cb702..a2a85d6b69e53 100644
+index 9775fb97cb70..a2a85d6b69e5 100644
 --- a/lib/zstd/compress/zstd_compress_literals.h
 +++ b/lib/zstd/compress/zstd_compress_literals.h
 @@ -1,5 +1,6 @@
@@ -36017,7 +36125,7 @@ index 9775fb97cb702..a2a85d6b69e53 100644
  
  #endif /* ZSTD_COMPRESS_LITERALS_H */
 diff --git a/lib/zstd/compress/zstd_compress_sequences.c b/lib/zstd/compress/zstd_compress_sequences.c
-index 21ddc1b37acf8..5c028c78d889b 100644
+index 21ddc1b37acf..5c028c78d889 100644
 --- a/lib/zstd/compress/zstd_compress_sequences.c
 +++ b/lib/zstd/compress/zstd_compress_sequences.c
 @@ -1,5 +1,6 @@
@@ -36047,7 +36155,7 @@ index 21ddc1b37acf8..5c028c78d889b 100644
               * If basic encoding isn't possible, always choose RLE.
               */
 diff --git a/lib/zstd/compress/zstd_compress_sequences.h b/lib/zstd/compress/zstd_compress_sequences.h
-index 7991364c2f71f..7fe6f4ff5cf25 100644
+index 7991364c2f71..7fe6f4ff5cf2 100644
 --- a/lib/zstd/compress/zstd_compress_sequences.h
 +++ b/lib/zstd/compress/zstd_compress_sequences.h
 @@ -1,5 +1,6 @@
@@ -36059,7 +36167,7 @@ index 7991364c2f71f..7fe6f4ff5cf25 100644
   *
   * This source code is licensed under both the BSD-style license (found in the
 diff --git a/lib/zstd/compress/zstd_compress_superblock.c b/lib/zstd/compress/zstd_compress_superblock.c
-index 17d836cc84e8f..41f6521b27cd3 100644
+index 17d836cc84e8..41f6521b27cd 100644
 --- a/lib/zstd/compress/zstd_compress_superblock.c
 +++ b/lib/zstd/compress/zstd_compress_superblock.c
 @@ -1,5 +1,6 @@
@@ -36617,7 +36725,7 @@ index 17d836cc84e8f..41f6521b27cd3 100644
  
      FORWARD_IF_ERROR(ZSTD_buildBlockEntropyStats(&zc->seqStore,
 diff --git a/lib/zstd/compress/zstd_compress_superblock.h b/lib/zstd/compress/zstd_compress_superblock.h
-index 224ece79546eb..826bbc9e029b1 100644
+index 224ece79546e..826bbc9e029b 100644
 --- a/lib/zstd/compress/zstd_compress_superblock.h
 +++ b/lib/zstd/compress/zstd_compress_superblock.h
 @@ -1,5 +1,6 @@
@@ -36629,7 +36737,7 @@ index 224ece79546eb..826bbc9e029b1 100644
   *
   * This source code is licensed under both the BSD-style license (found in the
 diff --git a/lib/zstd/compress/zstd_cwksp.h b/lib/zstd/compress/zstd_cwksp.h
-index 349fc923c355a..86bc3c2c23c77 100644
+index 349fc923c355..86bc3c2c23c7 100644
 --- a/lib/zstd/compress/zstd_cwksp.h
 +++ b/lib/zstd/compress/zstd_cwksp.h
 @@ -1,5 +1,6 @@
@@ -36969,7 +37077,7 @@ index 349fc923c355a..86bc3c2c23c77 100644
  
  
 diff --git a/lib/zstd/compress/zstd_double_fast.c b/lib/zstd/compress/zstd_double_fast.c
-index 76933dea2624e..5ff54f17d92f0 100644
+index 76933dea2624..5ff54f17d92f 100644
 --- a/lib/zstd/compress/zstd_double_fast.c
 +++ b/lib/zstd/compress/zstd_double_fast.c
 @@ -1,5 +1,6 @@
@@ -37318,7 +37426,7 @@ index 76933dea2624e..5ff54f17d92f0 100644
 +
 +#endif /* ZSTD_EXCLUDE_DFAST_BLOCK_COMPRESSOR */
 diff --git a/lib/zstd/compress/zstd_double_fast.h b/lib/zstd/compress/zstd_double_fast.h
-index 6822bde65a1d8..b7ddc714f13ed 100644
+index 6822bde65a1d..b7ddc714f13e 100644
 --- a/lib/zstd/compress/zstd_double_fast.h
 +++ b/lib/zstd/compress/zstd_double_fast.h
 @@ -1,5 +1,6 @@
@@ -37359,7 +37467,7 @@ index 6822bde65a1d8..b7ddc714f13ed 100644
  
  #endif /* ZSTD_DOUBLE_FAST_H */
 diff --git a/lib/zstd/compress/zstd_fast.c b/lib/zstd/compress/zstd_fast.c
-index a752e6beab52e..b7a63ba4ce568 100644
+index a752e6beab52..b7a63ba4ce56 100644
 --- a/lib/zstd/compress/zstd_fast.c
 +++ b/lib/zstd/compress/zstd_fast.c
 @@ -1,5 +1,6 @@
@@ -38177,7 +38285,7 @@ index a752e6beab52e..b7a63ba4ce568 100644
      {
      default: /* includes case 3 */
 diff --git a/lib/zstd/compress/zstd_fast.h b/lib/zstd/compress/zstd_fast.h
-index fddc2f532d21d..e64d9e1b2d393 100644
+index fddc2f532d21..e64d9e1b2d39 100644
 --- a/lib/zstd/compress/zstd_fast.h
 +++ b/lib/zstd/compress/zstd_fast.h
 @@ -1,5 +1,6 @@
@@ -38199,7 +38307,7 @@ index fddc2f532d21d..e64d9e1b2d393 100644
          ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
          void const* src, size_t srcSize);
 diff --git a/lib/zstd/compress/zstd_lazy.c b/lib/zstd/compress/zstd_lazy.c
-index 0298a01a7504a..3e88d8a1a1365 100644
+index 0298a01a7504..3e88d8a1a136 100644
 --- a/lib/zstd/compress/zstd_lazy.c
 +++ b/lib/zstd/compress/zstd_lazy.c
 @@ -1,5 +1,6 @@
@@ -39682,7 +39790,7 @@ index 0298a01a7504a..3e88d8a1a1365 100644
  }
 +#endif
 diff --git a/lib/zstd/compress/zstd_lazy.h b/lib/zstd/compress/zstd_lazy.h
-index e5bdf4df8dde0..22c9201f4e632 100644
+index e5bdf4df8dde..22c9201f4e63 100644
 --- a/lib/zstd/compress/zstd_lazy.h
 +++ b/lib/zstd/compress/zstd_lazy.h
 @@ -1,5 +1,6 @@
@@ -39899,7 +40007,7 @@ index e5bdf4df8dde0..22c9201f4e632 100644
  
  #endif /* ZSTD_LAZY_H */
 diff --git a/lib/zstd/compress/zstd_ldm.c b/lib/zstd/compress/zstd_ldm.c
-index dd86fc83e7dde..07f3bc6437ce6 100644
+index dd86fc83e7dd..07f3bc6437ce 100644
 --- a/lib/zstd/compress/zstd_ldm.c
 +++ b/lib/zstd/compress/zstd_ldm.c
 @@ -1,5 +1,6 @@
@@ -39974,7 +40082,7 @@ index dd86fc83e7dde..07f3bc6437ce6 100644
              ip += sequence.matchLength;
          }
 diff --git a/lib/zstd/compress/zstd_ldm.h b/lib/zstd/compress/zstd_ldm.h
-index fbc6a5e88fd7a..c540731abde72 100644
+index fbc6a5e88fd7..c540731abde7 100644
 --- a/lib/zstd/compress/zstd_ldm.h
 +++ b/lib/zstd/compress/zstd_ldm.h
 @@ -1,5 +1,6 @@
@@ -39986,7 +40094,7 @@ index fbc6a5e88fd7a..c540731abde72 100644
   *
   * This source code is licensed under both the BSD-style license (found in the
 diff --git a/lib/zstd/compress/zstd_ldm_geartab.h b/lib/zstd/compress/zstd_ldm_geartab.h
-index 647f865be2903..cfccfc46f6f7b 100644
+index 647f865be290..cfccfc46f6f7 100644
 --- a/lib/zstd/compress/zstd_ldm_geartab.h
 +++ b/lib/zstd/compress/zstd_ldm_geartab.h
 @@ -1,5 +1,6 @@
@@ -39998,7 +40106,7 @@ index 647f865be2903..cfccfc46f6f7b 100644
   *
   * This source code is licensed under both the BSD-style license (found in the
 diff --git a/lib/zstd/compress/zstd_opt.c b/lib/zstd/compress/zstd_opt.c
-index fd82acfda62f6..a87b66ac8d248 100644
+index fd82acfda62f..a87b66ac8d24 100644
 --- a/lib/zstd/compress/zstd_opt.c
 +++ b/lib/zstd/compress/zstd_opt.c
 @@ -1,5 +1,6 @@
@@ -40997,7 +41105,7 @@ index fd82acfda62f6..a87b66ac8d248 100644
  /* note : no btultra2 variant for extDict nor dictMatchState,
   * because btultra2 is not meant to work with dictionaries
 diff --git a/lib/zstd/compress/zstd_opt.h b/lib/zstd/compress/zstd_opt.h
-index 22b862858ba7a..ac1b743d27cd1 100644
+index 22b862858ba7..ac1b743d27cd 100644
 --- a/lib/zstd/compress/zstd_opt.h
 +++ b/lib/zstd/compress/zstd_opt.h
 @@ -1,5 +1,6 @@
@@ -41078,7 +41186,7 @@ index 22b862858ba7a..ac1b743d27cd1 100644
  
  #endif /* ZSTD_OPT_H */
 diff --git a/lib/zstd/decompress/huf_decompress.c b/lib/zstd/decompress/huf_decompress.c
-index 60958afebc415..ac8b87f48f847 100644
+index 60958afebc41..ac8b87f48f84 100644
 --- a/lib/zstd/decompress/huf_decompress.c
 +++ b/lib/zstd/decompress/huf_decompress.c
 @@ -1,7 +1,8 @@
@@ -42469,7 +42577,7 @@ index 60958afebc415..ac8b87f48f847 100644
  }
 -
 diff --git a/lib/zstd/decompress/zstd_ddict.c b/lib/zstd/decompress/zstd_ddict.c
-index dbbc7919de534..30ef65e1ab5ca 100644
+index dbbc7919de53..30ef65e1ab5c 100644
 --- a/lib/zstd/decompress/zstd_ddict.c
 +++ b/lib/zstd/decompress/zstd_ddict.c
 @@ -1,5 +1,6 @@
@@ -42511,7 +42619,7 @@ index dbbc7919de534..30ef65e1ab5ca 100644
 +    return ddict->dictID;
  }
 diff --git a/lib/zstd/decompress/zstd_ddict.h b/lib/zstd/decompress/zstd_ddict.h
-index 8c1a79d666f89..de459a0dacd19 100644
+index 8c1a79d666f8..de459a0dacd1 100644
 --- a/lib/zstd/decompress/zstd_ddict.h
 +++ b/lib/zstd/decompress/zstd_ddict.h
 @@ -1,5 +1,6 @@
@@ -42523,7 +42631,7 @@ index 8c1a79d666f89..de459a0dacd19 100644
   *
   * This source code is licensed under both the BSD-style license (found in the
 diff --git a/lib/zstd/decompress/zstd_decompress.c b/lib/zstd/decompress/zstd_decompress.c
-index 6b3177c947114..c9cbc45f6ed94 100644
+index 6b3177c94711..c9cbc45f6ed9 100644
 --- a/lib/zstd/decompress/zstd_decompress.c
 +++ b/lib/zstd/decompress/zstd_decompress.c
 @@ -1,5 +1,6 @@
@@ -43302,7 +43410,7 @@ index 6b3177c947114..c9cbc45f6ed94 100644
 +    }
  }
 diff --git a/lib/zstd/decompress/zstd_decompress_block.c b/lib/zstd/decompress/zstd_decompress_block.c
-index c1913b8e7c897..9fe9a12c8a2c0 100644
+index c1913b8e7c89..9fe9a12c8a2c 100644
 --- a/lib/zstd/decompress/zstd_decompress_block.c
 +++ b/lib/zstd/decompress/zstd_decompress_block.c
 @@ -1,5 +1,6 @@
@@ -44746,7 +44854,7 @@ index c1913b8e7c897..9fe9a12c8a2c0 100644
 +    return ZSTD_decompressBlock_deprecated(dctx, dst, dstCapacity, src, srcSize);
 +}
 diff --git a/lib/zstd/decompress/zstd_decompress_block.h b/lib/zstd/decompress/zstd_decompress_block.h
-index 3d2d57a5d25a7..becffbd893642 100644
+index 3d2d57a5d25a..becffbd89364 100644
 --- a/lib/zstd/decompress/zstd_decompress_block.h
 +++ b/lib/zstd/decompress/zstd_decompress_block.h
 @@ -1,5 +1,6 @@
@@ -44778,7 +44886,7 @@ index 3d2d57a5d25a7..becffbd893642 100644
  
  #endif /* ZSTD_DEC_BLOCK_H */
 diff --git a/lib/zstd/decompress/zstd_decompress_internal.h b/lib/zstd/decompress/zstd_decompress_internal.h
-index 98102edb6a832..0f02526be7744 100644
+index 98102edb6a83..0f02526be774 100644
 --- a/lib/zstd/decompress/zstd_decompress_internal.h
 +++ b/lib/zstd/decompress/zstd_decompress_internal.h
 @@ -1,5 +1,6 @@
@@ -44822,7 +44930,7 @@ index 98102edb6a832..0f02526be7744 100644
      /* streaming */
      ZSTD_dStreamStage streamStage;
 diff --git a/lib/zstd/decompress_sources.h b/lib/zstd/decompress_sources.h
-index a06ca187aab5f..8a47eb2a45145 100644
+index a06ca187aab5..8a47eb2a4514 100644
 --- a/lib/zstd/decompress_sources.h
 +++ b/lib/zstd/decompress_sources.h
 @@ -1,6 +1,6 @@
@@ -44834,7 +44942,7 @@ index a06ca187aab5f..8a47eb2a45145 100644
   *
   * This source code is licensed under both the BSD-style license (found in the
 diff --git a/lib/zstd/zstd_common_module.c b/lib/zstd/zstd_common_module.c
-index 22686e367e6f0..466828e357525 100644
+index 22686e367e6f..466828e35752 100644
 --- a/lib/zstd/zstd_common_module.c
 +++ b/lib/zstd/zstd_common_module.c
 @@ -1,6 +1,6 @@
@@ -44856,7 +44964,7 @@ index 22686e367e6f0..466828e357525 100644
  MODULE_LICENSE("Dual BSD/GPL");
  MODULE_DESCRIPTION("Zstd Common");
 diff --git a/lib/zstd/zstd_compress_module.c b/lib/zstd/zstd_compress_module.c
-index 04e1b5c01d9b6..8ecf43226af2f 100644
+index 04e1b5c01d9b..8ecf43226af2 100644
 --- a/lib/zstd/zstd_compress_module.c
 +++ b/lib/zstd/zstd_compress_module.c
 @@ -1,6 +1,6 @@
@@ -44868,7 +44976,7 @@ index 04e1b5c01d9b6..8ecf43226af2f 100644
   *
   * This source code is licensed under both the BSD-style license (found in the
 diff --git a/lib/zstd/zstd_decompress_module.c b/lib/zstd/zstd_decompress_module.c
-index f4ed952ed4852..7d31518e9d5ab 100644
+index f4ed952ed485..7d31518e9d5a 100644
 --- a/lib/zstd/zstd_decompress_module.c
 +++ b/lib/zstd/zstd_decompress_module.c
 @@ -1,6 +1,6 @@
